@@ -409,10 +409,18 @@
 
 function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      // Формируем GraphQL-запрос для получения топ 100 аниме по рейтингу
+      // Формируем GraphQL-запрос с учетом параметров фильтрации
       var query = `
         query Animes {
-          animes(limit: 100, order: ${params.sort || 'ranked'}, page: ${params.page || 1}) {
+          animes(
+            limit: ${params.limit || 100},
+            order: ${params.sort || 'ranked'},
+            page: ${params.page || 1},
+            ${params.kind ? 'kind: "' + params.kind + '",' : ''}
+            ${params.status ? 'status: "' + params.status + '",' : ''}
+            ${params.genre ? 'genre: "' + params.genre + '",' : ''}
+            ${params.seasons ? 'season: "' + params.seasons + '",' : ''}
+          ) {
             id
             name
             russian
@@ -608,7 +616,7 @@ function main(params, oncomplite, onerror) {
     };
   }
 
-  function Component$1(object) {
+function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
     var scroll = new Lampa.Scroll({
@@ -618,7 +626,7 @@ function main(params, oncomplite, onerror) {
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Анонс</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Анонс</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -627,6 +635,9 @@ function main(params, oncomplite, onerror) {
       if (object.status === 'anons') {
         // Если это вкладка "Анонс", загружаем аниме со статусом "Anons"
         API.main({ status: 'anons', sort: 'aired_on', page: 1 }, this.build.bind(this), this.empty.bind(this));
+      } else if (object.search) {
+        // Если это результат поиска, загружаем данные с учетом фильтров
+        API.main(object, this.build.bind(this), this.empty.bind(this));
       } else {
         // Если это вкладка "Главная", загружаем топ 100 по рейтингу
         API.main({ sort: 'ranked', page: 1 }, this.build.bind(this), this.empty.bind(this));
@@ -660,6 +671,8 @@ function main(params, oncomplite, onerror) {
       this.activity.loader(false);
       this.activity.toggle();
     };
+
+    //Header actions
     this.headeraction = function () {
       var settings = {
         "url": "https://shikimori.one/api/genres",
@@ -682,6 +695,7 @@ function main(params, oncomplite, onerror) {
           items: modifiedResponse
         };
       });
+
       filters.AnimeKindEnum = {
         title: 'Тип',
         items: [{
@@ -713,6 +727,7 @@ function main(params, oncomplite, onerror) {
           code: "cm"
         }]
       };
+
       filters.status = {
         title: 'Статус',
         items: [{
@@ -726,6 +741,7 @@ function main(params, oncomplite, onerror) {
           code: "released"
         }]
       };
+
       filters.sort = {
         title: 'Сортировка',
         items: [{
@@ -754,63 +770,12 @@ function main(params, oncomplite, onerror) {
           code: "ranked_shiki"
         }]
       };
-      /** Season Range **/
-function getCurrentSeason(date) {
-  var month = date.getMonth();
-  var year = date.getFullYear();
-  var seasons = ['winter', 'spring', 'summer', 'fall'];
-  var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень']; // Названия сезонов на русском
-  var seasonIndex = Math.floor((month + 1) / 3) % 4; // Определение индекса сезона
-  return {
-    code: `${seasons[seasonIndex]}_${year}`,
-    title: `${seasonTitles[seasonIndex]} ${year}`
-  };
-}
 
-function generateDynamicSeasons() {
-  var now = new Date();
-  var seasons = [];
-
-  // Добавляем будущий, текущий и предыдущие сезоны
-  for (var i = 1; i >= -3; i--) {
-    var nextDate = new Date(now);
-    nextDate.setMonth(now.getMonth() + 3 * i); // Добавляем 3 месяца для следующего сезона
-    seasons.push(getCurrentSeason(nextDate));
-  }
-  return seasons;
-}
-
-function generateYearRanges() {
-  var currentYear = new Date().getFullYear();
-  var ranges = [];
-
-  // Генерируем текущий и предыдущие три года
-  for (var year = currentYear; year >= currentYear - 3; year--) {
-    ranges.push({
-      code: `${year}`,
-      title: `${year} год`
-    });
-  }
-
-  return ranges;
-}
-
-function generateSeasonJSON() {
-  var dynamicSeasons = generateDynamicSeasons();
-  var yearRanges = generateYearRanges();
-  var allSeasons = [...dynamicSeasons, ...yearRanges]; // Объединяем сезоны и годы
-  return allSeasons;
-}
-
-// Пример использования
-console.log(generateSeasonJSON());
-
-      // Пример использования
-      //console.log(generateSeasonJSON());
       filters.seasons = {
         title: 'Сезон',
         items: generateSeasonJSON()
       };
+
       var serverElement = head.find('.Shikimori__search');
       function queryForShikimori() {
         var query = {};
@@ -831,6 +796,7 @@ console.log(generateSeasonJSON());
         });
         return query;
       }
+
       function selected(where) {
         var title = [];
         where.items.forEach(function (a) {
@@ -838,12 +804,14 @@ console.log(generateSeasonJSON());
         });
         where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
       }
+
       function select(where, a) {
         where.forEach(function (element) {
           element.selected = false;
         });
         a.selected = true;
       }
+
       function submenu(item, main) {
         Lampa.Select.show({
           title: item.title,
@@ -855,6 +823,7 @@ console.log(generateSeasonJSON());
           }
         });
       }
+
       function mainMenu() {
         for (var i in filters) selected(filters[i]);
         Lampa.Select.show({
@@ -873,36 +842,31 @@ console.log(generateSeasonJSON());
           }
         });
       }
+
       function search() {
         var query = queryForShikimori();
         var params = {
           url: '',
           title: 'Shikimori',
           component: 'Shikimori',
-          page: 1
+          page: 1,
+          search: true // Добавляем флаг поиска
         };
 
         // Добавляем параметры только если они существуют
-        if (query.kind) {
-          params.kind = query.kind;
-        }
-        if (query.status) {
-          params.status = query.status;
-        }
-        if (query.genre) {
-          params.genre = query.genre;
-        }
-        if (query.sort) {
-          params.sort = query.sort;
-        }
-        if (query.seasons) {
-          params.seasons = query.seasons;
-        }
-        Lampa.Activity.push(params);
+        if (query.kind) params.kind = query.kind;
+        if (query.status) params.status = query.status;
+        if (query.genre) params.genre = query.genre;
+        if (query.sort) params.sort = query.sort;
+        if (query.seasons) params.seasons = query.seasons;
+
+        Lampa.Activity.push(params); // Передаем параметры в компонент
       }
+
       serverElement.on('hover:enter', function () {
         mainMenu();
       });
+
       var homeElement = head.find('.Shikimori__home');
       homeElement.on('hover:enter', function () {
         Lampa.Activity.push({
@@ -912,6 +876,7 @@ console.log(generateSeasonJSON());
           page: 1
         });
       });
+
       var anonsElement = head.find('.Shikimori__anons');
       anonsElement.on('hover:enter', function () {
         Lampa.Activity.push({
