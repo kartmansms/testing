@@ -965,7 +965,7 @@
       version: "0.1",
       name: "LKE Shikimori",
       description: "Добавляет каталог Shikimori",
-      component: "Shikimori"
+            component: "Shikimori"
     };
     Lampa.Manifest.plugins = manifest;
     //Set Style and Template
@@ -983,5 +983,4 @@
     }
   }
   if (!window.plugin_shikimori_ready) startPlugin();
-
 })();
