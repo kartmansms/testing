@@ -410,7 +410,7 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       // Начинаем формировать запрос с базовыми параметрами
-      var query = "\n            query Animes {\n                animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n        ");
+      var query = "\n            query Animes {\n                animes(limit: 100, order: ".concat(params.sort || 'ranked', ", page: ").concat(params.page, "\n        ");
 
       // Добавляем фильтры, если они присутствуют в params
       if (params.kind) {
@@ -445,6 +445,7 @@
       });
     });
   }
+
   function search(animeData) {
     //Cleaner
     function cleanName(name) {
@@ -586,15 +587,8 @@
       status: capitalizeFirstLetter(data.status),
       rate: data.score,
       title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      //seasonID: data.season,
-      //seasonID: data.season !== null ? data.season : data.airedOn.year, // Проверка на null
       season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
     });
-    /**
-    if (!formattedSeason) {
-        $(item).find('.Shikimori.card__season').addClass('no-season');
-    }
-    **/
     this.render = function () {
       return item;
     };
@@ -619,7 +613,11 @@
 
     //Start
     this.create = function () {
-      API.main(object, this.build.bind(this), this.empty.bind(this));
+      if (object.status === 'anons') {
+        API.main({ status: 'anons', sort: 'aired_on', page: 1 }, this.build.bind(this), this.empty.bind(this));
+      } else {
+        API.main({ sort: 'ranked', page: 1 }, this.build.bind(this), this.empty.bind(this));
+      }
     };
 
     //Build
