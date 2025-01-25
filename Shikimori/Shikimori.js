@@ -407,27 +407,32 @@
     throw new TypeError("Неверная попытка распространить неитерируемый экземпляр.\nДля того чтобы быть итерируемым, не-массивные объекты должны иметь метод [Symbol.iterator]().");
   }
 
-  function main(params, oncomplite, onerror) {
+function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      // Начинаем формировать запрос с базовыми параметрами
-      var query = "\n            query Animes {\n                animes(limit: 100, order: ".concat(params.sort || 'ranked', ", page: ").concat(params.page, "\n        ");
+      // Формируем GraphQL-запрос для получения топ 100 аниме по рейтингу
+      var query = `
+        query Animes {
+          animes(limit: 100, order: ${params.sort || 'ranked'}, page: ${params.page || 1}) {
+            id
+            name
+            russian
+            licenseNameRu
+            english
+            japanese
+            kind
+            score
+            status
+            season
+            airedOn { year }
+            poster {
+              originalUrl
+            }
+          }
+        }
+      `;
 
-      // Добавляем фильтры, если они присутствуют в params
-      if (params.kind) {
-        query += ", kind: \"".concat(params.kind, "\"");
-      }
-      if (params.status) {
-        query += ", status: \"".concat(params.status, "\"");
-      }
-      if (params.genre) {
-        query += ", genre: \"".concat(params.genre, "\"");
-      }
-      if (params.seasons) {
-        query += ", season: \"".concat(params.seasons, "\"");
-      }
+      console.log("Отправляем запрос к API Shikimori:", query); // Логирование запроса
 
-      // Закрываем параметры и продолжаем запрос
-      query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
       $.ajax({
         url: 'https://shikimori.one/api/graphql',
         method: 'POST',
@@ -436,15 +441,21 @@
           query: query
         }),
         success: function success(response) {
-          oncomplite(response.data.animes);
+          console.log("Ответ от API Shikimori:", response); // Логирование ответа
+          if (response.data && response.data.animes) {
+            oncomplite(response.data.animes); // Передаем данные в oncomplite
+          } else {
+            onerror("Данные не найдены");
+          }
         },
         error: function error(_error) {
-          console.error('Ошибка:', _error);
+          console.error('Ошибка при запросе к API Shikimori:', _error);
           onerror(_error); // Вызов onerror при ошибке запроса
         }
       });
     });
   }
+
 
   function search(animeData) {
     //Cleaner
@@ -614,8 +625,10 @@
     //Start
     this.create = function () {
       if (object.status === 'anons') {
+        // Если это вкладка "Анонс", загружаем аниме со статусом "Anons"
         API.main({ status: 'anons', sort: 'aired_on', page: 1 }, this.build.bind(this), this.empty.bind(this));
       } else {
+        // Если это вкладка "Главная", загружаем топ 100 по рейтингу
         API.main({ sort: 'ranked', page: 1 }, this.build.bind(this), this.empty.bind(this));
       }
     };
