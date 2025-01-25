@@ -410,26 +410,24 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       // Начинаем формировать запрос с базовыми параметрами
-      var query = `
-        query Animes {
-          animes(limit: 100, order: ranked, page: ${params.page || 1}) {
-            id
-            name
-            russian
-            licenseNameRu
-            english
-            japanese
-            kind
-            score
-            status
-            season
-            airedOn { year }
-            poster {
-              originalUrl
-            }
-          }
-        }
-      `;
+      var query = "\n            query Animes {\n                animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n        ");
+
+      // Добавляем фильтры, если они присутствуют в params
+      if (params.kind) {
+        query += ", kind: \"".concat(params.kind, "\"");
+      }
+      if (params.status) {
+        query += ", status: \"".concat(params.status, "\"");
+      }
+      if (params.genre) {
+        query += ", genre: \"".concat(params.genre, "\"");
+      }
+      if (params.seasons) {
+        query += ", season: \"".concat(params.seasons, "\"");
+      }
+
+      // Закрываем параметры и продолжаем запрос
+      query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
       $.ajax({
         url: 'https://shikimori.one/api/graphql',
         method: 'POST',
@@ -447,7 +445,6 @@
       });
     });
   }
-
   function search(animeData) {
     //Cleaner
     function cleanName(name) {
@@ -589,8 +586,15 @@
       status: capitalizeFirstLetter(data.status),
       rate: data.score,
       title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      //seasonID: data.season,
+      //seasonID: data.season !== null ? data.season : data.airedOn.year, // Проверка на null
       season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
     });
+    /**
+    if (!formattedSeason) {
+        $(item).find('.Shikimori.card__season').addClass('no-season');
+    }
+    **/
     this.render = function () {
       return item;
     };
