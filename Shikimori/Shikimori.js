@@ -598,6 +598,32 @@ function Card(data, userLang) {
         }
     }
 
+    // Функция для перевода типов аниме
+    function translateKind(kind) {
+        switch (kind.toLowerCase()) {
+            case 'tv':
+                return 'TV Сериал';
+            case 'movie':
+                return 'Фильм';
+            case 'ova':
+                return 'OVA';
+            case 'ona':
+                return 'ONA';
+            case 'special':
+                return 'Спешл';
+            case 'tv_special':
+                return 'TV Спешл';
+            case 'music':
+                return 'Музыка';
+            case 'pv':
+                return 'PV';
+            case 'cm':
+                return 'CM';
+            default:
+                return kind; // Если тип неизвестен, возвращаем оригинальное значение
+        }
+    }
+
     // Форматируем сезон с переводом
     var formattedSeason = data.season ? translateSeason(data.season) : '';
 
@@ -624,7 +650,7 @@ function Card(data, userLang) {
 
     var item = Lampa.Template.get("Shikimori-Card", {
         img: data.poster.originalUrl,
-        type: data.kind.toUpperCase(),
+        type: translateKind(data.kind), // Используем перевод типа аниме
         status: translateStatus(data.status), // Используем перевод статуса
         rate: data.score,
         title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
