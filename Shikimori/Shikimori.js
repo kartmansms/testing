@@ -39,7 +39,8 @@
 	  "Magic": "Магия",
 	  "Parody": "Пародия",
 	  "School": "Школа",
-	  "Samurai": "Самураи"
+	  "Samurai": "Самураи",
+	  "Vampire": "Вампиры"
     };
 
     return genreTranslations[genre] || genre; // Если перевод не найден, возвращаем оригинальное название
