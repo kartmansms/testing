@@ -30,15 +30,15 @@
       "Slice of Life": "Повседневность",
       "Sports": "Спорт",
       "Supernatural": "Сверхъестественное",
-      "Game": "Игра"
-	  "Demons": "Демоны"
-	  "Police": "Полиция"
-	  "Ecchi": "Эччи"
-	  "Hentai": "Хентай"
-	  "Historical": "Историческое"
-	  "Magic": "Магия"
-	  "Parody": "Пародия"
-	  "School": "Школа"
+      "Game": "Игра",
+	  "Demons": "Демоны",
+	  "Police": "Полиция",
+	  "Ecchi": "Эччи",
+	  "Hentai": "Хентай",
+	  "Historical": "Историческое",
+	  "Magic": "Магия",
+	  "Parody": "Пародия",
+	  "School": "Школа",
 	  "Samurai": "Самураи"
     };
 
