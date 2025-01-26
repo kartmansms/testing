@@ -574,7 +574,7 @@
 function Card(data, userLang) {
     // Функция для перевода сезонов
     function translateSeason(season) {
-        if (!season) return ''; // Если сезон не указан, возвращаем пустую строку
+        if (!season) return '?'; // Если сезон не указан, возвращаем пустую строку
 
         // Разделяем сезон и год (например, "spring_2009" → ["spring", "2009"])
         var parts = season.split('_');
