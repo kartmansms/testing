@@ -410,7 +410,7 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       // Начинаем формировать запрос с базовыми параметрами
-      var query = "\n            query Animes {\n                animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n        ");
+      var query = "\n            query Animes {\n                animes(limit: ".concat(params.limit || 36, ", order: ").concat(params.sort || 'ranked', ", page: ").concat(params.page, "\n        ");
 
       // Добавляем фильтры, если они присутствуют в params
       if (params.kind) {
@@ -586,15 +586,8 @@
       status: capitalizeFirstLetter(data.status),
       rate: data.score,
       title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      //seasonID: data.season,
-      //seasonID: data.season !== null ? data.season : data.airedOn.year, // Проверка на null
       season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
     });
-    /**
-    if (!formattedSeason) {
-        $(item).find('.Shikimori.card__season').addClass('no-season');
-    }
-    **/
     this.render = function () {
       return item;
     };
@@ -908,7 +901,8 @@ console.log(generateSeasonJSON());
           title: 'Shikimori',
           component: 'Shikimori',
           page: 1,
-          status: 'anons'
+          limit: 100, // Устанавливаем лимит на 100 аниме
+          sort: 'ranked' // Сортировка по рейтингу
         });
       });
     };
