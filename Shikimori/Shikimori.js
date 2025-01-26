@@ -572,9 +572,34 @@
     search: search
   };
 function Card(data, userLang) {
-    var formattedSeason = data.season ? data.season.replace(/_/g, ' ').replace(/^\w/, function (c) {
-        return c.toUpperCase();
-    }) : '';
+    // Функция для перевода сезонов
+    function translateSeason(season) {
+        if (!season) return ''; // Если сезон не указан, возвращаем пустую строку
+
+        // Разделяем сезон и год (например, "spring_2009" → ["spring", "2009"])
+        var parts = season.split('_');
+        if (parts.length < 2) return season; // Если формат неверный, возвращаем оригинальное значение
+
+        var seasonName = parts[0].toLowerCase(); // Название сезона (например, "spring")
+        var year = parts[1]; // Год (например, "2009")
+
+        // Переводим сезон
+        switch (seasonName) {
+            case 'winter':
+                return 'Зима ' + year;
+            case 'spring':
+                return 'Весна ' + year;
+            case 'summer':
+                return 'Лето ' + year;
+            case 'fall':
+                return 'Осень ' + year;
+            default:
+                return season; // Если сезон неизвестен, возвращаем оригинальное значение
+        }
+    }
+
+    // Форматируем сезон с переводом
+    var formattedSeason = data.season ? translateSeason(data.season) : '';
 
     function capitalizeFirstLetter(string) {
         if (!string) return string; // Проверка на пустую строку или null/undefined
@@ -589,7 +614,7 @@ function Card(data, userLang) {
             case 'ongoing':
                 return 'Онгоинг';
             case 'anons':
-                return 'Анонсировано';
+                return 'Анонс';
             case 'latest':
                 return 'Последнее';
             default:
@@ -603,7 +628,7 @@ function Card(data, userLang) {
         status: translateStatus(data.status), // Используем перевод статуса
         rate: data.score,
         title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-        season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
+        season: formattedSeason // Используем переведенный сезон
     });
 
     this.render = function () {
