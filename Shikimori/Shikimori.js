@@ -613,7 +613,7 @@
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Анонс</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -705,7 +705,7 @@
       filters.status = {
         title: 'Статус',
         items: [{
-          title: "Анонс",
+          title: "Топ 100",
           code: "anons"
         }, {
           title: "Онгоиг",
