@@ -522,7 +522,7 @@
       if (response.total_results !== undefined) {
         // Обработка результата от поиска (search/multi)
         if (response.total_results === 0) {
-          Lampa.Noty.show('Бядосе, обыскали все углы и ничего не нашли');
+          Lampa.Noty.show('Ничего не найдено');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -586,13 +586,13 @@ function Card(data, userLang) {
         // Переводим сезон
         switch (seasonName) {
             case 'winter':
-                return 'зима ' + year;
+                return 'Зима ' + year;
             case 'spring':
-                return 'весна ' + year;
+                return 'Весна ' + year;
             case 'summer':
-                return 'лето ' + year;
+                return 'Лето ' + year;
             case 'fall':
-                return 'осень ' + year;
+                return 'Осень ' + year;
             default:
                 return season; // Если сезон неизвестен, возвращаем оригинальное значение
         }
