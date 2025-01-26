@@ -26,11 +26,20 @@
       "Mystery": "Мистика",
       "Psychological": "Психологическое",
       "Romance": "Романтика",
-      "Sci-Fi": "Научная фантастика",
+      "Sci-Fi": "НФ",
       "Slice of Life": "Повседневность",
       "Sports": "Спорт",
       "Supernatural": "Сверхъестественное",
-      "Thriller": "Триллер"
+      "Game": "Игра"
+	  "Demons": "Демоны"
+	  "Police": "Полиция"
+	  "Ecchi": "Эччи"
+	  "Hentai": "Хентай"
+	  "Historical": "Историческое"
+	  "Magic": "Магия"
+	  "Parody": "Пародия"
+	  "School": "Школа"
+	  "Samurai": "Самураи"
     };
 
     return genreTranslations[genre] || genre; // Если перевод не найден, возвращаем оригинальное название
