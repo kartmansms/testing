@@ -848,7 +848,7 @@ function Card(data, userLang) {
         filters.status = {
             title: 'Статус',
             items: [{
-                title: "Топ 100",
+                title: "Анонс",
                 code: "anons"
             }, {
                 title: "Онгоиг",
