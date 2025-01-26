@@ -668,9 +668,9 @@ function Card(data, userLang) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
     var scroll = new Lampa.Scroll({
-      mask: true,
-      over: true,
-      step: 250
+        mask: true,
+        over: true,
+        step: 250
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
@@ -678,369 +678,452 @@ function Card(data, userLang) {
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
+    // Функция для перевода жанров
+    function translateGenre(genre) {
+        switch (genre.toLowerCase()) {
+            case 'action':
+                return 'Экшен';
+            case 'adventure':
+                return 'Приключения';
+            case 'comedy':
+                return 'Комедия';
+            case 'drama':
+                return 'Драма';
+            case 'fantasy':
+                return 'Фэнтези';
+            case 'horror':
+                return 'Ужасы';
+            case 'romance':
+                return 'Романтика';
+            case 'sci-fi':
+                return 'Научная фантастика';
+            case 'slice of life':
+                return 'Повседневность';
+            case 'sports':
+                return 'Спорт';
+            case 'supernatural':
+                return 'Сверхъестественное';
+            case 'mystery':
+                return 'Мистика';
+            case 'psychological':
+                return 'Психологическое';
+            case 'thriller':
+                return 'Триллер';
+            case 'mecha':
+                return 'Меха';
+            case 'historical':
+                return 'Историческое';
+            case 'music':
+                return 'Музыка';
+            case 'school':
+                return 'Школа';
+            case 'shounen':
+                return 'Сёнен';
+            case 'shoujo':
+                return 'Сёдзё';
+            case 'seinen':
+                return 'Сэйнэн';
+            case 'josei':
+                return 'Дзёсэй';
+            case 'ecchi':
+                return 'Этти';
+            case 'harem':
+                return 'Гарем';
+            case 'isekai':
+                return 'Исэкай';
+            case 'magic':
+                return 'Магия';
+            case 'military':
+                return 'Военное';
+            case 'demons':
+                return 'Демоны';
+            case 'vampire':
+                return 'Вампиры';
+            case 'game':
+                return 'Игры';
+            case 'cars':
+                return 'Машины';
+            case 'space':
+                return 'Космос';
+            case 'martial arts':
+                return 'Боевые искусства';
+            case 'super power':
+                return 'Суперсила';
+            case 'samurai':
+                return 'Самураи';
+            case 'kids':
+                return 'Детское';
+            case 'hentai':
+                return 'Хентай';
+            default:
+                return genre; // Если жанр неизвестен, возвращаем оригинальное значение
+        }
+    }
+
     //Start
     this.create = function () {
-      API.main(object, this.build.bind(this), this.empty.bind(this));
+        API.main(object, this.build.bind(this), this.empty.bind(this));
     };
 
     //Build
     this.build = function (result) {
-      var _this = this;
-      //Scroll
-      scroll.minus();
-      scroll.onWheel = function (step) {
-        if (!Lampa.Controller.own(_this)) _this.start();
-        if (step > 0) Navigator.move('down');else Navigator.move('up');
-      };
-      scroll.onEnd = function () {
-        // Используем стрелочную функцию здесь
-        object.page++;
-        API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
-      };
-      this.headeraction();
-      //Put Data
-      this.body(result);
+        var _this = this;
+        //Scroll
+        scroll.minus();
+        scroll.onWheel = function (step) {
+            if (!Lampa.Controller.own(_this)) _this.start();
+            if (step > 0) Navigator.move('down');else Navigator.move('up');
+        };
+        scroll.onEnd = function () {
+            // Используем стрелочную функцию здесь
+            object.page++;
+            API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
+        };
+        this.headeraction();
+        //Put Data
+        this.body(result);
 
-      //Put blank
-      scroll.append(head);
-      scroll.append(body);
+        //Put blank
+        scroll.append(head);
+        scroll.append(body);
 
-      //Put all in page
-      html.append(scroll.render(true));
-      this.activity.loader(false);
-      this.activity.toggle();
+        //Put all in page
+        html.append(scroll.render(true));
+        this.activity.loader(false);
+        this.activity.toggle();
     };
     this.headeraction = function () {
-      var settings = {
-        "url": "https://shikimori.one/api/genres",
-        "method": "GET",
-        "timeout": 0
-      };
-      var filters = {};
-      $.ajax(settings).done(function (response) {
-        var filteredResponse = response.filter(function (item) {
-          return item.entry_type === "Anime";
-        });
-        var modifiedResponse = filteredResponse.map(function (item) {
-          return _objectSpread2(_objectSpread2({}, item), {}, {
-            title: item.name,
-            name: undefined // Удаляем старый ключ name
-          });
-        });
-        filters.kind = {
-          title: 'Жанр',
-          items: modifiedResponse
+        var settings = {
+            "url": "https://shikimori.one/api/genres",
+            "method": "GET",
+            "timeout": 0
         };
-      });
-      filters.AnimeKindEnum = {
-        title: 'Тип',
-        items: [{
-          title: "TV Сериал",
-          code: "tv"
-        }, {
-          title: "Фильм",
-          code: "movie"
-        }, {
-          title: "OVA",
-          code: "ova"
-        }, {
-          title: "ONA",
-          code: "ona"
-        }, {
-          title: "Спешл",
-          code: "special"
-        }, {
-          title: "TV Спешл",
-          code: "tv_special"
-        }, {
-          title: "Музыка",
-          code: "music"
-        }, {
-          title: "PV",
-          code: "pv"
-        }, {
-          title: "CM",
-          code: "cm"
-        }]
-      };
-      filters.status = {
-        title: 'Статус',
-        items: [{
-          title: "Топ 100",
-          code: "anons"
-        }, {
-          title: "Онгоиг",
-          code: "ongoing"
-        }, {
-          title: "Вышло",
-          code: "released"
-        }]
-      };
-      filters.sort = {
-        title: 'Сортировка',
-        items: [{
-          title: "По рейтингу",
-          code: "ranked"
-        }, {
-          title: "По популярности",
-          code: "popularity"
-        }, {
-          title: "По алфавиту",
-          code: "name"
-        }, {
-          title: "По дате выхода",
-          code: "aired_on"
-        }, {
-          title: "По типу",
-          code: "kind"
-        }, {
-          title: "По количеству эпизодов",
-          code: "episodes"
-        }, {
-          title: "По статусу",
-          code: "status"
-        }, {
-          title: "По рейтингу Shikimori",
-          code: "ranked_shiki"
-        }]
-      };
-      /** Season Range **/
-function getCurrentSeason(date) {
-  var month = date.getMonth();
-  var year = date.getFullYear();
-  var seasons = ['winter', 'spring', 'summer', 'fall'];
-  var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень']; // Названия сезонов на русском
-  var seasonIndex = Math.floor((month + 1) / 3) % 4; // Определение индекса сезона
-  return {
-    code: `${seasons[seasonIndex]}_${year}`,
-    title: `${seasonTitles[seasonIndex]} ${year}`
-  };
-}
-
-function generateDynamicSeasons() {
-  var now = new Date();
-  var seasons = [];
-
-  // Добавляем будущий, текущий и предыдущие сезоны
-  for (var i = 1; i >= -3; i--) {
-    var nextDate = new Date(now);
-    nextDate.setMonth(now.getMonth() + 3 * i); // Добавляем 3 месяца для следующего сезона
-    seasons.push(getCurrentSeason(nextDate));
-  }
-  return seasons;
-}
-
-function generateYearRanges() {
-  var currentYear = new Date().getFullYear();
-  var ranges = [];
-
-  // Генерируем текущий и предыдущие три года
-  for (var year = currentYear; year >= currentYear - 3; year--) {
-    ranges.push({
-      code: `${year}`,
-      title: `${year} год`
-    });
-  }
-
-  return ranges;
-}
-
-function generateSeasonJSON() {
-  var dynamicSeasons = generateDynamicSeasons();
-  var yearRanges = generateYearRanges();
-  var allSeasons = [...dynamicSeasons, ...yearRanges]; // Объединяем сезоны и годы
-  return allSeasons;
-}
-
-// Пример использования
-console.log(generateSeasonJSON());
-
-      // Пример использования
-      //console.log(generateSeasonJSON());
-      filters.seasons = {
-        title: 'Сезон',
-        items: generateSeasonJSON()
-      };
-      var serverElement = head.find('.Shikimori__search');
-      function queryForShikimori() {
-        var query = {};
-        filters.AnimeKindEnum.items.forEach(function (a) {
-          if (a.selected) query.kind = a.code;
+        var filters = {};
+        $.ajax(settings).done(function (response) {
+            var filteredResponse = response.filter(function (item) {
+                return item.entry_type === "Anime";
+            });
+            var modifiedResponse = filteredResponse.map(function (item) {
+                return _objectSpread2(_objectSpread2({}, item), {}, {
+                    title: translateGenre(item.name), // Используем перевод жанра
+                    name: undefined // Удаляем старый ключ name
+                });
+            });
+            filters.kind = {
+                title: 'Жанр',
+                items: modifiedResponse
+            };
         });
-        filters.status.items.forEach(function (a) {
-          if (a.selected) query.status = a.code;
-        });
-        filters.kind.items.forEach(function (a) {
-          if (a.selected) query.genre = a.id;
-        });
-        filters.sort.items.forEach(function (a) {
-          if (a.selected) query.sort = a.code;
-        });
-        filters.seasons.items.forEach(function (a) {
-          if (a.selected) query.seasons = a.code;
-        });
-        return query;
-      }
-      function selected(where) {
-        var title = [];
-        where.items.forEach(function (a) {
-          if (a.selected || a.checked) title.push(a.title);
-        });
-        where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
-      }
-      function select(where, a) {
-        where.forEach(function (element) {
-          element.selected = false;
-        });
-        a.selected = true;
-      }
-      function submenu(item, main) {
-        Lampa.Select.show({
-          title: item.title,
-          items: item.items,
-          onBack: main,
-          onSelect: function onSelect(a) {
-            select(item.items, a);
-            main();
-          }
-        });
-      }
-      function mainMenu() {
-        for (var i in filters) selected(filters[i]);
-        Lampa.Select.show({
-          title: 'Фильтры',
-          items: [{
-            title: Lampa.Lang.translate('search_start'),
-            searchShikimori: true
-          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
-          onBack: function onBack() {
-            Lampa.Controller.toggle("content");
-          },
-          onSelect: function onSelect(a) {
-            if (a.searchShikimori) {
-              search();
-            } else submenu(a, mainMenu);
-          }
-        });
-      }
-      function search() {
-        var query = queryForShikimori();
-        var params = {
-          url: '',
-          title: 'Shikimori',
-          component: 'Shikimori',
-          page: 1
+        filters.AnimeKindEnum = {
+            title: 'Тип',
+            items: [{
+                title: "TV Сериал",
+                code: "tv"
+            }, {
+                title: "Фильм",
+                code: "movie"
+            }, {
+                title: "OVA",
+                code: "ova"
+            }, {
+                title: "ONA",
+                code: "ona"
+            }, {
+                title: "Спешл",
+                code: "special"
+            }, {
+                title: "TV Спешл",
+                code: "tv_special"
+            }, {
+                title: "Музыка",
+                code: "music"
+            }, {
+                title: "PV",
+                code: "pv"
+            }, {
+                title: "CM",
+                code: "cm"
+            }]
         };
+        filters.status = {
+            title: 'Статус',
+            items: [{
+                title: "Топ 100",
+                code: "anons"
+            }, {
+                title: "Онгоиг",
+                code: "ongoing"
+            }, {
+                title: "Вышло",
+                code: "released"
+            }]
+        };
+        filters.sort = {
+            title: 'Сортировка',
+            items: [{
+                title: "По рейтингу",
+                code: "ranked"
+            }, {
+                title: "По популярности",
+                code: "popularity"
+            }, {
+                title: "По алфавиту",
+                code: "name"
+            }, {
+                title: "По дате выхода",
+                code: "aired_on"
+            }, {
+                title: "По типу",
+                code: "kind"
+            }, {
+                title: "По количеству эпизодов",
+                code: "episodes"
+            }, {
+                title: "По статусу",
+                code: "status"
+            }, {
+                title: "По рейтингу Shikimori",
+                code: "ranked_shiki"
+            }]
+        };
+        /** Season Range **/
+        function getCurrentSeason(date) {
+            var month = date.getMonth();
+            var year = date.getFullYear();
+            var seasons = ['winter', 'spring', 'summer', 'fall'];
+            var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень']; // Названия сезонов на русском
+            var seasonIndex = Math.floor((month + 1) / 3) % 4; // Определение индекса сезона
+            return {
+                code: `${seasons[seasonIndex]}_${year}`,
+                title: `${seasonTitles[seasonIndex]} ${year}`
+            };
+        }
 
-        // Добавляем параметры только если они существуют
-        if (query.kind) {
-          params.kind = query.kind;
+        function generateDynamicSeasons() {
+            var now = new Date();
+            var seasons = [];
+
+            // Добавляем будущий, текущий и предыдущие сезоны
+            for (var i = 1; i >= -3; i--) {
+                var nextDate = new Date(now);
+                nextDate.setMonth(now.getMonth() + 3 * i); // Добавляем 3 месяца для следующего сезона
+                seasons.push(getCurrentSeason(nextDate));
+            }
+            return seasons;
         }
-        if (query.status) {
-          params.status = query.status;
+
+        function generateYearRanges() {
+            var currentYear = new Date().getFullYear();
+            var ranges = [];
+
+            // Генерируем текущий и предыдущие три года
+            for (var year = currentYear; year >= currentYear - 3; year--) {
+                ranges.push({
+                    code: `${year}`,
+                    title: `${year} год`
+                });
+            }
+
+            return ranges;
         }
-        if (query.genre) {
-          params.genre = query.genre;
+
+        function generateSeasonJSON() {
+            var dynamicSeasons = generateDynamicSeasons();
+            var yearRanges = generateYearRanges();
+            var allSeasons = [...dynamicSeasons, ...yearRanges]; // Объединяем сезоны и годы
+            return allSeasons;
         }
-        if (query.sort) {
-          params.sort = query.sort;
+
+        // Пример использования
+        console.log(generateSeasonJSON());
+
+        // Пример использования
+        //console.log(generateSeasonJSON());
+        filters.seasons = {
+            title: 'Сезон',
+            items: generateSeasonJSON()
+        };
+        var serverElement = head.find('.Shikimori__search');
+        function queryForShikimori() {
+            var query = {};
+            filters.AnimeKindEnum.items.forEach(function (a) {
+                if (a.selected) query.kind = a.code;
+            });
+            filters.status.items.forEach(function (a) {
+                if (a.selected) query.status = a.code;
+            });
+            filters.kind.items.forEach(function (a) {
+                if (a.selected) query.genre = a.id;
+            });
+            filters.sort.items.forEach(function (a) {
+                if (a.selected) query.sort = a.code;
+            });
+            filters.seasons.items.forEach(function (a) {
+                if (a.selected) query.seasons = a.code;
+            });
+            return query;
         }
-        if (query.seasons) {
-          params.seasons = query.seasons;
+        function selected(where) {
+            var title = [];
+            where.items.forEach(function (a) {
+                if (a.selected || a.checked) title.push(a.title);
+            });
+            where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
         }
-        Lampa.Activity.push(params);
-      }
-      serverElement.on('hover:enter', function () {
-        mainMenu();
-      });
-      var homeElement = head.find('.Shikimori__home');
-      homeElement.on('hover:enter', function () {
-        Lampa.Activity.push({
-          url: '',
-          title: 'Shikimori',
-          component: 'Shikimori',
-          page: 1
+        function select(where, a) {
+            where.forEach(function (element) {
+                element.selected = false;
+            });
+            a.selected = true;
+        }
+        function submenu(item, main) {
+            Lampa.Select.show({
+                title: item.title,
+                items: item.items,
+                onBack: main,
+                onSelect: function onSelect(a) {
+                    select(item.items, a);
+                    main();
+                }
+            });
+        }
+        function mainMenu() {
+            for (var i in filters) selected(filters[i]);
+            Lampa.Select.show({
+                title: 'Фильтры',
+                items: [{
+                    title: Lampa.Lang.translate('search_start'),
+                    searchShikimori: true
+                }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
+                onBack: function onBack() {
+                    Lampa.Controller.toggle("content");
+                },
+                onSelect: function onSelect(a) {
+                    if (a.searchShikimori) {
+                        search();
+                    } else submenu(a, mainMenu);
+                }
+            });
+        }
+        function search() {
+            var query = queryForShikimori();
+            var params = {
+                url: '',
+                title: 'Shikimori',
+                component: 'Shikimori',
+                page: 1
+            };
+
+            // Добавляем параметры только если они существуют
+            if (query.kind) {
+                params.kind = query.kind;
+            }
+            if (query.status) {
+                params.status = query.status;
+            }
+            if (query.genre) {
+                params.genre = query.genre;
+            }
+            if (query.sort) {
+                params.sort = query.sort;
+            }
+            if (query.seasons) {
+                params.seasons = query.seasons;
+            }
+            Lampa.Activity.push(params);
+        }
+        serverElement.on('hover:enter', function () {
+            mainMenu();
         });
-      });
-      var anonsElement = head.find('.Shikimori__anons');
-      anonsElement.on('hover:enter', function () {
-        Lampa.Activity.push({
-          url: '',
-          title: 'Shikimori',
-          component: 'Shikimori',
-          page: 1,
-          limit: 100, // Устанавливаем лимит на 100 аниме
-          sort: 'ranked' // Сортировка по рейтингу
+        var homeElement = head.find('.Shikimori__home');
+        homeElement.on('hover:enter', function () {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Shikimori',
+                component: 'Shikimori',
+                page: 1
+            });
         });
-      });
+        var anonsElement = head.find('.Shikimori__anons');
+        anonsElement.on('hover:enter', function () {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Shikimori',
+                component: 'Shikimori',
+                page: 1,
+                limit: 100, // Устанавливаем лимит на 100 аниме
+                sort: 'ranked' // Сортировка по рейтингу
+            });
+        });
     };
     this.empty = function () {
-      var empty = new Lampa.Empty();
-      html.appendChild(empty.render(true));
-      this.start = empty.start;
-      this.activity.loader(false);
-      this.activity.toggle();
+        var empty = new Lampa.Empty();
+        html.appendChild(empty.render(true));
+        this.start = empty.start;
+        this.activity.loader(false);
+        this.activity.toggle();
     };
 
     //Catalog build
     this.body = function (data) {
-      data.forEach(function (anime) {
-        var item = new Card(anime, userLang);
-        item.render(true).on("hover:focus", function () {
-          last = item.render()[0];
-          active = items.indexOf(item);
-          scroll.update(items[active].render(true), true);
-        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-          return _regeneratorRuntime().wrap(function _callee$(_context) {
-            while (1) switch (_context.prev = _context.next) {
-              case 0:
-                API.search(anime);
-              case 1:
-              case "end":
-                return _context.stop();
-            }
-          }, _callee);
-        })));
-        body.append(item.render(true));
-        items.push(item);
-      });
+        data.forEach(function (anime) {
+            var item = new Card(anime, userLang);
+            item.render(true).on("hover:focus", function () {
+                last = item.render()[0];
+                active = items.indexOf(item);
+                scroll.update(items[active].render(true), true);
+            }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+                return _regeneratorRuntime().wrap(function _callee$(_context) {
+                    while (1) switch (_context.prev = _context.next) {
+                        case 0:
+                            API.search(anime);
+                        case 1:
+                        case "end":
+                            return _context.stop();
+                    }
+                }, _callee);
+            })));
+            body.append(item.render(true));
+            items.push(item);
+        });
     };
     this.start = function () {
-      if (Lampa.Activity.active().activity !== this.activity) return;
-      Lampa.Controller.add("content", {
-        toggle: function toggle() {
-          Lampa.Controller.collectionSet(scroll.render());
-          Lampa.Controller.collectionFocus(last || false, scroll.render());
-        },
-        left: function left() {
-          if (Navigator.canmove("left")) Navigator.move("left");else Lampa.Controller.toggle("menu");
-        },
-        right: function right() {
-          Navigator.move("right");
-        },
-        up: function up() {
-          if (Navigator.canmove("up")) Navigator.move("up");else Lampa.Controller.toggle("head");
-        },
-        down: function down() {
-          if (Navigator.canmove("down")) Navigator.move("down");
-        },
-        back: this.back
-      });
-      Lampa.Controller.toggle("content");
+        if (Lampa.Activity.active().activity !== this.activity) return;
+        Lampa.Controller.add("content", {
+            toggle: function toggle() {
+                Lampa.Controller.collectionSet(scroll.render());
+                Lampa.Controller.collectionFocus(last || false, scroll.render());
+            },
+            left: function left() {
+                if (Navigator.canmove("left")) Navigator.move("left");else Lampa.Controller.toggle("menu");
+            },
+            right: function right() {
+                Navigator.move("right");
+            },
+            up: function up() {
+                if (Navigator.canmove("up")) Navigator.move("up");else Lampa.Controller.toggle("head");
+            },
+            down: function down() {
+                if (Navigator.canmove("down")) Navigator.move("down");
+            },
+            back: this.back
+        });
+        Lampa.Controller.toggle("content");
     };
     this.pause = function () {};
     this.stop = function () {};
     this.render = function (js) {
-      return js ? html : $(html);
+        return js ? html : $(html);
     };
     this.destroy = function () {
-      network.clear();
-      Lampa.Arrays.destroy(items);
-      scroll.destroy();
-      html.remove();
-      items = null;
-      network = null;
+        network.clear();
+        Lampa.Arrays.destroy(items);
+        scroll.destroy();
+        html.remove();
+        items = null;
+        network = null;
     };
+}
   }
 
   function Component() {
