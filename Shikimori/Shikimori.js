@@ -11,6 +11,41 @@
     }
     return t;
   }
+  // Функция для перевода жанров на русский язык
+  function translateGenre(genre) {
+    const genreTranslations = {
+      "Action": "Экшен",
+      "Adventure": "Приключения",
+      "Comedy": "Комедия",
+      "Drama": "Драма",
+      "Fantasy": "Фэнтези",
+      "Horror": "Ужасы",
+      "Mahou Shoujo": "Махо-сёдзё",
+      "Mecha": "Меха",
+      "Music": "Музыка",
+      "Mystery": "Мистика",
+      "Psychological": "Психологическое",
+      "Romance": "Романтика",
+      "Sci-Fi": "Научная фантастика",
+      "Slice of Life": "Повседневность",
+      "Sports": "Спорт",
+      "Supernatural": "Сверхъестественное",
+      "Thriller": "Триллер"
+    };
+
+    return genreTranslations[genre] || genre; // Если перевод не найден, возвращаем оригинальное название
+  }
+
+  function ownKeys(e, r) {
+    var t = Object.keys(e);
+    if (Object.getOwnPropertySymbols) {
+      var o = Object.getOwnPropertySymbols(e);
+      r && (o = o.filter(function (r) {
+        return Object.getOwnPropertyDescriptor(e, r).enumerable;
+      })), t.push.apply(t, o);
+    }
+    return t;
+  }
   function _objectSpread2(e) {
     for (var r = 1; r < arguments.length; r++) {
       var t = null != arguments[r] ? arguments[r] : {};
@@ -22,6 +57,7 @@
     }
     return e;
   }
+
   function _regeneratorRuntime() {
     _regeneratorRuntime = function () {
       return e;
@@ -678,38 +714,30 @@ function Card(data, userLang) {
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
-    //Start
     this.create = function () {
       API.main(object, this.build.bind(this), this.empty.bind(this));
     };
 
-    //Build
     this.build = function (result) {
       var _this = this;
-      //Scroll
       scroll.minus();
       scroll.onWheel = function (step) {
         if (!Lampa.Controller.own(_this)) _this.start();
-        if (step > 0) Navigator.move('down');else Navigator.move('up');
+        if (step > 0) Navigator.move('down'); else Navigator.move('up');
       };
       scroll.onEnd = function () {
-        // Используем стрелочную функцию здесь
         object.page++;
         API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
       };
       this.headeraction();
-      //Put Data
       this.body(result);
-
-      //Put blank
       scroll.append(head);
       scroll.append(body);
-
-      //Put all in page
       html.append(scroll.render(true));
       this.activity.loader(false);
       this.activity.toggle();
     };
+
     this.headeraction = function () {
       var settings = {
         "url": "https://shikimori.one/api/genres",
@@ -723,8 +751,8 @@ function Card(data, userLang) {
         });
         var modifiedResponse = filteredResponse.map(function (item) {
           return _objectSpread2(_objectSpread2({}, item), {}, {
-            title: item.name,
-            name: undefined // Удаляем старый ключ name
+            title: translateGenre(item.name), // Переводим название жанра
+            name: undefined
           });
         });
         filters.kind = {
@@ -732,6 +760,7 @@ function Card(data, userLang) {
           items: modifiedResponse
         };
       });
+
       filters.AnimeKindEnum = {
         title: 'Тип',
         items: [{
@@ -1113,7 +1142,7 @@ console.log(generateSeasonJSON());
     });
     $(".menu .menu__list").eq(0).append(button);
   }
-  function startPlugin() {
+ function startPlugin() {
     window.plugin_shikimori_ready = true;
     var manifest = {
       type: "other",
@@ -1123,20 +1152,17 @@ console.log(generateSeasonJSON());
       component: "Shikimori"
     };
     Lampa.Manifest.plugins = manifest;
-    //Set Style and Template
     Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n        </style>");
     Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
     Lampa.Component.add(manifest.component, Component$1);
-    //Set Franchise for FullCard
     Component();
-    //Set menu
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
-    if (window.appready) add();else {
+    if (window.appready) add(); else {
       Lampa.Listener.follow("app", function (e) {
         if (e.type === "ready") add();
       });
     }
   }
-  if (!window.plugin_shikimori_ready) startPlugin();
 
+  if (!window.plugin_shikimori_ready) startPlugin();
 })();
