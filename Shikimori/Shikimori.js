@@ -571,31 +571,48 @@
     main: main,
     search: search
   };
-
-  function Card(data, userLang) {
+function Card(data, userLang) {
     var formattedSeason = data.season ? data.season.replace(/_/g, ' ').replace(/^\w/, function (c) {
-      return c.toUpperCase();
+        return c.toUpperCase();
     }) : '';
+
     function capitalizeFirstLetter(string) {
-      if (!string) return string; // Проверка на пустую строку или null/undefined
-      return string.charAt(0).toUpperCase() + string.slice(1);
+        if (!string) return string; // Проверка на пустую строку или null/undefined
+        return string.charAt(0).toUpperCase() + string.slice(1);
     }
+
+    // Функция для перевода статусов
+    function translateStatus(status) {
+        switch (status.toLowerCase()) {
+            case 'released':
+                return 'Вышло';
+            case 'ongoing':
+                return 'Онгоинг';
+            case 'anons':
+                return 'Анонсировано';
+            case 'latest':
+                return 'Последнее';
+            default:
+                return capitalizeFirstLetter(status); // Если статус неизвестен, возвращаем его без изменений
+        }
+    }
+
     var item = Lampa.Template.get("Shikimori-Card", {
-      img: data.poster.originalUrl,
-      type: data.kind.toUpperCase(),
-      status: capitalizeFirstLetter(data.status),
-      rate: data.score,
-      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
+        img: data.poster.originalUrl,
+        type: data.kind.toUpperCase(),
+        status: translateStatus(data.status), // Используем перевод статуса
+        rate: data.score,
+        title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+        season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
     });
+
     this.render = function () {
-      return item;
+        return item;
     };
     this.destroy = function () {
-      item.remove();
+        item.remove();
     };
-  }
-
+}
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
