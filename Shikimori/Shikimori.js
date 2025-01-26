@@ -40,6 +40,17 @@
 	  "Parody": "Пародия",
 	  "School": "Школа",
 	  "Samurai": "Самураи",
+	  "Shounen": "Шоунен",
+	  "Yaoi": "Яой",
+	  "Yuri": "Юри",
+	  "Harem": "Гарем",
+	  "Shoujo Ai": "Седзе Ай",
+	  "Josei": "Джозей",
+	  "Super Power": "Супер Сила",
+	  "Thriller": "Триллер",
+	  "Shoujo": "Седзе",
+	  "Military": "Военное",
+	  "Erotica": "Эротика",
 	  "Vampire": "Вампиры"
     };
 
