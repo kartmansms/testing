@@ -574,7 +574,7 @@
 function Card(data, userLang) {
     // Функция для перевода сезонов
     function translateSeason(season) {
-        if (!season) return '?'; // Если сезон не указан, возвращаем пустую строку
+        if (!season) return ''; // Если сезон не указан, возвращаем пустую строку
 
         // Разделяем сезон и год (например, "spring_2009" → ["spring", "2009"])
         var parts = season.split('_');
@@ -586,13 +586,13 @@ function Card(data, userLang) {
         // Переводим сезон
         switch (seasonName) {
             case 'winter':
-                return 'Зима ' + year;
+                return 'зима ' + year;
             case 'spring':
-                return 'Весна ' + year;
+                return 'весна ' + year;
             case 'summer':
-                return 'Лето ' + year;
+                return 'лето ' + year;
             case 'fall':
-                return 'Осень ' + year;
+                return 'осень ' + year;
             default:
                 return season; // Если сезон неизвестен, возвращаем оригинальное значение
         }
