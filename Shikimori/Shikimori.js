@@ -1,6 +1,55 @@
 (function () {
   'use strict';
 
+  // Функция для перевода жанров на русский язык
+  function translateGenre(genre) {
+    const genreTranslations = {
+      "Action": "Экшен",
+      "Adventure": "Приключения",
+      "Comedy": "Комедия",
+      "Drama": "Драма",
+      "Fantasy": "Фэнтези",
+      "Horror": "Ужасы",
+      "Mystery": "Мистика",
+      "Romance": "Романтика",
+      "Sci-Fi": "Научная фантастика",
+      "Slice of Life": "Повседневность",
+      "Sports": "Спорт",
+      "Supernatural": "Сверхъестественное",
+      "Psychological": "Психологическое",
+      "Thriller": "Триллер",
+      "Mecha": "Меха",
+      "Historical": "Историческое",
+      "Military": "Военное",
+      "Music": "Музыка",
+      "School": "Школа",
+      "Shoujo": "Сёдзё",
+      "Shounen": "Сёнэн",
+      "Seinen": "Сэйнэн",
+      "Josei": "Дзёсэй",
+      "Ecchi": "Этти",
+      "Harem": "Гарем",
+      "Demons": "Демоны",
+      "Magic": "Магия",
+      "Martial Arts": "Боевые искусства",
+      "Vampire": "Вампиры",
+      "Samurai": "Самураи",
+      "Game": "Игры",
+      "Cars": "Машины",
+      "Space": "Космос",
+      "Parody": "Пародия",
+      "Police": "Полиция",
+      "Super Power": "Суперсила",
+      "Kids": "Детское",
+      "Hentai": "Хентай",
+      "Yuri": "Юри",
+      "Yaoi": "Яой",
+      "Isekai": "Исэкай"
+    };
+
+    return genreTranslations[genre] || genre; // Возвращаем перевод или оригинальное название, если перевод отсутствует
+  }
+
   function ownKeys(e, r) {
     var t = Object.keys(e);
     if (Object.getOwnPropertySymbols) {
@@ -11,6 +60,7 @@
     }
     return t;
   }
+
   function _objectSpread2(e) {
     for (var r = 1; r < arguments.length; r++) {
       var t = null != arguments[r] ? arguments[r] : {};
@@ -664,13 +714,13 @@ function Card(data, userLang) {
         item.remove();
     };
 }
-  function Component$1(object) {
+   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
     var scroll = new Lampa.Scroll({
-        mask: true,
-        over: true,
-        step: 250
+      mask: true,
+      over: true,
+      step: 250
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
@@ -678,142 +728,60 @@ function Card(data, userLang) {
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
-    // Функция для перевода жанров
-    function translateGenre(genre) {
-        switch (genre.toLowerCase()) {
-            case 'action':
-                return 'Экшен';
-            case 'adventure':
-                return 'Приключения';
-            case 'comedy':
-                return 'Комедия';
-            case 'drama':
-                return 'Драма';
-            case 'fantasy':
-                return 'Фэнтези';
-            case 'horror':
-                return 'Ужасы';
-            case 'romance':
-                return 'Романтика';
-            case 'sci-fi':
-                return 'Научная фантастика';
-            case 'slice of life':
-                return 'Повседневность';
-            case 'sports':
-                return 'Спорт';
-            case 'supernatural':
-                return 'Сверхъестественное';
-            case 'mystery':
-                return 'Мистика';
-            case 'psychological':
-                return 'Психологическое';
-            case 'thriller':
-                return 'Триллер';
-            case 'mecha':
-                return 'Меха';
-            case 'historical':
-                return 'Историческое';
-            case 'music':
-                return 'Музыка';
-            case 'school':
-                return 'Школа';
-            case 'shounen':
-                return 'Сёнен';
-            case 'shoujo':
-                return 'Сёдзё';
-            case 'seinen':
-                return 'Сэйнэн';
-            case 'josei':
-                return 'Дзёсэй';
-            case 'ecchi':
-                return 'Этти';
-            case 'harem':
-                return 'Гарем';
-            case 'isekai':
-                return 'Исэкай';
-            case 'magic':
-                return 'Магия';
-            case 'military':
-                return 'Военное';
-            case 'demons':
-                return 'Демоны';
-            case 'vampire':
-                return 'Вампиры';
-            case 'game':
-                return 'Игры';
-            case 'cars':
-                return 'Машины';
-            case 'space':
-                return 'Космос';
-            case 'martial arts':
-                return 'Боевые искусства';
-            case 'super power':
-                return 'Суперсила';
-            case 'samurai':
-                return 'Самураи';
-            case 'kids':
-                return 'Детское';
-            case 'hentai':
-                return 'Хентай';
-            default:
-                return genre; // Если жанр неизвестен, возвращаем оригинальное значение
-        }
-    }
-
     //Start
     this.create = function () {
-        API.main(object, this.build.bind(this), this.empty.bind(this));
+      API.main(object, this.build.bind(this), this.empty.bind(this));
     };
 
     //Build
     this.build = function (result) {
-        var _this = this;
-        //Scroll
-        scroll.minus();
-        scroll.onWheel = function (step) {
-            if (!Lampa.Controller.own(_this)) _this.start();
-            if (step > 0) Navigator.move('down');else Navigator.move('up');
-        };
-        scroll.onEnd = function () {
-            // Используем стрелочную функцию здесь
-            object.page++;
-            API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
-        };
-        this.headeraction();
-        //Put Data
-        this.body(result);
+      var _this = this;
+      //Scroll
+      scroll.minus();
+      scroll.onWheel = function (step) {
+        if (!Lampa.Controller.own(_this)) _this.start();
+        if (step > 0) Navigator.move('down'); else Navigator.move('up');
+      };
+      scroll.onEnd = function () {
+        object.page++;
+        API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
+      };
+      this.headeraction();
+      //Put Data
+      this.body(result);
 
-        //Put blank
-        scroll.append(head);
-        scroll.append(body);
+      //Put blank
+      scroll.append(head);
+      scroll.append(body);
 
-        //Put all in page
-        html.append(scroll.render(true));
-        this.activity.loader(false);
-        this.activity.toggle();
+      //Put all in page
+      html.append(scroll.render(true));
+      this.activity.loader(false);
+      this.activity.toggle();
     };
+
     this.headeraction = function () {
-        var settings = {
-            "url": "https://shikimori.one/api/genres",
-            "method": "GET",
-            "timeout": 0
-        };
-        var filters = {};
-        $.ajax(settings).done(function (response) {
-            var filteredResponse = response.filter(function (item) {
-                return item.entry_type === "Anime";
-            });
-            var modifiedResponse = filteredResponse.map(function (item) {
-                return _objectSpread2(_objectSpread2({}, item), {}, {
-                    title: translateGenre(item.name), // Используем перевод жанра
-                    name: undefined // Удаляем старый ключ name
-                });
-            });
-            filters.kind = {
-                title: 'Жанр',
-                items: modifiedResponse
-            };
+      var settings = {
+        "url": "https://shikimori.one/api/genres",
+        "method": "GET",
+        "timeout": 0
+      };
+      var filters = {};
+      $.ajax(settings).done(function (response) {
+        var filteredResponse = response.filter(function (item) {
+          return item.entry_type === "Anime";
         });
+        var modifiedResponse = filteredResponse.map(function (item) {
+          return _objectSpread2(_objectSpread2({}, item), {}, {
+            title: translateGenre(item.name), // Переводим название жанра
+            name: undefined // Удаляем старый ключ name
+          });
+        });
+        filters.kind = {
+          title: 'Жанр',
+          items: modifiedResponse
+        };
+      });
         filters.AnimeKindEnum = {
             title: 'Тип',
             items: [{
