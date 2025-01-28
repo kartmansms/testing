@@ -455,43 +455,49 @@
   }
 
   function main(params, oncomplite, onerror) {
-    $(document).ready(function () {
-      // Начинаем формировать запрос с базовыми параметрами
-      var query = "\n            query Animes {\n                animes(limit: ".concat(params.limit || 36, ", order: ").concat(params.sort || 'ranked', ", page: ").concat(params.page, "\n        ");
+  $(document).ready(function () {
+    // Начинаем формировать запрос с базовыми параметрами
+    var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
+    
+    // Добавляем фильтры, если они присутствуют в params
+    if (params.kind) {
+      query += ", kind: \"".concat(params.kind, "\"");
+    }
+    if (params.status) {
+      query += ", status: \"".concat(params.status, "\"");
+    }
+    if (params.genre) {
+      query += ", genre: \"".concat(params.genre, "\"");
+    }
+    if (params.seasons) {
+      query += ", season: \"".concat(params.seasons, "\"");
+    }
 
-      // Добавляем фильтры, если они присутствуют в params
-      if (params.kind) {
-        query += ", kind: \"".concat(params.kind, "\"");
-      }
-      if (params.status) {
-        query += ", status: \"".concat(params.status, "\"");
-      }
-      if (params.genre) {
-        query += ", genre: \"".concat(params.genre, "\"");
-      }
-      if (params.seasons) {
-        query += ", season: \"".concat(params.seasons, "\"");
-      }
+    // Добавляем фильтр для статуса "anons" по умолчанию
+    if (!params.status) {
+      query += ", status: \"anons\"";
+    }
 
-      // Закрываем параметры и продолжаем запрос
-      query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
-      $.ajax({
-        url: 'https://shikimori.one/api/graphql',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-          query: query
-        }),
-        success: function success(response) {
-          oncomplite(response.data.animes);
-        },
-        error: function error(_error) {
-          console.error('Ошибка:', _error);
-          onerror(_error); // Вызов onerror при ошибке запроса
-        }
-      });
+    // Закрываем параметры и продолжаем запрос
+    query += ") {\n	id\n	name\n	russian\n	licenseNameRu\n	english\n	japanese\n	kind\n	score\n	status\n	season\n	airedOn { year }\n	poster {\n	originalUrl\n	}\n	}\n	}\n	";
+
+    $.ajax({
+      url: 'https://shikimori.one/api/graphql',
+      method: 'POST',
+      contentType: 'application/json',
+      data: JSON.stringify({
+        query: query
+      }),
+      success: function success(response) {
+        oncomplite(response.data.animes);
+      },
+      error: function error(_error) {
+        console.error('Ошибка:', _error);
+        onerror(_error); // Вызов onerror при ошибке запроса
+      }
     });
-  }
+  });
+}
   function search(animeData) {
     //Cleaner
     function cleanName(name) {
