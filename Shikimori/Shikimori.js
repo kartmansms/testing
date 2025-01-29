@@ -409,7 +409,7 @@
 
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      var query = "\n            query Animes {\n                animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n        ");
+      var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
@@ -449,26 +449,33 @@
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
-
+ // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    console.log('Мы здесь шаг#1');
+    // Если получили 404, продолжаем искать на TMDB
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else if (response.themoviedb === null) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    console.log('Мы здесь шаг#2');
+    // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else {
-        getTmdb(response.themoviedb, animeData.kind, processResults);
+    console.log('Мы здесь шаг#3', animeData.kind);
+    // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
+    getTmdb(response.themoviedb, animeData.kind, processResults);
       }
     }).fail(function (jqXHR) {
       if (jqXHR.status === 404) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    // Если получили 404, продолжаем искать на TMDB
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else {
-        console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
+    console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
       }
     });
     function searchTmdb(query, callback) {
@@ -648,46 +655,46 @@
       var filters = {};
       $.ajax(settings).done(function (response) {
         var genreTranslations = {
-          "Action": "Экшен",
-    "Adventure": "Приключения",
-    "Cars": "Машины",
-    "Comedy": "Комедия",
-    "Dementia": "Деменция",
-    "Demons": "Демоны",
-    "Drama": "Драма",
-    "Ecchi": "Этти",
-    "Fantasy": "Фэнтези",
-    "Game": "Игра",
-    "Harem": "Гарем",
-    "Historical": "Исторический",
-    "Horror": "Ужасы",
-    "Josei": "Дзёсей",
-    "Kids": "Детский",
-    "Magic": "Магия",
-    "Martial Arts": "Боевые искусства",
-    "Mecha": "Меха",
-    "Military": "Военный",
-    "Music": "Музыка",
-    "Mystery": "Мистика",
-    "Parody": "Пародия",
-    "Police": "Полиция",
-    "Psychological": "Психологический",
-    "Romance": "Романтика",
-    "Samurai": "Самурайский",
-    "School": "Школьный",
-    "Sci-Fi": "Научная фантастика",
-    "Seinen": "Сейнен",
-    "Shoujo": "Сёдзё",
-    "Shoujo Ai": "Сёдзё-ай",
-    "Shounen": "Сёнэн",
-    "Shounen Ai": "Сёнэн-ай",
-    "Slice of Life": "Повседневность",
-    "Space": "Космос",
-    "Sports": "Спорт",
-    "Super Power": "Суперсила",
-    "Supernatural": "Сверхъестественное",
-    "Thriller": "Триллер",
-    "Vampire": "Вампиры"
+		"Action": "Экшен",
+		"Adventure": "Приключения",
+		"Cars": "Машины",
+		"Comedy": "Комедия",
+		"Dementia": "Деменция",
+		"Demons": "Демоны",
+		"Drama": "Драма",
+		"Ecchi": "Этти",
+		"Fantasy": "Фэнтези",
+		"Game": "Игра",
+		"Harem": "Гарем",
+		"Historical": "Исторический",
+		"Horror": "Ужасы",
+		"Josei": "Дзёсей",
+		"Kids": "Детский",
+		"Magic": "Магия",
+		"Martial Arts": "Боевые искусства",
+		"Mecha": "Меха",
+		"Military": "Военный",
+		"Music": "Музыка",
+		"Mystery": "Мистика",
+		"Parody": "Пародия",
+		"Police": "Полиция",
+		"Psychological": "Психологический",
+		"Romance": "Романтика",
+		"Samurai": "Самурайский",
+		"School": "Школьный",
+		"Sci-Fi": "Научная фантастика",
+		"Seinen": "Сейнен",
+		"Shoujo": "Сёдзё",
+		"Shoujo Ai": "Сёдзё-ай",
+		"Shounen": "Сёнэн",
+		"Shounen Ai": "Сёнэн-ай",
+		"Slice of Life": "Повседневность",
+		"Space": "Космос",
+		"Sports": "Спорт",
+		"Super Power": "Суперсила",
+		"Supernatural": "Сверхъестественное",
+		"Thriller": "Триллер",
+		"Vampire": "Вампиры"
         };
 
         var filteredResponse = response.filter(function (item) {
