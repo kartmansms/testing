@@ -886,6 +886,9 @@ function Card(data, userLang) {
   };
 
   var serverElement = head.find('.Shikimori__search');
+serverElement.on('hover:enter', function () {
+  mainMenu();
+});
 
   function queryForShikimori() {
     var query = {};
@@ -985,27 +988,26 @@ function Card(data, userLang) {
   });
 
   var homeElement = head.find('.Shikimori__home');
-  homeElement.on('hover:enter', function () {
-    Lampa.Activity.push({
-      url: '',
-      title: 'Анонсы',
-      component: 'Shikimori',
-      page: 1,
-      status: 'anons' // Устанавливаем статус "anons"
-    });
+homeElement.on('hover:enter', function () {
+  Lampa.Activity.push({
+    url: '',
+    title: 'Shikimori',
+    component: 'Shikimori',
+    page: 1
   });
+});
 
-  var anonsElement = head.find('.Shikimori__anons');
-  anonsElement.on('hover:enter', function () {
-    Lampa.Activity.push({
-      url: '',
-      title: 'Топ 100 аниме',
-      component: 'Shikimori',
-      page: 1,
-      limit: 100, // Устанавливаем лимит на 100 аниме
-      sort: 'ranked' // Сортировка по рейтингу (ranked)
-    });
+ var anonsElement = head.find('.Shikimori__anons');
+anonsElement.on('hover:enter', function () {
+  Lampa.Activity.push({
+    url: '',
+    title: 'Топ 100 аниме',
+    component: 'Shikimori',
+    page: 1,
+    limit: 100,
+    sort: 'ranked'
   });
+});
 };
     this.empty = function () {
       var empty = new Lampa.Empty();
