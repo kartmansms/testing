@@ -709,7 +709,7 @@ function Card(data, userLang) {
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -990,7 +990,7 @@ console.log(generateSeasonJSON());
           page: 1
         });
       });
-      var homeElement = head.find('.Shikimori__top100');
+      var homeElement = head.find('.Shikimori__anons');
       anonsElement.on('hover:enter', function () {
         Lampa.Activity.push({
           url: '',
