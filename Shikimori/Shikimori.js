@@ -478,7 +478,7 @@
   if (typeof onerror === 'function') {
     onerror(_error);
   }
-});
+}
     });
   }
   function search(animeData) {
@@ -530,7 +530,7 @@
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol().replace(/:$/, '') + '://' + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
