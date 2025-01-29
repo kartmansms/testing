@@ -709,7 +709,7 @@ function Card(data, userLang) {
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -985,20 +985,20 @@ console.log(generateSeasonJSON());
       homeElement.on('hover:enter', function () {
         Lampa.Activity.push({
           url: '',
-          title: 'Shikimori',
+          title: 'Анонсы',
           component: 'Shikimori',
           page: 1
         });
       });
-      var anonsElement = head.find('.Shikimori__anons');
+      var homeElement = head.find('.Shikimori__top100');
       anonsElement.on('hover:enter', function () {
         Lampa.Activity.push({
           url: '',
-          title: 'Shikimori',
+          title: 'Топ 100',
           component: 'Shikimori',
           page: 1,
-          limit: 100, // Устанавливаем лимит на 100 аниме
-          sort: 'ranked' // Сортировка по рейтингу
+		  limit: 100, // Устанавливаем лимит на 100 аниме
+          sort: 'ranked' // Сортировка по рейтингу (ranked)
         });
       });
     };
