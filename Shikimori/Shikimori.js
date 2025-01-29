@@ -474,10 +474,11 @@
           oncomplite(response.data.animes);
         },
         error: function error(_error) {
-          console.error('Ошибка:', _error);
-          onerror(_error); // Вызов onerror при ошибке запроса
-        }
-      });
+  console.error('Ошибка:', _error);
+  if (typeof onerror === 'function') {
+    onerror(_error);
+  }
+});
     });
   }
   function search(animeData) {
@@ -798,7 +799,7 @@ function Card(data, userLang) {
       title: "Анонс",
       code: "anons"
     }, {
-      title: "Онгоиг",
+      title: "Онгоинг",
       code: "ongoing"
     }, {
       title: "Вышло",
@@ -1021,21 +1022,17 @@ anonsElement.on('hover:enter', function () {
     this.body = function (data) {
       data.forEach(function (anime) {
         var item = new Card(anime, userLang);
-        item.render(true).on("hover:focus", function () {
-          last = item.render()[0];
-          active = items.indexOf(item);
-          scroll.update(items[active].render(true), true);
-        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-          return _regeneratorRuntime().wrap(function _callee$(_context) {
-            while (1) switch (_context.prev = _context.next) {
-              case 0:
-                API.search(anime);
-              case 1:
-              case "end":
-                return _context.stop();
-            }
-          }, _callee);
-        })));
+        item.render(true).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+  return _regeneratorRuntime().wrap(function _callee$(_context) {
+    while (1) switch (_context.prev = _context.next) {
+      case 0:
+        API.search(anime);
+      case 1:
+      case "end":
+        return _context.stop();
+    }
+  }, _callee);
+})));
         body.append(item.render(true));
         items.push(item);
       });
