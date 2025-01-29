@@ -800,6 +800,15 @@ console.log(generateSeasonJSON());
         title: 'Сезон',
         items: generateSeasonJSON()
       };
+	  
+	  filters.top100 = {
+  title: 'Топ 100',
+  items: [{
+    title: "Топ 100 по рейтингу",
+    code: "top100"
+  }]
+};
+	  
       var serverElement = head.find('.Shikimori__search');
       function queryForShikimori() {
         var query = {};
@@ -845,23 +854,69 @@ console.log(generateSeasonJSON());
         });
       }
       function mainMenu() {
-        for (var i in filters) selected(filters[i]);
-        Lampa.Select.show({
-          title: 'Фильтры',
-          items: [{
-            title: Lampa.Lang.translate('search_start'),
-            searchShikimori: true
-          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
-          onBack: function onBack() {
-            Lampa.Controller.toggle("content");
-          },
-          onSelect: function onSelect(a) {
-            if (a.searchShikimori) {
-              search();
-            } else submenu(a, mainMenu);
-          }
-        });
+  for (var i in filters) selected(filters[i]);
+  Lampa.Select.show({
+    title: 'Фильтры',
+    items: [
+      { title: Lampa.Lang.translate('search_start'), searchShikimori: true },
+      filters.status,
+      filters.AnimeKindEnum,
+      filters.kind,
+      filters.sort,
+      filters.seasons,
+      filters.top100 // Добавляем новую вкладку
+    ],
+    onBack: function () {
+      Lampa.Controller.toggle("content");
+    },
+    onSelect: function (a) {
+      if (a.searchShikimori) {
+        search();
+      } else if (a.code === "top100") {
+        fetchTop100(); // Вызываем функцию для получения топ-100
+      } else {
+        submenu(a, mainMenu);
       }
+    }
+  });
+}
+
+function fetchTop100() {
+  var query = `
+    query TopAnimes {
+      animes(limit: 100, order: ranked) {
+        id
+        name
+        russian
+        licenseNameRu
+        english
+        japanese
+        kind
+        score
+        status
+        season
+        airedOn { year }
+        poster {
+          originalUrl
+        }
+      }
+    }
+  `;
+  $.ajax({
+    url: 'https://shikimori.one/api/graphql',
+    method: 'POST',
+    contentType: 'application/json',
+    data: JSON.stringify({ query: query }),
+    success: function (response) {
+      displayTop100(response.data.animes); // Отображаем результаты
+    },
+    error: function (error) {
+      console.error('Ошибка при получении топ-100 аниме:', error);
+      Lampa.Noty.show('Не удалось загрузить топ-100 аниме.');
+    }
+  });
+}
+
       function search() {
         var query = queryForShikimori();
         var params = {
