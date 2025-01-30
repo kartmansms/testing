@@ -694,7 +694,10 @@
 		"Super Power": "Суперсила",
 		"Supernatural": "Сверхъестественное",
 		"Thriller": "Триллер",
+<<<<<<< HEAD
 		"Erotica": "Эротика",
+=======
+>>>>>>> df241e12c7bd0d242c1fb688e1bb6bcf97848f89
 		"Vampire": "Вампиры"
         };
 
