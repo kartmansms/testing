@@ -825,8 +825,8 @@
     // Проверка на корректность диапазона
     if (endYear <= startYear) {
       ranges.push({
-        code: `${endYear}_${startYear}`,
-        title: `${endYear}–${startYear}`
+        code: `${startYear}_${endYear}`,
+        title: `${startYear}–${endYear}`
       });
     }
     // Прерываем цикл, если достигли 2000
