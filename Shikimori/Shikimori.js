@@ -815,23 +815,23 @@
           });
         }
 
-	  // Генерируем диапазоны по 5 лет, начиная с текущего года
-	  for (var startYear = currentYear; startYear >= 2001; startYear -= 5) {
-		var endYear = startYear - 9;
-		// Убедимся, что endYear не меньше 2001
-		if (endYear < 2001) {
-		  endYear = 2001;
-		}
-		// Проверка на корректность диапазона
-		if (endYear <= startYear) {
-		  ranges.push({
-			code: `${startYear}_${endYear}`,
-			title: `${startYear}–${endYear} годы`
-		  });
-		}
-		// Прерываем цикл, если достигли 2001
-		if (endYear === 2001) break;
-	  }
+  // Генерируем диапазоны по 10 лет, начиная с текущего года
+  for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
+    var endYear = startYear - 9;
+    // Убедимся, что endYear не меньше 2000
+    if (endYear < 2000) {
+      endYear = 2000;
+    }
+    // Проверка на корректность диапазона
+    if (endYear <= startYear) {
+      ranges.push({
+        code: `${endYear}_${startYear}`,
+        title: `${endYear}–${startYear}`
+      });
+    }
+    // Прерываем цикл, если достигли 2000
+    if (endYear === 2000) break;
+  }
 
         return ranges;
       }
