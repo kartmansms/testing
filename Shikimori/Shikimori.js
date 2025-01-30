@@ -814,12 +814,6 @@
             title: `${year} год`
           });
         }
-		// Генерируем диапазоны по 10 лет
-        for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
-          var endYear = Math.max(startYear - 9, 2000);
-          ranges.push("".concat(endYear, "_").concat(startYear));
-        }
-		
         return ranges;
       }
       function generateSeasonJSON() {
