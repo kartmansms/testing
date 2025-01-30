@@ -823,7 +823,7 @@
 
   // Генерируем диапазоны по 5 лет, начиная с текущего года
   for (var startYear = currentYear; startYear >= currentYear-20; startYear -= 5) {
-    var endYear = startYear - 4;
+    var endYear = startYear - 5;
     // Проверка на корректность диапазона
     if (endYear <= startYear) {
       ranges.push({
