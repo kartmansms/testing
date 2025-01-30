@@ -695,6 +695,11 @@
 		"Supernatural": "Сверхъестественное",
 		"Thriller": "Триллер",
 		"Erotica": "Эротика",
+		"Hentai": "Хентай",
+		"Yaoi": "Яой",
+		"Yuri": "Юри",
+		"Gourmet": "",
+		"Work Life": "",
 		"Vampire": "Вампиры"
         };
 
@@ -817,7 +822,7 @@
   }
 
   // Генерируем диапазоны по 10 лет, начиная с текущего года
-  for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
+  for (var startYear = 2000; startYear <= currentYear; startYear += 10) {
     var endYear = startYear - 9;
     // Убедимся, что endYear не меньше 2000
     if (endYear < 2000) {
