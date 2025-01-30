@@ -821,13 +821,9 @@
     });
   }
 
-  // Генерируем диапазоны по 10 лет, начиная с текущего года
+  // Генерируем диапазоны по 10 лет, начиная с 2000 года
   for (var startYear = 2000; startYear <= currentYear; startYear += 10) {
-    var endYear = startYear - 9;
-    // Убедимся, что endYear не меньше 2000
-    if (endYear < 2000) {
-      endYear = 2000;
-    }
+    var endYear = startYear;
     // Проверка на корректность диапазона
     if (endYear <= startYear) {
       ranges.push({
@@ -835,8 +831,8 @@
         title: `${endYear}–${startYear} год`
       });
     }
-    // Прерываем цикл, если достигли 2000
-    if (endYear === 2000) break;
+    // Прерываем цикл, если достигли currentYear
+    if (endYear === currentYear) break;
   }
 
   return ranges;
