@@ -821,18 +821,22 @@
     });
   }
 
-  // Генерируем диапазоны по 10 лет, начиная с 2000 года
-  for (var startYear = 2000; startYear <= currentYear; startYear += 10) {
-    var endYear = currentYear;
+  // Генерируем диапазоны по 5 лет, начиная с текущего года
+  for (var startYear = currentYear; startYear >= 2000; startYear -= 5) {
+    var endYear = startYear - 9;
+    // Убедимся, что endYear не меньше 2000
+    if (endYear < 2000) {
+      endYear = 2000;
+    }
     // Проверка на корректность диапазона
-    if (endYear >= startYear) {
+    if (endYear <= startYear) {
       ranges.push({
-        code: `${startYear}_${endYear}}`,
+        code: `${endYear}_${startYear}`,
         title: `${startYear}–${endYear} год`
       });
     }
-    // Прерываем цикл, если достигли currentYear
-    if (startYear === currentYear) break;
+    // Прерываем цикл, если достигли 2000
+    if (endYear === 2000) break;
   }
 
   return ranges;
