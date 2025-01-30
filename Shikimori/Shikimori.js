@@ -805,35 +805,33 @@
         return seasons;
       }
       function generateYearRanges() {
-  const currentYear = new Date().getFullYear();
-  const ranges = [];
+  var currentYear = new Date().getFullYear();
+  var ranges = [];
 
-  // Текущий год и предыдущие 3 года
-  for (let year = currentYear; year >= currentYear - 3; year--) {
-    ranges.push({ 
+  // Добавляем текущий год и предыдущие 3 года
+  for (var year = currentYear; year >= currentYear - 3; year--) {
+    ranges.push({
       code: `${year}`,
       title: `${year} год`
     });
   }
 
-  // Десятилетние диапазоны
-  let startYear = currentYear;
-  while (startYear >= 2000) {
-    let endYear = startYear - 9;
-    
-    // Корректируем нижнюю границу
-    if (endYear < 2000) endYear = 2000;
-    
-    // Пропускаем одинарные годы
-    if (endYear < startYear) {
+  // Генерируем диапазоны по 10 лет, начиная с текущего года
+  for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
+    var endYear = startYear - 9;
+    // Убедимся, что endYear не меньше 2000
+    if (endYear < 2000) {
+      endYear = 2000;
+    }
+    // Проверка на корректность диапазона
+    if (endYear <= startYear) {
       ranges.push({
         code: `${endYear}_${startYear}`,
-        title: `${endYear}–${startYear} годы`
+        title: `${endYear}–${startYear} год`
       });
     }
-    
-    // Переходим к следующему интервалу
-    startYear = endYear - 1;
+    // Прерываем цикл, если достигли 2000
+    if (endYear === 2000) break;
   }
 
   return ranges;
