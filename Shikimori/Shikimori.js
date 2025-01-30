@@ -823,16 +823,16 @@
 
   // Генерируем диапазоны по 10 лет, начиная с 2000 года
   for (var startYear = 2000; startYear <= currentYear; startYear += 10) {
-    var endYear = startYear;
+    var endYear = currentYear;
     // Проверка на корректность диапазона
-    if (endYear <= startYear) {
+    if (endYear >= startYear) {
       ranges.push({
-        code: `${endYear}_${startYear}`,
-        title: `${endYear}–${startYear} год`
+        code: `${startYear}_${endYear}}`,
+        title: `${startYear}–${endYear} год`
       });
     }
     // Прерываем цикл, если достигли currentYear
-    if (endYear === currentYear) break;
+    if (startYear === currentYear) break;
   }
 
   return ranges;
