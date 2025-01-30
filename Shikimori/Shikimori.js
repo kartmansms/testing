@@ -823,7 +823,7 @@
 
   // Генерируем диапазоны по 5 лет, начиная с текущего года
   for (var startYear = currentYear; startYear >= 2000; startYear -= 5) {
-    var endYear = startYear - 9;
+    var endYear = startYear - 4;
     // Убедимся, что endYear не меньше 2000
     if (endYear < 2000) {
       endYear = 2000;
