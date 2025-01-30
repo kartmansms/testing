@@ -822,12 +822,8 @@
   }
 
   // Генерируем диапазоны по 5 лет, начиная с текущего года
-  for (var startYear = currentYear; startYear >= 2000; startYear -= 5) {
+  for (var startYear = currentYear; startYear >= currentYear-20; startYear -= 5) {
     var endYear = startYear - 4;
-    // Убедимся, что endYear не меньше 2000
-    if (endYear < 2000) {
-      endYear = 2000;
-    }
     // Проверка на корректность диапазона
     if (endYear <= startYear) {
       ranges.push({
@@ -835,8 +831,8 @@
         title: `${startYear}–${endYear} год`
       });
     }
-    // Прерываем цикл, если достигли 2000
-    if (endYear === 2000) break;
+    // Прерываем цикл, если достигли currentYear-20
+    if (endYear === currentYear-20) break;
   }
 
   return ranges;
