@@ -508,7 +508,7 @@
       var menu = [];
       if (response.total_results !== undefined) {
         if (response.total_results === 0) {
-          Lampa.Noty.show('Бядосе, обыскали все углы и ничего не нашли');
+          Lampa.Noty.show('Ничего не найдено');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -694,10 +694,7 @@
 		"Super Power": "Суперсила",
 		"Supernatural": "Сверхъестественное",
 		"Thriller": "Триллер",
-<<<<<<< HEAD
 		"Erotica": "Эротика",
-=======
->>>>>>> df241e12c7bd0d242c1fb688e1bb6bcf97848f89
 		"Vampire": "Вампиры"
         };
 
