@@ -1055,7 +1055,7 @@
     window.plugin_shikimori_ready = true;
     var manifest = {
       type: "other",
-      version: "0.1",
+      version: "1.0",
       name: "LKE Shikimori",
       description: "Добавляет каталог Shikimori",
       component: "Shikimori"
