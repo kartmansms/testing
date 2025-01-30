@@ -11,40 +11,6 @@
     }
     return t;
   }
-  // Функция для перевода жанров на русский язык
-  function translateGenre(genre) {
-    const genreTranslations = {
-      "Action": "Экшен",
-      "Adventure": "Приключения",
-      "Comedy": "Комедия",
-      "Drama": "Драма",
-      "Fantasy": "Фэнтези",
-      "Horror": "Ужасы",
-      "Mahou Shoujo": "Махо-сёдзё",
-      "Mecha": "Меха",
-      "Music": "Музыка",
-      "Mystery": "Мистика",
-      "Psychological": "Психологическое",
-      "Romance": "Романтика",
-      "Sci-Fi": "НФ",
-      "Slice of Life": "Повседневность",
-      "Sports": "Спорт",
-      "Supernatural": "Сверхъестественное",
-      "Game": "Игра",
-	  "Demons": "Демоны",
-	  "Police": "Полиция",
-	  "Ecchi": "Эччи",
-	  "Hentai": "Хентай",
-	  "Historical": "Историческое",
-	  "Magic": "Магия",
-	  "Parody": "Пародия",
-	  "School": "Школа",
-	  "Samurai": "Самураи"
-    };
-
-    return genreTranslations[genre] || genre; // Если перевод не найден, возвращаем оригинальное название
-  }
-  
   function _objectSpread2(e) {
     for (var r = 1; r < arguments.length; r++) {
       var t = null != arguments[r] ? arguments[r] : {};
@@ -56,7 +22,6 @@
     }
     return e;
   }
-
   function _regeneratorRuntime() {
     _regeneratorRuntime = function () {
       return e;
@@ -444,10 +409,8 @@
 
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      // Начинаем формировать запрос с базовыми параметрами
-      var query = "\n            query Animes {\n                animes(limit: ".concat(params.limit || 36, ", order: ").concat(params.sort || 'ranked', ", page: ").concat(params.page, "\n        ");
+      var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
-      // Добавляем фильтры, если они присутствуют в params
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
       }
@@ -461,7 +424,6 @@
         query += ", season: \"".concat(params.seasons, "\"");
       }
 
-      // Закрываем параметры и продолжаем запрос
       query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
       $.ajax({
         url: 'https://shikimori.one/api/graphql',
@@ -474,68 +436,58 @@
           oncomplite(response.data.animes);
         },
         error: function error(_error) {
-  console.error('Ошибка:', _error);
-  if (typeof onerror === 'function') {
-    onerror(_error);
-  }
-}
+          console.error('Ошибка:', _error);
+          onerror(_error);
+        }
+      });
     });
   }
   function search(animeData) {
-    //Cleaner
     function cleanName(name) {
-      // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
       var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-
-      // Удаляем нежелательные фразы
       var cleanedName = name.replace(regex, '').trim();
-
-      // Удаляем лишние пробелы
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
-
-    // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
+ // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
-        console.log('Мы здесь шаг#1');
-        // Если получили 404, продолжаем искать на TMDB
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    console.log('Мы здесь шаг#1');
+    // Если получили 404, продолжаем искать на TMDB
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else if (response.themoviedb === null) {
-        console.log('Мы здесь шаг#2');
-        // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    console.log('Мы здесь шаг#2');
+    // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else {
-        console.log('Мы здесь шаг#3', animeData.kind);
-        // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
-        getTmdb(response.themoviedb, animeData.kind, processResults);
+    console.log('Мы здесь шаг#3', animeData.kind);
+    // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
+    getTmdb(response.themoviedb, animeData.kind, processResults);
       }
     }).fail(function (jqXHR) {
       if (jqXHR.status === 404) {
-        // Если получили 404, продолжаем искать на TMDB
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
+    // Если получили 404, продолжаем искать на TMDB
+    searchTmdb(animeData.name, function (tmdbResponse) {
+    handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
       } else {
-        console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
+    console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
       }
     });
     function searchTmdb(query, callback) {
-      //PFS
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol().replace(/:$/, '') + '://' + apiUrlProxy + request : apiUrlTMDB + request, callback);
+      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
       var callback = arguments.length > 2 ? arguments[2] : undefined;
-      console.log(id, type);
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
@@ -544,7 +496,6 @@
     }
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
       if (tmdbResponse.total_results === 0) {
-        // Если результатов нет, делаем запрос с японским именем
         searchTmdb(fallbackQuery, handleFallbackResponse);
       } else {
         processResults(tmdbResponse);
@@ -556,9 +507,8 @@
     function processResults(response) {
       var menu = [];
       if (response.total_results !== undefined) {
-        // Обработка результата от поиска (search/multi)
         if (response.total_results === 0) {
-          Lampa.Noty.show('Ничего не найдено');
+          Lampa.Noty.show('Бядосе, обыскали все углы и ничего не нашли');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -592,7 +542,6 @@
           });
         }
       } else {
-        // Обработка результата от запроса по ID (movie/{id})
         Lampa.Activity.push({
           url: '',
           component: 'full',
@@ -607,99 +556,59 @@
     main: main,
     search: search
   };
-function Card(data, userLang) {
-    // Функция для перевода сезонов
-    function translateSeason(season) {
-        if (!season) return ''; // Если сезон не указан, возвращаем пустую строку
 
-        // Разделяем сезон и год (например, "spring_2009" → ["spring", "2009"])
-        var parts = season.split('_');
-        if (parts.length < 2) return season; // Если формат неверный, возвращаем оригинальное значение
+  function Card(data, userLang) {
+    var typeTranslations = {
+      'tv': 'ТВ',
+      'movie': 'Фильм',
+      'ova': 'OVA',
+      'ona': 'ONA',
+      'special': 'Спешл',
+      'tv_special': 'ТВ Спешл',
+      'music': 'Музыка',
+      'pv': 'PV',
+      'cm': 'CM'
+    };
 
-        var seasonName = parts[0].toLowerCase(); // Название сезона (например, "spring")
-        var year = parts[1]; // Год (например, "2009")
+    var statusTranslations = {
+      'anons': 'Анонс',
+      'ongoing': 'Онгоинг',
+      'released': 'Вышло'
+    };
 
-        // Переводим сезон
-        switch (seasonName) {
-            case 'winter':
-                return 'Зима ' + year;
-            case 'spring':
-                return 'Весна ' + year;
-            case 'summer':
-                return 'Лето ' + year;
-            case 'fall':
-                return 'Осень ' + year;
-            default:
-                return season; // Если сезон неизвестен, возвращаем оригинальное значение
-        }
-    }
-
-    // Функция для перевода типов аниме
-    function translateKind(kind) {
-        switch (kind.toLowerCase()) {
-            case 'tv':
-                return 'TV Сериал';
-            case 'movie':
-                return 'Фильм';
-            case 'ova':
-                return 'OVA';
-            case 'ona':
-                return 'ONA';
-            case 'special':
-                return 'Спешл';
-            case 'tv_special':
-                return 'TV Спешл';
-            case 'music':
-                return 'Музыка';
-            case 'pv':
-                return 'PV';
-            case 'cm':
-                return 'CM';
-            default:
-                return kind; // Если тип неизвестен, возвращаем оригинальное значение
-        }
-    }
-
-    // Форматируем сезон с переводом
-    var formattedSeason = data.season ? translateSeason(data.season) : '';
+    var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
+      .replace(/^\w/, function (c) { return c.toUpperCase(); })
+      .replace(/(winter|spring|summer|fall)/gi, function (match) {
+        return {
+          'winter': 'Зима',
+          'spring': 'Весна',
+          'summer': 'Лето',
+          'fall': 'Осень'
+        }[match.toLowerCase()];
+      }) : '';
 
     function capitalizeFirstLetter(string) {
-        if (!string) return string; // Проверка на пустую строку или null/undefined
-        return string.charAt(0).toUpperCase() + string.slice(1);
-    }
-
-    // Функция для перевода статусов
-    function translateStatus(status) {
-        switch (status.toLowerCase()) {
-            case 'released':
-                return 'Вышло';
-            case 'ongoing':
-                return 'Онгоинг';
-            case 'anons':
-                return 'Анонс';
-            case 'latest':
-                return 'Последнее';
-            default:
-                return capitalizeFirstLetter(status); // Если статус неизвестен, возвращаем его без изменений
-        }
+      if (!string) return string;
+      return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
     var item = Lampa.Template.get("Shikimori-Card", {
-        img: data.poster.originalUrl,
-        type: translateKind(data.kind), // Используем перевод типа аниме
-        status: translateStatus(data.status), // Используем перевод статуса
-        rate: data.score,
-        title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-        season: formattedSeason // Используем переведенный сезон
+      img: data.poster.originalUrl,
+      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
+      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
+      rate: data.score,
+      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
     this.render = function () {
-        return item;
+      return item;
     };
     this.destroy = function () {
-        item.remove();
+      item.remove();
     };
-}
+  }
+
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
@@ -710,7 +619,7 @@ function Card(data, userLang) {
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__anons simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -723,7 +632,7 @@ function Card(data, userLang) {
       scroll.minus();
       scroll.onWheel = function (step) {
         if (!Lampa.Controller.own(_this)) _this.start();
-        if (step > 0) Navigator.move('down'); else Navigator.move('up');
+        if (step > 0) Navigator.move('down');else Navigator.move('up');
       };
       scroll.onEnd = function () {
         object.page++;
@@ -737,279 +646,274 @@ function Card(data, userLang) {
       this.activity.loader(false);
       this.activity.toggle();
     };
-
     this.headeraction = function () {
-  var settings = {
-    "url": "https://shikimori.one/api/genres",
-    "method": "GET",
-    "timeout": 0
-  };
-  var filters = {};
-  $.ajax(settings).done(function (response) {
-    var filteredResponse = response.filter(function (item) {
-      return item.entry_type === "Anime";
-    });
-    var modifiedResponse = filteredResponse.map(function (item) {
-      return _objectSpread2(_objectSpread2({}, item), {}, {
-        title: translateGenre(item.name), // Переводим название жанра
-        name: undefined
+      var settings = {
+        "url": "https://shikimori.one/api/genres",
+        "method": "GET",
+        "timeout": 0
+      };
+      var filters = {};
+      $.ajax(settings).done(function (response) {
+        var genreTranslations = {
+		"Action": "Экшен",
+		"Adventure": "Приключения",
+		"Cars": "Машины",
+		"Comedy": "Комедия",
+		"Dementia": "Деменция",
+		"Demons": "Демоны",
+		"Drama": "Драма",
+		"Ecchi": "Этти",
+		"Fantasy": "Фэнтези",
+		"Game": "Игра",
+		"Harem": "Гарем",
+		"Historical": "Исторический",
+		"Horror": "Ужасы",
+		"Josei": "Дзёсей",
+		"Kids": "Детский",
+		"Magic": "Магия",
+		"Martial Arts": "Боевые искусства",
+		"Mecha": "Меха",
+		"Military": "Военный",
+		"Music": "Музыка",
+		"Mystery": "Мистика",
+		"Parody": "Пародия",
+		"Police": "Полиция",
+		"Psychological": "Психологический",
+		"Romance": "Романтика",
+		"Samurai": "Самурайский",
+		"School": "Школьный",
+		"Sci-Fi": "Научная фантастика",
+		"Seinen": "Сейнен",
+		"Shoujo": "Сёдзё",
+		"Shoujo Ai": "Сёдзё-ай",
+		"Shounen": "Сёнэн",
+		"Shounen Ai": "Сёнэн-ай",
+		"Slice of Life": "Повседневность",
+		"Space": "Космос",
+		"Sports": "Спорт",
+		"Super Power": "Суперсила",
+		"Supernatural": "Сверхъестественное",
+		"Thriller": "Триллер",
+		"Erotica": "Эротика",
+		"Vampire": "Вампиры"
+        };
+
+        var filteredResponse = response.filter(function (item) {
+          return item.entry_type === "Anime";
+        }).map(function (item) {
+          return _objectSpread2(_objectSpread2({}, item), {}, {
+            title: genreTranslations[item.name] || item.name,
+            name: undefined
+          });
+        });
+        filters.kind = {
+          title: 'Жанр',
+          items: filteredResponse
+        };
       });
-    });
-    filters.kind = {
-      title: 'Жанр',
-      items: modifiedResponse
-    };
-  });
-
-  filters.AnimeKindEnum = {
-    title: 'Тип',
-    items: [{
-      title: "TV Сериал",
-      code: "tv"
-    }, {
-      title: "Фильм",
-      code: "movie"
-    }, {
-      title: "OVA",
-      code: "ova"
-    }, {
-      title: "ONA",
-      code: "ona"
-    }, {
-      title: "Спешл",
-      code: "special"
-    }, {
-      title: "TV Спешл",
-      code: "tv_special"
-    }, {
-      title: "Музыка",
-      code: "music"
-    }, {
-      title: "PV",
-      code: "pv"
-    }, {
-      title: "CM",
-      code: "cm"
-    }]
-  };
-
-  filters.status = {
-    title: 'Статус',
-    items: [{
-      title: "Анонс",
-      code: "anons"
-    }, {
-      title: "Онгоинг",
-      code: "ongoing"
-    }, {
-      title: "Вышло",
-      code: "released"
-    }]
-  };
-
-  filters.sort = {
-    title: 'Сортировка',
-    items: [{
-      title: "По рейтингу",
-      code: "ranked"
-    }, {
-      title: "По популярности",
-      code: "popularity"
-    }, {
-      title: "По алфавиту",
-      code: "name"
-    }, {
-      title: "По дате выхода",
-      code: "aired_on"
-    }, {
-      title: "По типу",
-      code: "kind"
-    }, {
-      title: "По количеству эпизодов",
-      code: "episodes"
-    }, {
-      title: "По статусу",
-      code: "status"
-    }, {
-      title: "По рейтингу Shikimori",
-      code: "ranked_shiki"
-    }]
-  };
-
-  /** Season Range **/
-  function getCurrentSeason(date) {
-    var month = date.getMonth();
-    var year = date.getFullYear();
-    var seasons = ['winter', 'spring', 'summer', 'fall'];
-    var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень']; // Названия сезонов на русском
-    var seasonIndex = Math.floor((month + 1) / 3) % 4; // Определение индекса сезона
-    return {
-      code: `${seasons[seasonIndex]}_${year}`,
-      title: `${seasonTitles[seasonIndex]} ${year}`
-    };
-  }
-
-  function generateDynamicSeasons() {
-    var now = new Date();
-    var seasons = [];
-    // Добавляем будущий, текущий и предыдущие сезоны
-    for (var i = 1; i >= -3; i--) {
-      var nextDate = new Date(now);
-      nextDate.setMonth(now.getMonth() + 3 * i); // Добавляем 3 месяца для следующего сезона
-      seasons.push(getCurrentSeason(nextDate));
-    }
-    return seasons;
-  }
-
-  function generateYearRanges() {
-    var currentYear = new Date().getFullYear();
-    var ranges = [];
-    // Генерируем текущий и предыдущие три года
-    for (var year = currentYear; year >= currentYear - 3; year--) {
-      ranges.push({
-        code: `${year}`,
-        title: `${year} год`
+      filters.AnimeKindEnum = {
+        title: 'Тип',
+        items: [{
+          title: "ТВ Сериал",
+          code: "tv"
+        }, {
+          title: "Фильм",
+          code: "movie"
+        }, {
+          title: "OVA",
+          code: "ova"
+        }, {
+          title: "ONA",
+          code: "ona"
+        }, {
+          title: "Спешл",
+          code: "special"
+        }, {
+          title: "ТВ Спешл",
+          code: "tv_special"
+        }, {
+          title: "Музыка",
+          code: "music"
+        }, {
+          title: "PV",
+          code: "pv"
+        }, {
+          title: "CM",
+          code: "cm"
+        }]
+      };
+      filters.status = {
+        title: 'Статус',
+        items: [{
+          title: "Анонс",
+          code: "anons"
+        }, {
+          title: "Онгоинг",
+          code: "ongoing"
+        }, {
+          title: "Вышло",
+          code: "released"
+        }]
+      };
+      filters.sort = {
+        title: 'Сортировка',
+        items: [{
+          title: "По рейтингу",
+          code: "ranked"
+        }, {
+          title: "По популярности",
+          code: "popularity"
+        }, {
+          title: "По алфавиту",
+          code: "name"
+        }, {
+          title: "По дате выхода",
+          code: "aired_on"
+        }, {
+          title: "По типу",
+          code: "kind"
+        }, {
+          title: "По количеству эпизодов",
+          code: "episodes"
+        }, {
+          title: "По статусу",
+          code: "status"
+        }, {
+          title: "По рейтингу Shikimori",
+          code: "ranked_shiki"
+        }]
+      };
+      function getCurrentSeason(date) {
+        var month = date.getMonth();
+        var year = date.getFullYear();
+        var seasons = ['winter', 'spring', 'summer', 'fall'];
+        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
+        var seasonIndex = Math.floor((month + 1) / 3) % 4;
+        return {
+          code: `${seasons[seasonIndex]}_${year}`,
+          title: `${seasonTitles[seasonIndex]} ${year}`
+        };
+      }
+      function generateDynamicSeasons() {
+        var now = new Date();
+        var seasons = [];
+        for (var i = 1; i >= -3; i--) {
+          var nextDate = new Date(now);
+          nextDate.setMonth(now.getMonth() + 3 * i);
+          seasons.push(getCurrentSeason(nextDate));
+        }
+        return seasons;
+      }
+      function generateYearRanges() {
+        var currentYear = new Date().getFullYear();
+        var ranges = [];
+        for (var year = currentYear; year >= currentYear - 3; year--) {
+          ranges.push({
+            code: `${year}`,
+            title: `${year} год`
+          });
+        }
+        return ranges;
+      }
+      function generateSeasonJSON() {
+        var dynamicSeasons = generateDynamicSeasons();
+        var yearRanges = generateYearRanges();
+        return [...dynamicSeasons, ...yearRanges];
+      }
+      filters.seasons = {
+        title: 'Сезон',
+        items: generateSeasonJSON()
+      };
+      var serverElement = head.find('.Shikimori__search');
+      function queryForShikimori() {
+        var query = {};
+        filters.AnimeKindEnum.items.forEach(function (a) {
+          if (a.selected) query.kind = a.code;
+        });
+        filters.status.items.forEach(function (a) {
+          if (a.selected) query.status = a.code;
+        });
+        filters.kind.items.forEach(function (a) {
+          if (a.selected) query.genre = a.id;
+        });
+        filters.sort.items.forEach(function (a) {
+          if (a.selected) query.sort = a.code;
+        });
+        filters.seasons.items.forEach(function (a) {
+          if (a.selected) query.seasons = a.code;
+        });
+        return query;
+      }
+      function selected(where) {
+        var title = [];
+        where.items.forEach(function (a) {
+          if (a.selected || a.checked) title.push(a.title);
+        });
+        where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
+      }
+      function select(where, a) {
+        where.forEach(function (element) {
+          element.selected = false;
+        });
+        a.selected = true;
+      }
+      function submenu(item, main) {
+        Lampa.Select.show({
+          title: item.title,
+          items: item.items,
+          onBack: main,
+          onSelect: function onSelect(a) {
+            select(item.items, a);
+            main();
+          }
+        });
+      }
+      function mainMenu() {
+        for (var i in filters) selected(filters[i]);
+        Lampa.Select.show({
+          title: 'Фильтры',
+          items: [{
+            title: Lampa.Lang.translate('search_start'),
+            searchShikimori: true
+          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
+          onBack: function onBack() {
+            Lampa.Controller.toggle("content");
+          },
+          onSelect: function onSelect(a) {
+            if (a.searchShikimori) {
+              search();
+            } else submenu(a, mainMenu);
+          }
+        });
+      }
+      function search() {
+        var query = queryForShikimori();
+        var params = {
+          url: '',
+          title: 'Shikimori',
+          component: 'Shikimori',
+          page: 1
+        };
+        if (query.kind) params.kind = query.kind;
+        if (query.status) params.status = query.status;
+        if (query.genre) params.genre = query.genre;
+        if (query.sort) params.sort = query.sort;
+        if (query.seasons) params.seasons = query.seasons;
+        Lampa.Activity.push(params);
+      }
+      serverElement.on('hover:enter', function () {
+        mainMenu();
       });
-    }
-    return ranges;
-  }
-
-  function generateSeasonJSON() {
-    var dynamicSeasons = generateDynamicSeasons();
-    var yearRanges = generateYearRanges();
-    var allSeasons = [...dynamicSeasons, ...yearRanges]; // Объединяем сезоны и годы
-    return allSeasons;
-  }
-
-  filters.seasons = {
-    title: 'Сезон',
-    items: generateSeasonJSON()
-  };
-
-  var serverElement = head.find('.Shikimori__search');
-serverElement.on('hover:enter', function () {
-  mainMenu();
-});
-
-  function queryForShikimori() {
-    var query = {};
-    filters.AnimeKindEnum.items.forEach(function (a) {
-      if (a.selected) query.kind = a.code;
-    });
-    filters.status.items.forEach(function (a) {
-      if (a.selected) query.status = a.code;
-    });
-    filters.kind.items.forEach(function (a) {
-      if (a.selected) query.genre = a.id;
-    });
-    filters.sort.items.forEach(function (a) {
-      if (a.selected) query.sort = a.code;
-    });
-    filters.seasons.items.forEach(function (a) {
-      if (a.selected) query.seasons = a.code;
-    });
-    return query;
-  }
-
-  function selected(where) {
-    var title = [];
-    where.items.forEach(function (a) {
-      if (a.selected || a.checked) title.push(a.title);
-    });
-    where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
-  }
-
-  function select(where, a) {
-    where.forEach(function (element) {
-      element.selected = false;
-    });
-    a.selected = true;
-  }
-
-  function submenu(item, main) {
-    Lampa.Select.show({
-      title: item.title,
-      items: item.items,
-      onBack: main,
-      onSelect: function onSelect(a) {
-        select(item.items, a);
-        main();
-      }
-    });
-  }
-
-  function mainMenu() {
-    for (var i in filters) selected(filters[i]);
-    Lampa.Select.show({
-      title: 'Фильтры',
-      items: [{
-        title: Lampa.Lang.translate('search_start'),
-        searchShikimori: true
-      }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
-      onBack: function onBack() {
-        Lampa.Controller.toggle("content");
-      },
-      onSelect: function onSelect(a) {
-        if (a.searchShikimori) {
-          search();
-        } else submenu(a, mainMenu);
-      }
-    });
-  }
-
-  function search() {
-    var query = queryForShikimori();
-    var params = {
-      url: '',
-      title: 'Shikimori',
-      component: 'Shikimori',
-      page: 1
+      var homeElement = head.find('.Shikimori__home');
+      homeElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori',
+          component: 'Shikimori',
+          page: 1
+        });
+      });
     };
-    // Добавляем параметры только если они существуют
-    if (query.kind) {
-      params.kind = query.kind;
-    }
-    if (query.status) {
-      params.status = query.status;
-    }
-    if (query.genre) {
-      params.genre = query.genre;
-    }
-    if (query.sort) {
-      params.sort = query.sort;
-    }
-    if (query.seasons) {
-      params.seasons = query.seasons;
-    }
-    Lampa.Activity.push(params);
-  }
-
-  serverElement.on('hover:enter', function () {
-    mainMenu();
-  });
-
-  var homeElement = head.find('.Shikimori__home');
-homeElement.on('hover:enter', function () {
-  Lampa.Activity.push({
-    url: '',
-    title: 'Shikimori',
-    component: 'Shikimori',
-    page: 1
-  });
-});
-
- var anonsElement = head.find('.Shikimori__anons');
-anonsElement.on('hover:enter', function () {
-  Lampa.Activity.push({
-    url: '',
-    title: 'Топ 100 аниме',
-    component: 'Shikimori',
-    page: 1,
-    limit: 100,
-    sort: 'ranked'
-  });
-});
-};
     this.empty = function () {
       var empty = new Lampa.Empty();
       html.appendChild(empty.render(true));
@@ -1017,22 +921,24 @@ anonsElement.on('hover:enter', function () {
       this.activity.loader(false);
       this.activity.toggle();
     };
-
-    //Catalog build
     this.body = function (data) {
       data.forEach(function (anime) {
         var item = new Card(anime, userLang);
-        item.render(true).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-  return _regeneratorRuntime().wrap(function _callee$(_context) {
-    while (1) switch (_context.prev = _context.next) {
-      case 0:
-        API.search(anime);
-      case 1:
-      case "end":
-        return _context.stop();
-    }
-  }, _callee);
-})));
+        item.render(true).on("hover:focus", function () {
+          last = item.render()[0];
+          active = items.indexOf(item);
+          scroll.update(items[active].render(true), true);
+        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                API.search(anime);
+              case 1:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
+        })));
         body.append(item.render(true));
         items.push(item);
       });
@@ -1145,7 +1051,7 @@ anonsElement.on('hover:enter', function () {
     });
     $(".menu .menu__list").eq(0).append(button);
   }
- function startPlugin() {
+  function startPlugin() {
     window.plugin_shikimori_ready = true;
     var manifest = {
       type: "other",
@@ -1160,12 +1066,12 @@ anonsElement.on('hover:enter', function () {
     Lampa.Component.add(manifest.component, Component$1);
     Component();
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
-    if (window.appready) add(); else {
+    if (window.appready) add();else {
       Lampa.Listener.follow("app", function (e) {
         if (e.type === "ready") add();
       });
     }
   }
-
   if (!window.plugin_shikimori_ready) startPlugin();
+
 })();
