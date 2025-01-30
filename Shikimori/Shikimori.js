@@ -834,8 +834,6 @@
     // Прерываем цикл, если достигли currentYear-20
     if (endYear === currentYear-20) break;
   }
-// Добавляем статические диапазоны для старших годов
-        //ranges.push("199x", "198x", "ancient");
   return ranges;
 }
       function generateSeasonJSON() {
