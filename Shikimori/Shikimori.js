@@ -683,7 +683,7 @@
 		"Samurai": "Самурайский",
 		"School": "Школьный",
 		"Sci-Fi": "Научная фантастика",
-		"Seinen": "Сейнен",
+		"Seinen": "Сейнэн",
 		"Shoujo": "Сёдзё",
 		"Shoujo Ai": "Сёдзё-ай",
 		"Shounen": "Сёнэн",
@@ -698,8 +698,8 @@
 		"Hentai": "Хентай",
 		"Yaoi": "Яой",
 		"Yuri": "Юри",
-		"Gourmet": "",
-		"Work Life": "",
+		"Gourmet": "Гурман",
+		"Work Life": "Трудяги",
 		"Vampire": "Вампиры"
         };
 
@@ -822,9 +822,15 @@
         title: `${startYear}–${endYear} год`
       });
     }
+<<<<<<< HEAD
     startYear = endYear;
   } while (startYear > currentYear - 20); // Проверяем границу 20 лет
 
+=======
+    // Прерываем цикл, если достигли currentYear-20
+    if (endYear === currentYear-20) break;
+  }
+>>>>>>> c1c12eb83cc8dc02f13f8afc20a1bcc100a9770f
   return ranges;
 }
       function generateSeasonJSON() {
