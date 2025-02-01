@@ -1,5 +1,5 @@
 
-<div align="center">
+<div align="left">
     <img alt="Homepage" src="image/IMG.PNG" width="5%" />
 </div>
 <hr>
