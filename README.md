@@ -1,6 +1,6 @@
 
 <div align="left">
-    <img alt="Homepage" src="image/IMG.PNG" width="5%" />
+    <img alt="Homepage" src="image/IMG.PNG" width="1%" />
 </div>
 <hr>
 <div align="center">
