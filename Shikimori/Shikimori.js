@@ -426,9 +426,9 @@
 
 	// Основная функция для выполнения GraphQL-запроса к Shikimori API
   function main(params, oncomplite, onerror) {
-    $(document).ready(function() {
-        var limit = params.limit || 36; // Добавляем поддержку лимита
-        var query = "\n    query Animes {\n    animes(limit: " + limit + ", order: " + (params.sort || 'aired_on') + ", page: " + params.page + "\n    ";
+    $(document).ready(function () {
+	// Формирование GraphQL-запроса с параметрами
+      var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
@@ -582,14 +582,10 @@
       }
     }
   }
-
   var API = {
     main: main,
-    search: search,
-    top100: function(oncomplite, onerror) {
-        this.main({limit: 100, sort: 'ranked', page: 1}, oncomplite, onerror);
-    }
-};
+    search: search
+  };
 
 	// Класс для создания карточки аниме
   function Card(data, userLang) {
@@ -647,37 +643,6 @@
     };
   }
 
-// Добавляем кнопку "Топ 100"
-        var top100Button = $("<div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div>");
-        top100Button.on('hover:enter', function () {
-            // Вызов функции для загрузки топ 100
-            loadTop100();
-        });
-
-        // Вставляем кнопку рядом с кнопкой "Фильтр"
-        head.find('.Shikimori__search').after(top100Button);
-    });
-};
-
-function loadTop100() {
-    var params = {
-        sort: 'ranked',  // Сортировка по рейтингу
-        page: 1,
-        limit: 100  // Загружаем 100 карточек
-    };
-
-    API.main(params, function (data) {
-        // Очищаем текущий список карточек
-        body.empty();
-        items = [];
-
-        // Отображаем топ 100 карточек
-        this.body(data);
-    }, function (error) {
-        console.error('Ошибка при загрузке топ 100:', error);
-    });
-}
-
 	// Основной компонент для отображения каталога
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
@@ -688,7 +653,10 @@ function loadTop100() {
       step: 250
     });
     var items = [];
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var html = $("<div class='Shikimori-module'></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var body = $('<div class="Shikimori-catalog--list category-full"></div>');
+    var active, last;
 
 	// Инициализация элементов интерфейса
     this.create = function () {
@@ -708,14 +676,6 @@ function loadTop100() {
         API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
       };
 	  
-	  // Обработчик для кнопки Топ 100
-	  var top100Element = head.find('.Shikimori__top100');
-	top100Element.on('hover:enter', function() {
-		object.page = 1;
-		object.sort = 'ranked';
-		API.main(object, this.build.bind(this), this.empty.bind(this));
-		}.bind(this));
-
 	// Обработка фильтров
       this.headeraction();
       this.body(result);
@@ -1021,28 +981,28 @@ function loadTop100() {
       this.activity.loader(false);
       this.activity.toggle();
     };
-   this.body = function (data) {
-    data.forEach(function (anime) {
+    this.body = function (data) {
+      data.forEach(function (anime) {
         var item = new Card(anime, userLang);
         item.render(true).on("hover:focus", function () {
-            last = item.render()[0];
-            active = items.indexOf(item);
-            scroll.update(items[active].render(true), true);
+          last = item.render()[0];
+          active = items.indexOf(item);
+          scroll.update(items[active].render(true), true);
         }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-            return _regeneratorRuntime().wrap(function _callee$(_context) {
-                while (1) switch (_context.prev = _context.next) {
-                    case 0:
-                        API.search(anime);
-                    case 1:
-                    case "end":
-                        return _context.stop();
-                }
-            }, _callee);
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                API.search(anime);
+              case 1:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
         })));
         body.append(item.render(true));
         items.push(item);
-    });
-};
+      });
+    };
     this.start = function () {
       if (Lampa.Activity.active().activity !== this.activity) return;
       Lampa.Controller.add("content", {
@@ -1165,7 +1125,6 @@ function loadTop100() {
       description: "Добавляет каталог Shikimori",
       component: "Shikimori"
     };
-	
 	
 	// Регистрация компонентов и шаблонов
     Lampa.Manifest.plugins = manifest;
