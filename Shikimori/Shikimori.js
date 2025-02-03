@@ -670,6 +670,48 @@
     });
 };
 
+function loadTop100() {
+    var params = {
+        sort: 'ranked',  // Сортировка по рейтингу
+        page: 1,
+        limit: 100  // Загружаем 100 карточек
+    };
+
+    API.main(params, function (data) {
+        // Очищаем текущий список карточек
+        body.empty();
+        items = [];
+
+        // Отображаем топ 100 карточек
+        this.body(data);
+    }, function (error) {
+        console.error('Ошибка при загрузке топ 100:', error);
+    });
+}
+
+this.body = function (data) {
+    data.forEach(function (anime) {
+        var item = new Card(anime, userLang);
+        item.render(true).on("hover:focus", function () {
+            last = item.render()[0];
+            active = items.indexOf(item);
+            scroll.update(items[active].render(true), true);
+        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+            return _regeneratorRuntime().wrap(function _callee$(_context) {
+                while (1) switch (_context.prev = _context.next) {
+                    case 0:
+                        API.search(anime);
+                    case 1:
+                    case "end":
+                        return _context.stop();
+                }
+            }, _callee);
+        })));
+        body.append(item.render(true));
+        items.push(item);
+    });
+};
+
 	// Инициализация элементов интерфейса
     this.create = function () {
       API.main(object, this.build.bind(this), this.empty.bind(this));
