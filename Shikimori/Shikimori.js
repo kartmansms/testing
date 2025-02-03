@@ -2,7 +2,7 @@
   'use strict';
 
 	// Вспомогательная функция для получения всех ключей объекта, включая символьные
-  function ownKeys(e, r) {
+   function ownKeys(e, r) {
     var t = Object.keys(e);
     if (Object.getOwnPropertySymbols) {
       var o = Object.getOwnPropertySymbols(e);
@@ -12,8 +12,7 @@
     }
     return t;
   }
-  
-	// Полифил для Object.assign с поддержкой символьных ключей
+
   function _objectSpread2(e) {
     for (var r = 1; r < arguments.length; r++) {
       var t = null != arguments[r] ? arguments[r] : {};
@@ -427,7 +426,6 @@
 	// Основная функция для выполнения GraphQL-запроса к Shikimori API
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-	// Формирование GraphQL-запроса с параметрами
       var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
       if (params.kind) {
@@ -444,8 +442,7 @@
       }
 
       query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
-	  
-	// AJAX-запрос к API Shikimori
+
       $.ajax({
         url: 'https://shikimori.one/api/graphql',
         method: 'POST',
@@ -685,6 +682,8 @@
       this.activity.loader(false);
       this.activity.toggle();
     };
+	
+	 // Добавление кнопки "Топ 100"
     this.headeraction = function () {
       var settings = {
         "url": "https://shikimori.one/api/genres",
@@ -974,6 +973,40 @@
         });
       });
     };
+	
+	/ Добавляем кнопку "Топ 100"
+        var top100Button = $("<div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div>");
+        top100Button.on('hover:enter', function () {
+          // Вызов функции для загрузки топ 100
+          loadTop100();
+        });
+
+        // Вставляем кнопку рядом с кнопкой "Фильтр"
+        head.find('.Shikimori__search').after(top100Button);
+      });
+    };
+
+    // Функция для загрузки топ 100
+    function loadTop100() {
+      var params = {
+        sort: 'ranked',  // Сортировка по рейтингу
+        page: 1,
+        limit: 100  // Загружаем 100 карточек
+      };
+
+      API.main(params, function (data) {
+        // Очищаем текущий список карточек
+        body.empty();
+        items = [];
+
+        // Отображаем топ 100 карточек
+        this.body(data);
+      }, function (error) {
+        console.error('Ошибка при загрузке топ 100:', error);
+      });
+    }
+	
+	 // Обработка пустого результата
     this.empty = function () {
       var empty = new Lampa.Empty();
       html.appendChild(empty.render(true));
@@ -981,6 +1014,8 @@
       this.activity.loader(false);
       this.activity.toggle();
     };
+
+    // Отображение карточек
     this.body = function (data) {
       data.forEach(function (anime) {
         var item = new Card(anime, userLang);
@@ -1003,6 +1038,8 @@
         items.push(item);
       });
     };
+
+    // Управление навигацией
     this.start = function () {
       if (Lampa.Activity.active().activity !== this.activity) return;
       Lampa.Controller.add("content", {
@@ -1026,6 +1063,7 @@
       });
       Lampa.Controller.toggle("content");
     };
+
     this.pause = function () {};
     this.stop = function () {};
     this.render = function (js) {
@@ -1115,7 +1153,7 @@
     $(".menu .menu__list").eq(0).append(button);
   }
   
-	// Инициализация плагина
+	/ Инициализация плагина
   function startPlugin() {
     window.plugin_shikimori_ready = true;
     var manifest = {
@@ -1125,13 +1163,11 @@
       description: "Добавляет каталог Shikimori",
       component: "Shikimori"
     };
-	
-	// Регистрация компонентов и шаблонов
+
     Lampa.Manifest.plugins = manifest;
     Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n        </style>");
     Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
     Lampa.Component.add(manifest.component, Component$1);
-    Component();
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
     if (window.appready) add();else {
       Lampa.Listener.follow("app", function (e) {
