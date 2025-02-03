@@ -658,6 +658,18 @@
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
+// Добавляем кнопку "Топ 100"
+        var top100Button = $("<div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div>");
+        top100Button.on('hover:enter', function () {
+            // Вызов функции для загрузки топ 100
+            loadTop100();
+        });
+
+        // Вставляем кнопку рядом с кнопкой "Фильтр"
+        head.find('.Shikimori__search').after(top100Button);
+    });
+};
+
 	// Инициализация элементов интерфейса
     this.create = function () {
       API.main(object, this.build.bind(this), this.empty.bind(this));
