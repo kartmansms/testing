@@ -449,21 +449,23 @@
   }`;
 	  
 	// AJAX-запрос к API Shikimori
-async function fetchAnimes(params, oncomplite, onerror) {
-  try {
-    let response = await fetch('https://shikimori.one/api/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query })
+      $.ajax({
+        url: 'https://shikimori.one/api/graphql',
+        method: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({
+          query: query
+        }),
+        success: function success(response) {
+          oncomplite(response.data.animes);
+        },
+        error: function error(_error) {
+          console.error('Ошибка:', _error);
+          onerror(_error);
+        }
+      });
     });
-    let data = await response.json();
-    oncomplite(data.data.animes);
-  } catch (error) {
-    console.error('Ошибка:', error);
-    onerror(error);
   }
-}
-
   
 	// Поиск информации об аниме через внешние API
   function search(animeData) {
