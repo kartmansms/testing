@@ -428,7 +428,7 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
 	// Формирование GraphQL-запроса с параметрами
-      var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
+      var query = "\n	query Animes {\n	animes(limit: ".concat(params.limit || 36, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
@@ -654,7 +654,7 @@
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ 100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -675,8 +675,6 @@
         object.page++;
         API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
       };
-	  
-	// Обработка фильтров
       this.headeraction();
       this.body(result);
       scroll.append(head);
@@ -685,6 +683,8 @@
       this.activity.loader(false);
       this.activity.toggle();
     };
+	
+	// Обработка фильтров
     this.headeraction = function () {
       var settings = {
         "url": "https://shikimori.one/api/genres",
@@ -972,6 +972,31 @@
           component: 'Shikimori',
           page: 1
         });
+      });
+	  
+	// Добавляем обработчик для кнопки Топ 100
+      var top100Button = head.find('.Shikimori__top100');
+      top100Button.on('hover:enter', () => {
+        this.loadTop100();
+      });
+    };
+	
+	// Функция загрузки топ 100
+    this.loadTop100 = function() {
+      object.page = 1;
+      object.limit = 100;
+      object.sort = 'ranked';
+      
+    // Очищаем текущие результаты
+      body.empty();
+      items = [];
+      
+      API.main(object, (data) => {
+        this.body(data);
+        scroll.reset();
+      }, (error) => {
+        console.error('Ошибка загрузки топа:', error);
+        Lampa.Noty.show('Ошибка загрузки рейтинга');
       });
     };
     this.empty = function () {
