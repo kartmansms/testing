@@ -468,19 +468,17 @@
   }
 
   // Поиск информации об аниме через внешние API
-  function search(animeData) {
-    //Cleaner
-    function cleanName(name) {
-      // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
-      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
+	function search(animeData) {
+		// Оптимизированная функция для очистки названий
+		function cleanName(name) {
+			// Регулярное выражение для удаления "Season", "Part" и связанных чисел, а также лишних пробелов
+			const regex = /\b(Season|Part)\s*\d*\.?\d*\b|\s{2,}/gi;
+			return name.replace(regex, ' ').trim();
+		}
 
-      // Удаляем нежелательные фразы
-      var cleanedName = name.replace(regex, '').trim();
-
-      // Удаляем лишние пробелы
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
-    }
+		// Возвращаем очищенные названия
+		return animeData.map(anime => cleanName(anime));
+	}
      // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
