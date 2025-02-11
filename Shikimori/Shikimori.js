@@ -975,6 +975,11 @@
       });
       var homeElement = head.find('.Shikimori__home');
       homeElement.on('hover:enter', function () {
+		// Убираем класс 'active' у всех кнопок
+		homeElement.removeClass('active');
+		top100Button.removeClass('active');
+		// Добавляем класс 'active' только к нажатой кнопке
+		homeElement.addClass('active');  
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori',
@@ -985,13 +990,14 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-        top100Button.on('click', function () {
+        top100Button.on('hover:enter', function () {
 		// Убираем класс 'active' у всех кнопок
 		homeElement.removeClass('active');
 		top100Button.removeClass('active');
 		// Добавляем класс 'active' только к нажатой кнопке
 		top100Button.addClass('active');	
         Lampa.Activity.push({
+		  url: '',
           title: 'Топ 100',
           component: 'Shikimori',
           page: 1,
