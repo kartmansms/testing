@@ -980,12 +980,12 @@
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
       top100Button.on('hover:enter', function () {
-        this.loadTop100();
+        loadTop100();
         });
     };
 	
 	// Функция загрузки топ 100
-    this.loadTop100 = function() {
+	function loadTop100() {
       object.page = 1;
       object.limit = 100;
       object.sort = 'ranked';
