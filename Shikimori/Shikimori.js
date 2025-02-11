@@ -980,13 +980,42 @@
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
       top100Button.on('hover:enter', function () {
-        mainMenu();
+        loadTop100();
         });
     };
 	
 	// Функция загрузки топ 100
 	function loadTop100() {
-    };
+		var _this = this;
+
+		// Очистка текущего списка
+		body.empty();
+		items = [];
+
+		// Показ загрузчика
+		this.activity.loader(true);
+
+		// Запрос к API Shikimori для получения топ 100 аниме
+		var settings = {
+			"url": "https://shikimori.one/api/animes",
+			"method": "GET",
+			"timeout": 0,
+			"data": {
+				"limit": 100, // Ограничение на 100 аниме
+				"order": "ranked", // Сортировка по рейтингу
+				"kind": "tv" // Тип аниме (например, TV сериалы)
+			}
+		};
+
+		$.ajax(settings).done(function (response) {
+			// Обработка ответа
+			_this.build(response);
+		}).fail(function (error) {
+			// Обработка ошибки
+			console.error("Ошибка при загрузке топ 100:", error);
+			_this.empty();
+		});
+	}
 	
     this.empty = function () {
       var empty = new Lampa.Empty();
