@@ -1,16 +1,6 @@
 (function () {
   'use strict';
 
-// Вспомогательная функция для экранирования HTML
-  function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#039;');
-  }
-
   // Вспомогательная функция для получения всех ключей объекта, включая символьные
   function ownKeys(e, r) {
     var t = Object.keys(e);
@@ -479,21 +469,20 @@
   }
 
   // Поиск информации об аниме через внешние API
-function search(animeData) {
+  function search(animeData) {
     //Cleaner
     function cleanName(name) {
-	if (!name) return ''; // Если name undefined или null, вернуть пустую строку
-    // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
       // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
-		 var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-    // Удаляем нежелательные фразы
-    var cleanedName = name.replace(regex, '').trim();
-    // Удаляем лишние пробелы
-    cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-    return cleanedName;
-}
+      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
 
-      // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
+      // Удаляем нежелательные фразы
+      var cleanedName = name.replace(regex, '').trim();
+
+      // Удаляем лишние пробелы
+      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
+      return cleanedName;
+    }
+     // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
         console.log('We here step#1');
@@ -523,17 +512,13 @@ function search(animeData) {
       }
     });
     function searchTmdb(query, callback) {
-		if (!query) {
-        console.error('Ошибка: query отсутствует или равно undefined');
-        return;
-		}
       //PFS
-    var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-    var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-    var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-    var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-    $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
-}
+      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+      var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
+      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+    }
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
       var callback = arguments.length > 2 ? arguments[2] : undefined;
@@ -544,33 +529,22 @@ function search(animeData) {
       var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
-	
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
-    if (tmdbResponse.total_results === 0) {
+      if (tmdbResponse.total_results === 0) {
         // Если результатов нет, делаем запрос с японским именем
         searchTmdb(fallbackQuery, handleFallbackResponse);
-    } else {
+      } else {
         processResults(tmdbResponse);
+      }
     }
-}
-// Пример вызова функции с проверкой
-if (animeData.name) {
-    searchTmdb(cleanName(animeData.name), function (tmdbResponse) {
-        handleTmdbResponse(tmdbResponse, animeData.japanese);
-    });
-} else {
-    console.error('Ошибка: поле name отсутствует или равно undefined');
-}
-
     function handleFallbackResponse(fallbackResponse) {
       processResults(fallbackResponse);
     }
     function processResults(response) {
       var menu = [];
       if (response.total_results !== undefined) {
-        // Обработка результата от поиска (search/multi)
         if (response.total_results === 0) {
-          Lampa.Noty.show('Бядосе, обыскали все углы и ничего не нашли');
+          Lampa.Noty.show('Ничего не найдено');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -587,7 +561,7 @@ if (animeData.name) {
             });
           });
           Lampa.Select.show({
-            title: 'Find',
+            title: 'Найти',
             items: menu,
             onBack: function onBack() {
               Lampa.Controller.toggle("content");
@@ -604,7 +578,6 @@ if (animeData.name) {
           });
         }
       } else {
-        // Обработка результата от запроса по ID (movie/{id})
         Lampa.Activity.push({
           url: '',
           component: 'full',
@@ -643,8 +616,8 @@ if (animeData.name) {
 
     // Форматирование сезона
     var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
-        .replace(/^\w/, function (c) { return c.toUpperCase(); })
-        .replace(/(winter|spring|summer|fall)/gi, function (match) {
+      .replace(/^\w/, function (c) { return c.toUpperCase(); })
+      .replace(/(winter|spring|summer|fall)/gi, function (match) {
         return {
           'winter': 'Зима',
           'spring': 'Весна',
@@ -658,20 +631,13 @@ if (animeData.name) {
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
-    // Проверка и экранирование данных
-    var title = userLang === 'ru' && data.russian && data.russian.trim() !== '' ? escapeHtml(data.russian) : escapeHtml(data.name || data.japanese || 'Название недоступно');
-    var type = typeTranslations[data.kind] || data.kind.toUpperCase();
-    var status = statusTranslations[data.status] || capitalizeFirstLetter(data.status);
-    var rate = data.score || 'Нет оценки';
-    var season = data.season !== null ? escapeHtml(formattedSeason) : data.airedOn.year;
-
     var item = Lampa.Template.get("Shikimori-Card", {
-        img: data.poster.originalUrl,
-        type: type,
-        status: status,
-        rate: rate,
-        title: title,
-        season: season
+      img: data.poster.originalUrl,
+      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
+      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
+      rate: data.score,
+      title: userLang === 'ru' && data.russian && data.russian.trim() !== '' ? data.russian : data.name || data.japanese,
+      season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
     // Создание DOM-элемента карточки
