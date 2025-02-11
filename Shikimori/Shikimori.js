@@ -979,30 +979,29 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-      top100Button.on('hover:enter', function () {
-        loadTop100();
+        top100Button.on('hover:enter', () => {
+        this.loadTop100();
         });
     };
 	
 	// Функция загрузки топ 100    
-    function loadTop100() {
-          Lampa.Select.show({
-            title: 'Найти',
-            items: menu,
-            onBack: function onBack() {
-              Lampa.Controller.toggle("content");
-            },
-            onSelect: function onSelect(a) {
-              Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: a.card.id,
-                method: a.card.media_type,
-                card: a.card
-              });
-            }
-          });
-    }
+	this.loadTop100 = function() {
+      object.page = 1;
+      object.limit = 100;
+      object.sort = 'ranked';
+      
+    // Очищаем текущие результаты
+      body.empty();
+      items = [];
+      
+      API.main(object, (data) => {
+        this.body(data);
+        scroll.reset();
+      }, (error) => {
+        console.error('Ошибка загрузки топа:', error);
+        Lampa.Noty.show('Ошибка загрузки рейтинга');
+      });
+    };
 	
     this.empty = function () {
       var empty = new Lampa.Empty();
