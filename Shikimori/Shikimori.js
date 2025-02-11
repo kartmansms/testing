@@ -482,10 +482,7 @@
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
-     // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
-    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
-      if (response === null) {
-        console.log('We here step#1');
+     'We here step#1');
         // Если получили 404, продолжаем искать на TMDB
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
