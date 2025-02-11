@@ -986,28 +986,22 @@
 	
 	// Функция загрузки топ 100    
     function loadTop100() {
-        var _this = this;
-
-        scroll.minus();
-        items = [];
-        body.empty();
-
-        var settings = {
-            "url": "https://shikimori.one/api/animes?order=ranked&limit=100",
-            "method": "GET",
-            "timeout": 0
-        };
-
-        $.ajax(settings).done(function (response) {
-            _this.body(response);
-            scroll.append(head);
-            scroll.append(body);
-            html.append(scroll.render(true));
-            _this.activity.loader(false);
-            _this.activity.toggle();
-        }).fail(function () {
-            _this.empty();
-        });
+          Lampa.Select.show({
+            title: 'Найти',
+            items: menu,
+            onBack: function onBack() {
+              Lampa.Controller.toggle("content");
+            },
+            onSelect: function onSelect(a) {
+              Lampa.Activity.push({
+                url: '',
+                component: 'full',
+                id: a.card.id,
+                method: a.card.media_type,
+                card: a.card
+              });
+            }
+          });
     }
 	
     this.empty = function () {
