@@ -968,6 +968,15 @@
         if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
+	  
+	// Добавляем обработчик событий для кнопок
+	  var top100Button = head.find('.selector').on('click', function() {
+		// Убираем класс 'active' у всех кнопок
+		head.find('.selector').removeClass('active');
+		// Добавляем класс 'active' только к нажатой кнопке
+		$(this).addClass('active');
+	  });		  
+	  
       serverElement.on('hover:enter', function () {
         mainMenu();
       });
@@ -992,8 +1001,14 @@
 		  sort: 'ranked'
         });
       });
+
+	  
+	  
+	  
     };
 	
+
+
 	
     this.empty = function () {
       var empty = new Lampa.Empty();
