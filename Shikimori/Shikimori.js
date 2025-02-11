@@ -991,11 +991,11 @@
       object.sort = 'ranked';
       
     // Очищаем текущие результаты
-      body.empty();
+      //body.empty();
       items = [];
       
       API.main(object, (data) => {
-        this.body(data);
+        //this.body(data);
         scroll.reset();
       }, (error) => {
         console.error('Ошибка загрузки топа:', error);
