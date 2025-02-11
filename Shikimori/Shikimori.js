@@ -469,7 +469,7 @@
   }
 
   // Поиск информации об аниме через внешние API
-  function search(animeData) {
+function search(animeData) {
     //Cleaner
     function cleanName(name) {
       // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
