@@ -604,7 +604,7 @@
       if (!string) return string; // Проверка на пустую строку или null/undefined
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
-    var item = Lampa.Template.get("LMEShikimori-Card", {
+    var item = Lampa.Template.get("Shikimori-Card", {
       img: data.poster.originalUrl,
       type: data.kind.toUpperCase(),
       status: capitalizeFirstLetter(data.status),
