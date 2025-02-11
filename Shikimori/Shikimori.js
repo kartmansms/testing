@@ -968,26 +968,25 @@
         if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
-	  
-      serverElement.on('hover:enter', function () {
+	  	  
+	// Функция для активации кнопки
+	  function activateButton(button) {
 		// Убираем класс 'active' у всех кнопок
 		homeElement.removeClass('active');
 		top100Button.removeClass('active');
-		searchButton.removeClass('active');
+		serverElement.removeClass('active');
 		
 		// Добавляем класс 'active' только к активной кнопке
-		serverElement.addClass('active');
+		button.addClass('active');
+	  }; 
+	  
+      serverElement.on('hover:enter', function () {
+		activateButton(serverElement);  
         mainMenu();
       });
       var homeElement = head.find('.Shikimori__home');
       homeElement.on('hover:enter', function () {
-		// Убираем класс 'active' у всех кнопок
-		homeElement.removeClass('active');
-		top100Button.removeClass('active');
-		searchButton.removeClass('active');
-		
-		// Добавляем класс 'active' только к активной кнопке
-		homeElement.addClass('active'); 
+		activateButton(homeElement);  
         Lampa.Activity.push({
           url: '',
           title: 'Главная',
@@ -999,13 +998,7 @@
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
         top100Button.on('hover:enter', function () {
-		// Убираем класс 'active' у всех кнопок
-		homeElement.removeClass('active');
-		top100Button.removeClass('active');
-		searchButton.removeClass('active');
-		
-		// Добавляем класс 'active' только к активной кнопке
-		top100Button.addClass('active');	
+		activateButton(top100Button);	
         Lampa.Activity.push({
 		  url: '',
           title: 'Топ 100',
