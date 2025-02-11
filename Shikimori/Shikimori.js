@@ -981,7 +981,6 @@
       var top100Button = head.find('.Shikimori__top100');
         top100Button.on('hover:enter', function () {
         Lampa.Activity.push({
-          url: '',
           title: 'Топ 100',
           component: 'Shikimori',
           page: 1,
