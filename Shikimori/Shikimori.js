@@ -984,6 +984,67 @@
         });
     };
 	
+	// Функция загрузки топ 100
+	function loadTop100() {
+    };
+	
+    this.empty = function () {
+      var empty = new Lampa.Empty();
+      html.appendChild(empty.render(true));
+      this.start = empty.start;
+      this.activity.loader(false);
+      this.activity.toggle();
+    };
+    this.body = function (data) {
+      data.forEach(function (anime) {
+        var item = new Card(anime, userLang);
+        item.render(true).on("hover:focus", function () {
+          last = item.render()[0];
+          active = items.indexOf(item);
+          scroll.update(items[active].render(true), true);
+        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                API.search(anime);
+              case 1:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
+        })));
+        body.append(item.render(true));
+        items.push(item);
+      });
+    };
+    this.start = function () {
+      if (Lampa.Activity.active().activity !== this.activity) return;
+      Lampa.Controller.add("content", {
+        toggle: function toggle() {
+          Lampa.Controller.collectionSet(scroll.render());
+          Lampa.Controller.collectionFocus(last || false, scroll.render());
+        },
+        left: function left() {
+          if (Navigator.canmove("left")) Navigator.move("left");else Lampa.Controller.toggle("menu");
+        },
+        right: function right() {
+          Navigator.move("right");
+        },
+        up: function up() {
+          if (Navigator.canmove("up")) Navigator.move("up");else Lampa.Controller.toggle("head");
+        },
+        down: function down() {
+          if (Navigator.canmove("down")) Navigator.move("down");
+        },
+        back: this.back
+      });
+      Lampa.Controller.toggle("content");
+    };
+    this.pause = function () {};
+    this.stop = function () {};
+    this.render = function (js) {
+      return js ? html : $(html);
+    };
     this.destroy = function () {
       network.clear();
       Lampa.Arrays.destroy(items);
