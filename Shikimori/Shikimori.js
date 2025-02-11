@@ -469,11 +469,6 @@
 
   // Поиск информации об аниме через внешние API
   function search(animeData) {
-	  // проверка на наличие и корректность данных перед их использованием
-	  if (!animeData || !animeData.name || !animeData.japanese) {
-        console.error('Invalid anime data:', animeData);
-        return;
-    }
     //Cleaner
     function cleanName(name) {
       // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
