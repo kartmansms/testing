@@ -982,7 +982,6 @@
         top100Button.on('hover:enter', () => {
         this.loadTop100();
         });
-    };
 	
 	// Функция загрузки топ 100    
 	this.loadTop100 = function() {
