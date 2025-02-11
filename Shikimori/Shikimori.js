@@ -980,12 +980,12 @@
 		button.addClass('active');
 	  }; 
 	  
-      serverElement.on('hover:enter', function () {
+      serverElement.on('click', function () {
 		activateButton(serverElement);  
         mainMenu();
       });
       var homeElement = head.find('.Shikimori__home');
-      homeElement.on('hover:enter', function () {
+      homeElement.on('click', function () {
 		activateButton(homeElement);  
         Lampa.Activity.push({
           url: '',
@@ -997,7 +997,7 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-        top100Button.on('hover:enter', function () {
+        top100Button.on('click', function () {
 		activateButton(top100Button);	
         Lampa.Activity.push({
 		  url: '',
