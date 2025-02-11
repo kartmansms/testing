@@ -472,16 +472,15 @@
   function search(animeData) {
     //Cleaner
     function cleanName(name) {
-      // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
-      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-
-      // Удаляем нежелательные фразы
-      var cleanedName = name.replace(regex, '').trim();
-
-      // Удаляем лишние пробелы
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
-    }
+    if (!name) return ''; // Если name undefined или null, вернуть пустую строку
+    // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
+    var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
+    // Удаляем нежелательные фразы
+    var cleanedName = name.replace(regex, '').trim();
+    // Удаляем лишние пробелы
+    cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
+    return cleanedName;
+}
      // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
@@ -512,13 +511,17 @@
       }
     });
     function searchTmdb(query, callback) {
-      //PFS
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+		 if (!query) {
+        console.error('Ошибка: query отсутствует или равно undefined');
+        return;
     }
+      //PFS
+    var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+    var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+    var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+    var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
+    $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+}
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
       var callback = arguments.length > 2 ? arguments[2] : undefined;
@@ -530,13 +533,22 @@
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
-      if (tmdbResponse.total_results === 0) {
+    if (tmdbResponse.total_results === 0) {
         // Если результатов нет, делаем запрос с японским именем
         searchTmdb(fallbackQuery, handleFallbackResponse);
-      } else {
+    } else {
         processResults(tmdbResponse);
-      }
-    }
+    }}
+
+		// Пример вызова функции с проверкой
+	if (animeData.name) {
+    searchTmdb(cleanName(animeData.name), function (tmdbResponse) {
+        handleTmdbResponse(tmdbResponse, animeData.japanese);
+    });
+	} else {
+    console.error('Ошибка: поле name отсутствует или равно undefined');
+	}
+
     function handleFallbackResponse(fallbackResponse) {
       processResults(fallbackResponse);
     }
