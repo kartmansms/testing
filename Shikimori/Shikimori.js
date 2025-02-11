@@ -982,7 +982,7 @@
         top100Button.on('hover:enter', function () {
         Lampa.Activity.push({
           url: '',
-          title: 'Shikimori',
+          title: 'Топ 100',
           component: 'Shikimori',
           page: 1,
 		  limit: 100,
@@ -991,24 +991,6 @@
       });
     };
 	
-// Функция загрузки топ 100
-    this.loadTop100 = function() {
-      object.page = 1;
-      object.limit = 100;
-      object.sort = 'ranked';
-      
-    // Очищаем текущие результаты
-      body.empty();
-      items = [];
-      
-      API.main(object, (data) => {
-        this.body(data);
-        scroll.reset();
-      }, (error) => {
-        console.error('Ошибка загрузки топа:', error);
-        Lampa.Noty.show('Ошибка загрузки рейтинга');
-      });
-    };
 	
     this.empty = function () {
       var empty = new Lampa.Empty();
