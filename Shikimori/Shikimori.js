@@ -984,38 +984,31 @@
         });
     };
 	
-	// Функция загрузки топ 100
-	function loadTop100() {
-		var _this = this;
+	// Функция загрузки топ 100    
+    function loadTop100() {
+        var _this = this;
 
-		// Очистка текущего списка
-		body.empty();
-		items = [];
+        scroll.minus();
+        items = [];
+        body.empty();
 
-		// Показ загрузчика
-		this.activity.loader(true);
+        var settings = {
+            "url": "https://shikimori.one/api/animes?order=ranked&limit=100",
+            "method": "GET",
+            "timeout": 0
+        };
 
-		// Запрос к API Shikimori для получения топ 100 аниме
-		var settings = {
-			"url": "https://shikimori.one/api/animes",
-			"method": "GET",
-			"timeout": 0,
-			"data": {
-				"limit": 100, // Ограничение на 100 аниме
-				"order": "ranked", // Сортировка по рейтингу
-				"kind": "tv" // Тип аниме (например, TV сериалы)
-			}
-		};
-
-		$.ajax(settings).done(function (response) {
-			// Обработка ответа
-			_this.build(response);
-		}).fail(function (error) {
-			// Обработка ошибки
-			console.error("Ошибка при загрузке топ 100:", error);
-			_this.empty();
-		});
-	}
+        $.ajax(settings).done(function (response) {
+            _this.body(response);
+            scroll.append(head);
+            scroll.append(body);
+            html.append(scroll.render(true));
+            _this.activity.loader(false);
+            _this.activity.toggle();
+        }).fail(function () {
+            _this.empty();
+        });
+    }
 	
     this.empty = function () {
       var empty = new Lampa.Empty();
