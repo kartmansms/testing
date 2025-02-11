@@ -469,10 +469,15 @@
   
 	// Поиск информации об аниме через внешние API
   function search(animeData) {
-	// Очистка названия от сезонов и частей
+    //Cleaner
     function cleanName(name) {
+      // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
       var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
+
+      // Удаляем нежелательные фразы
       var cleanedName = name.replace(regex, '').trim();
+
+      // Удаляем лишние пробелы
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
@@ -592,52 +597,28 @@
 
 	// Класс для создания карточки аниме
   function Card(data, userLang) {
-	// Локализация типов и статусов
-    var typeTranslations = {
-      'tv': 'ТВ',
-      'movie': 'Фильм',
-      'ova': 'OVA',
-      'ona': 'ONA',
-      'special': 'Спешл',
-      'tv_special': 'ТВ Спешл',
-      'music': 'Музыка',
-      'pv': 'PV',
-      'cm': 'CM'
-    };
-
-    var statusTranslations = {
-      'anons': 'Анонс',
-      'ongoing': 'Онгоинг',
-      'released': 'Вышло'
-    };
-
-	// Форматирование сезона
-    var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
-      .replace(/^\w/, function (c) { return c.toUpperCase(); })
-      .replace(/(winter|spring|summer|fall)/gi, function (match) {
-        return {
-          'winter': 'Зима',
-          'spring': 'Весна',
-          'summer': 'Лето',
-          'fall': 'Осень'
-        }[match.toLowerCase()];
-      }) : '';
-
+    var formattedSeason = data.season ? data.season.replace('_', ' ').replace(/^\w/, function (c) {
+      return c.toUpperCase();
+    }) : '';
     function capitalizeFirstLetter(string) {
-      if (!string) return string;
+      if (!string) return string; // Проверка на пустую строку или null/undefined
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
-
-    var item = Lampa.Template.get("Shikimori-Card", {
+    var item = Lampa.Template.get("LMEShikimori-Card", {
       img: data.poster.originalUrl,
-      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
+      type: data.kind.toUpperCase(),
+      status: capitalizeFirstLetter(data.status),
       rate: data.score,
       title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year
+      //seasonID: data.season,
+      //seasonID: data.season !== null ? data.season : data.airedOn.year, // Проверка на null
+      season: data.season !== null ? formattedSeason : data.airedOn.year // Проверка на null,
     });
-
-	// Создание DOM-элемента карточки
+    /**
+    if (!formattedSeason) {
+        $(item).find('.LMEShikimori.card__season').addClass('no-season');
+    }
+    **/
     this.render = function () {
       return item;
     };
