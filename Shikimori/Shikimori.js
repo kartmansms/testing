@@ -469,6 +469,11 @@
 
   // Поиск информации об аниме через внешние API
   function search(animeData) {
+	  // проверка на наличие и корректность данных перед их использованием
+	  if (!animeData || !animeData.name || !animeData.japanese) {
+        console.error('Invalid anime data:', animeData);
+        return;
+    }
     //Cleaner
     function cleanName(name) {
       // Регулярное выражение для удаления фраз "Season", "Part" и цифр рядом с ними
@@ -635,7 +640,7 @@
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
       rate: data.score,
-      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      title: userLang === 'ru' && data.russian ? data.russian : data.name || data.japanese,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
