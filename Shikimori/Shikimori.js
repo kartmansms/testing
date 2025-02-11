@@ -969,24 +969,12 @@
         Lampa.Activity.push(params);
       }
 	  	  
-	// Функция для активации кнопки
-	  function activateButton(button) {
-		// Убираем класс 'active' у всех кнопок
-		homeElement.removeClass('active');
-		top100Button.removeClass('active');
-		serverElement.removeClass('active');
-		
-		// Добавляем класс 'active' только к активной кнопке
-		button.addClass('active');
-	  }; 
 	  
-      serverElement.on('click', function () {
-		activateButton(serverElement);  
+      serverElement.on('hover:enter', function () { 
         mainMenu();
       });
       var homeElement = head.find('.Shikimori__home');
-      homeElement.on('click', function () {
-		activateButton(homeElement);  
+      homeElement.on('hover:enter', function () {  
         Lampa.Activity.push({
           url: '',
           title: 'Главная',
@@ -997,8 +985,7 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-        top100Button.on('click', function () {
-		activateButton(top100Button);	
+        top100Button.on('hover:enter', function () {	
         Lampa.Activity.push({
 		  url: '',
           title: 'Топ 100',
