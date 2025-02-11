@@ -970,7 +970,7 @@
       }
 	  	  
 	// Функция для активации кнопки
-	function activateButton(button) {
+	  function activateButton(button) {
 		// Убираем класс 'active' у всех кнопок
 		homeElement.removeClass('active');
 		top100Button.removeClass('active');
@@ -978,7 +978,7 @@
 		
 		// Добавляем класс 'active' только к активной кнопке
 		button.addClass('active');
-	}
+	  }; 
 	  
       serverElement.on('hover:enter', function () {
 		activateButton(serverElement);  
