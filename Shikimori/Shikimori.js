@@ -618,8 +618,8 @@ function search(animeData) {
 
     // Форматирование сезона
     var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
-      .replace(/^\w/, function (c) { return c.toUpperCase(); })
-      .replace(/(winter|spring|summer|fall)/gi, function (match) {
+        .replace(/^\w/, function (c) { return c.toUpperCase(); })
+        .replace(/(winter|spring|summer|fall)/gi, function (match) {
         return {
           'winter': 'Зима',
           'spring': 'Весна',
@@ -633,13 +633,20 @@ function search(animeData) {
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
+    // Проверка и экранирование данных
+    var title = userLang === 'ru' && data.russian && data.russian.trim() !== '' ? escapeHtml(data.russian) : escapeHtml(data.name || data.japanese || 'Название недоступно');
+    var type = typeTranslations[data.kind] || data.kind.toUpperCase();
+    var status = statusTranslations[data.status] || capitalizeFirstLetter(data.status);
+    var rate = data.score || 'Нет оценки';
+    var season = data.season !== null ? escapeHtml(formattedSeason) : data.airedOn.year;
+
     var item = Lampa.Template.get("Shikimori-Card", {
-      img: data.poster.originalUrl,
-      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
-      rate: data.score,
-      title: userLang === 'ru' && data.russian ? data.russian.trim() : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year
+        img: data.poster.originalUrl,
+        type: type,
+        status: status,
+        rate: rate,
+        title: title,
+        season: season
     });
 
     // Создание DOM-элемента карточки
