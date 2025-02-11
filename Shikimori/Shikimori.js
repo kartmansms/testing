@@ -979,8 +979,15 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-        top100Button.on('hover:enter', () => {
-        this.loadTop100();
+        top100Button.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori',
+          component: 'Shikimori',
+          page: 1,
+		  limit: 100,
+		  sort: 'ranked'
+        });
       });
     };
 	
