@@ -457,12 +457,13 @@
           query: query
         }),
         success: function success(response) {
-          oncomplite(response.data.animes);
-        },
-        error: function error(_error) {
-          console.error('Ошибка:', _error);
-          onerror(_error);
-        }
+    if (response && response.data && response.data.animes) {
+        oncomplite(response.data.animes);
+    } else {
+        console.error('Ошибка: Некорректный ответ от API');
+        onerror('Некорректный ответ от API');
+    }
+},
       });
     });
   }
