@@ -428,22 +428,25 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
 	// Формирование GraphQL-запроса с параметрами
-      var query = "\n	query Animes {\n	animes(limit: ".concat(params.limit || 36, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
-
-      if (params.kind) {
-        query += ", kind: \"".concat(params.kind, "\"");
-      }
-      if (params.status) {
-        query += ", status: \"".concat(params.status, "\"");
-      }
-      if (params.genre) {
-        query += ", genre: \"".concat(params.genre, "\"");
-      }
-      if (params.seasons) {
-        query += ", season: \"".concat(params.seasons, "\"");
-      }
-
-      query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
+      let query = `
+  query Animes {
+    animes(limit: ${params.limit || 36}, order: ${params.sort || 'aired_on'}, page: ${params.page}
+      ${params.kind ? `, kind: "${params.kind}"` : ''}
+      ${params.status ? `, status: "${params.status}"` : ''}
+      ${params.genre ? `, genre: "${params.genre}"` : ''}
+      ${params.seasons ? `, season: "${params.seasons}"` : ''}
+    ) {
+      id
+      name
+      russian
+      kind
+      score
+      status
+      season
+      airedOn { year }
+      poster { originalUrl }
+    }
+  }`;
 	  
 	// AJAX-запрос к API Shikimori
       $.ajax({
