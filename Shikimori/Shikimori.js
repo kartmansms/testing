@@ -984,6 +984,7 @@
           url: '',
           title: 'Главная',
           component: 'Shikimori',
+		  limit: 100,
           page: 1
         });
       });
