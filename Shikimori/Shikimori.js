@@ -1,6 +1,16 @@
 (function () {
   'use strict';
 
+// Вспомогательная функция для экранирования HTML
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+              .replace(/'/g, '&#039;');
+}
+
   // Вспомогательная функция для получения всех ключей объекта, включая символьные
   function ownKeys(e, r) {
     var t = Object.keys(e);
@@ -643,14 +653,21 @@
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
-    var item = Lampa.Template.get("Shikimori-Card", {
-      img: data.poster.originalUrl,
-      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
-      rate: data.score,
-      title: userLang === 'ru' && data.russian && data.russian.trim() !== '' ? data.russian : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year
-    });
+	// Проверка и экранирование данных
+    var title = userLang === 'ru' && data.russian && data.russian.trim() !== '' ? escapeHtml(data.russian) : escapeHtml(data.name || data.japanese || 'Название недоступно');
+    var type = typeTranslations[data.kind] || data.kind.toUpperCase();
+    var status = statusTranslations[data.status] || capitalizeFirstLetter(data.status);
+    var rate = data.score || 'Нет оценки';
+    var season = data.season !== null ? escapeHtml(formattedSeason) : data.airedOn.year;
+
+	var item = Lampa.Template.get("Shikimori-Card", {
+          img: data.poster.originalUrl,
+          type: type,
+          status: status,
+          rate: rate,
+          title: title,
+          season: season
+      });
 
     // Создание DOM-элемента карточки
     this.render = function () {
