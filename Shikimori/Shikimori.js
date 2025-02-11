@@ -481,22 +481,22 @@
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
-    // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
+     // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
-        console.log('Мы здесь шаг#1');
+        console.log('We here step#1');
         // Если получили 404, продолжаем искать на TMDB
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
       } else if (response.themoviedb === null) {
-        console.log('Мы здесь шаг#2');
+        console.log('We here step#2');
         // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
       } else {
-        console.log('Мы здесь шаг#3', animeData.kind);
+        console.log('We here step#3', animeData.kind);
         // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
         getTmdb(response.themoviedb, animeData.kind, processResults);
       }
@@ -507,33 +507,30 @@
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
       } else {
-        console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
+        console.error('Error fetching data from animeapi.my.id:', jqXHR.status);
       }
     });
-
-    // Поиск через TMDB API
     function searchTmdb(query, callback) {
+      //PFS
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
-
-    // Получение детальной информации из TMDB
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
       var callback = arguments.length > 2 ? arguments[2] : undefined;
+      console.log(id, type);
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
-
-    // Обработка ответов от TMDB
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
       if (tmdbResponse.total_results === 0) {
+        // Если результатов нет, делаем запрос с японским именем
         searchTmdb(fallbackQuery, handleFallbackResponse);
       } else {
         processResults(tmdbResponse);
