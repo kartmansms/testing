@@ -1,16 +1,6 @@
 (function () {
   'use strict';
 
-	// Вспомогательная функция для экранирования HTML
-  function escapeHtml(str) {
-    if (!str) return '';
-    return str.replace(/&/g, '&amp;')
-              .replace(/</g, '&lt;')
-              .replace(/>/g, '&gt;')
-              .replace(/"/g, '&quot;')
-              .replace(/'/g, '&#039;');
-  }
-
   // Вспомогательная функция для получения всех ключей объекта, включая символьные
   function ownKeys(e, r) {
     var t = Object.keys(e);
@@ -466,7 +456,7 @@
         data: JSON.stringify({
           query: query
         }),
-       success: function success(response) {
+        success: function success(response) {
     if (response && response.data && response.data.animes) {
         oncomplite(response.data.animes);
     } else {
@@ -646,7 +636,7 @@
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
       rate: data.score,
-      title: escapeHtml(userLang === 'ru' && data.russian && data.russian.trim() !== '' ? data.russian : data.name || data.japanese),
+      title: userLang === 'ru' && data.russian && data.russian.trim() !== '' ? data.russian : data.name || data.japanese,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
