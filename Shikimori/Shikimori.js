@@ -968,14 +968,7 @@
         if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
-	  
-	// Добавляем обработчик событий для кнопок
-	  var top100Button = head.find('.selector').on('click', function() {
-		// Убираем класс 'active' у всех кнопок
-		head.find('.selector').removeClass('active');
-		// Добавляем класс 'active' только к нажатой кнопке
-		$(this).addClass('active');
-	  });		  
+	  	  
 	  
       serverElement.on('hover:enter', function () {
         mainMenu();
@@ -992,7 +985,12 @@
 	  
 	// Добавляем обработчик для кнопки Топ 100
       var top100Button = head.find('.Shikimori__top100');
-        top100Button.on('hover:enter', function () {
+        top100Button.on('click', function () {
+		// Убираем класс 'active' у всех кнопок
+		homeElement.removeClass('active');
+		top100Button.removeClass('active');
+		// Добавляем класс 'active' только к нажатой кнопке
+		top100Button.addClass('active');	
         Lampa.Activity.push({
           title: 'Топ 100',
           component: 'Shikimori',
