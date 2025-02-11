@@ -543,8 +543,9 @@
     function processResults(response) {
       var menu = [];
       if (response.total_results !== undefined) {
+        // Обработка результата от поиска (search/multi)
         if (response.total_results === 0) {
-          Lampa.Noty.show('Ничего не найдено');
+          Lampa.Noty.show('Бядосе, обыскали все углы и ничего не нашли');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -561,7 +562,7 @@
             });
           });
           Lampa.Select.show({
-            title: 'Найти',
+            title: 'Find',
             items: menu,
             onBack: function onBack() {
               Lampa.Controller.toggle("content");
@@ -578,6 +579,7 @@
           });
         }
       } else {
+        // Обработка результата от запроса по ID (movie/{id})
         Lampa.Activity.push({
           url: '',
           component: 'full',
