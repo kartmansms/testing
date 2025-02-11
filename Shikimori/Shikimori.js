@@ -1,6 +1,16 @@
 (function () {
   'use strict';
 
+// Вспомогательная функция для экранирования HTML
+  function escapeHtml(str) {
+      if (!str) return '';
+      return str.replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+  }
+
   // Вспомогательная функция для получения всех ключей объекта, включая символьные
   function ownKeys(e, r) {
     var t = Object.keys(e);
