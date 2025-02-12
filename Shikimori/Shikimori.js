@@ -467,12 +467,13 @@ function escapeHtml(str) {
           query: query
         }),
         success: function success(response) {
-          oncomplite(response.data.animes);
-        },
-        error: function error(_error) {
-          console.error('Ошибка:', _error);
-          onerror(_error);
-        }
+    if (response && response.data && response.data.animes) {
+        oncomplite(response.data.animes);
+    } else {
+        console.error('Ошибка: Некорректный ответ от API');
+        onerror('Некорректный ответ от API');
+    }
+},
       });
     });
   }
@@ -652,16 +653,6 @@ function escapeHtml(str) {
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
-<<<<<<< HEAD
-    var item = Lampa.Template.get("Shikimori-Card", {
-      img: data.poster.originalUrl,
-      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
-      rate: data.score,
-      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year
-    });
-=======
 	// Проверка и экранирование данных
     var title = userLang === 'ru' && data.russian && data.russian.trim() !== '' ? escapeHtml(data.russian) : escapeHtml(data.name || data.japanese || 'Название недоступно');
     var type = typeTranslations[data.kind] || data.kind.toUpperCase();
@@ -677,7 +668,6 @@ function escapeHtml(str) {
           title: title,
           season: season
       });
->>>>>>> 1005b5f526401ba5b4145e71d7c6b213264ff9ad
 
     // Создание DOM-элемента карточки
     this.render = function () {
