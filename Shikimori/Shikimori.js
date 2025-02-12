@@ -459,22 +459,24 @@ function escapeHtml(str) {
   }`;
 
       // AJAX-запрос к API Shikimori
-      $.ajax({
-        url: 'https://shikimori.one/api/graphql',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({
-          query: query
-        }),
-        success: function success(response) {
-    if (response && response.data && response.data.animes) {
-        oncomplite(response.data.animes);
-    } else {
-        console.error('Ошибка: Некорректный ответ от API');
-        onerror('Некорректный ответ от API');
-    }
-},
-      });
+		  $.ajax({
+	  url: 'https://shikimori.one/api/graphql',
+	  method: 'POST',
+	  contentType: 'application/json',
+	  data: JSON.stringify({ query: query }),
+	  success: function(response) {
+		if (response && response.data && response.data.animes) {
+		  oncomplite(response.data.animes);
+		} else {
+		  console.error('Ошибка: Некорректный ответ от API');
+		  onerror('Некорректный ответ от API');
+		}
+	  },
+	  error: function(jqXHR, textStatus, errorThrown) {
+		console.error('Ошибка при запросе к API:', textStatus, errorThrown);
+		onerror('Ошибка при запросе к API');
+	  }
+	});
     });
   }
 
