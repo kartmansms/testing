@@ -553,116 +553,116 @@
     }
 	
 	// Обработка ответов от TMDB
-    const MEDIA_TYPES = {
-  TV: 'tv',
-  MOVIE: 'movie',
-  DEFAULT: 'unknown'
-};
+		const MEDIA_TYPES = {
+	  TV: 'tv',
+	  MOVIE: 'movie',
+	  DEFAULT: 'unknown'
+	};
 
-const handleTmdbResponse = (tmdbResponse, fallbackQuery) => {
-  try {
-    if (!tmdbResponse?.total_results) {
-      if (!fallbackQuery) {
-        showNotification('Ничего не найдено');
-        return;
-      }
-      return searchTmdb(fallbackQuery, handleFallbackResponse);
-    }
-    processResults(tmdbResponse);
-  } catch (error) {
-    handleError(error, 'Ошибка обработки TMDB ответа');
-  }
-};
+	const handleTmdbResponse = (tmdbResponse, fallbackQuery) => {
+	  try {
+		if (!tmdbResponse?.total_results) {
+		  if (!fallbackQuery) {
+			showNotification('Ничего не найдено');
+			return;
+		  }
+		  return searchTmdb(fallbackQuery, handleFallbackResponse);
+		}
+		processResults(tmdbResponse);
+	  } catch (error) {
+		handleError(error, 'Ошибка обработки TMDB ответа');
+	  }
+	};
 
-const handleFallbackResponse = (fallbackResponse) => {
-  try {
-    if (!fallbackResponse) throw new Error('Пустой ответ');
-    processResults(fallbackResponse);
-  } catch (error) {
-    handleError(error, 'Ошибка запасного запроса');
-  }
-};
+	const handleFallbackResponse = (fallbackResponse) => {
+	  try {
+		if (!fallbackResponse) throw new Error('Пустой ответ');
+		processResults(fallbackResponse);
+	  } catch (error) {
+		handleError(error, 'Ошибка запасного запроса');
+	  }
+	};
 
-const processResults = (response) => {
-  const { total_results, results } = response;
-  
-  if (typeof total_results !== 'undefined') {
-    handlePaginationResults(total_results, results);
-  } else {
-    handleSingleResult(response);
-  }
-};
+	const processResults = (response) => {
+	  const { total_results, results } = response;
+	  
+	  if (typeof total_results !== 'undefined') {
+		handlePaginationResults(total_results, results);
+	  } else {
+		handleSingleResult(response);
+	  }
+	};
 
-const handlePaginationResults = (total, items = []) => {
-  switch (true) {
-    case total === 0:
-      showNotification('Ничего не найдено');
-      break;
-    
-    case total === 1 && items.length:
-      navigateToMediaItem(items[0]);
-      break;
-    
-    case items.length > 1:
-      showMediaSelection(items);
-      break;
-    
-    default:
-      throw new Error('Некорректные данные');
-  }
-};
+	const handlePaginationResults = (total, items = []) => {
+	  switch (true) {
+		case total === 0:
+		  showNotification('Ничего не найдено');
+		  break;
+		
+		case total === 1 && items.length:
+		  navigateToMediaItem(items[0]);
+		  break;
+		
+		case items.length > 1:
+		  showMediaSelection(items);
+		  break;
+		
+		default:
+		  throw new Error('Некорректные данные');
+	  }
+	};
 
-const handleSingleResult = (item) => {
-  if (!item?.id) throw new Error('Некорректный элемент');
-  navigateToMediaItem(item);
-};
+	const handleSingleResult = (item) => {
+	  if (!item?.id) throw new Error('Некорректный элемент');
+	  navigateToMediaItem(item);
+	};
 
-const showMediaSelection = (items) => {
-  const menuItems = items.map(createMediaMenuItem);
-  
-  Lampa.Select.show({
-    title: 'Найти',
-    items: menuItems,
-    onBack: () => toggleController('content'),
-    onSelect: ({ card }) => navigateToMediaItem(card)
-  });
-};
+	const showMediaSelection = (items) => {
+	  const menuItems = items.map(createMediaMenuItem);
+	  
+	  Lampa.Select.show({
+		title: 'Найти',
+		items: menuItems,
+		onBack: () => toggleController('content'),
+		onSelect: ({ card }) => navigateToMediaItem(card)
+	  });
+	};
 
-const createMediaMenuItem = (item) => ({
-  title: `[${(item.media_type || MEDIA_TYPES.DEFAULT).toUpperCase()}] ${item.name || item.title || 'Без названия'}`,
-  card: validateMediaItem(item)
-});
+	const createMediaMenuItem = (item) => ({
+	  title: `[${(item.media_type || MEDIA_TYPES.DEFAULT).toUpperCase()}] ${item.name || item.title || 'Без названия'}`,
+	  card: validateMediaItem(item)
+	});
 
-const validateMediaItem = (item) => {
-  if (!item.id || !item.media_type) {
-    throw new Error('Некорректные данные элемента');
-  }
-  return item;
-};
+	const validateMediaItem = (item) => {
+	  if (!item.id || !item.media_type) {
+		throw new Error('Некорректные данные элемента');
+	  }
+	  return item;
+	};
 
-const navigateToMediaItem = (item) => {
-  const mediaType = item.number_of_episodes ? MEDIA_TYPES.TV : MEDIA_TYPES.MOVIE;
-  
-  Lampa.Activity.push({
-    url: '',
-    component: 'full',
-    id: item.id,
-    method: mediaType,
-    card: item
-  });
-};
+	const navigateToMediaItem = (item) => {
+	  const mediaType = item.number_of_episodes ? MEDIA_TYPES.TV : MEDIA_TYPES.MOVIE;
+	  
+	  Lampa.Activity.push({
+		url: '',
+		component: 'full',
+		id: item.id,
+		method: mediaType,
+		card: item
+	  });
+	};
 
-const showNotification = (message) => Lampa.Noty.show(message);
-const toggleController = (name) => Lampa.Controller.toggle(name);
-const handleError = (error, context) => {
-  console.error(`${context}:`, error);
-  showNotification('Ошибка обработки данных');
+	const showNotification = (message) => Lampa.Noty.show(message);
+	const toggleController = (name) => Lampa.Controller.toggle(name);
+	const handleError = (error, context) => {
+	  console.error(`${context}:`, error);
+	  showNotification('Ошибка обработки данных');
+	};
 };
-
-const API = {
-  main,
-  search
-};
+	const API = {
+	  main,
+	  search
+	};
 
 	// Класс для создания карточки аниме
   function Card(data, userLang) {
