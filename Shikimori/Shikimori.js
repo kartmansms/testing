@@ -457,13 +457,12 @@
           query: query
         }),
         success: function success(response) {
-    if (response && response.data && response.data.animes) {
-        oncomplite(response.data.animes);
-    } else {
-        console.error('Ошибка: Некорректный ответ от API');
-        onerror('Некорректный ответ от API');
-    }
-},
+          oncomplite(response.data.animes);
+        },
+        error: function error(_error) {
+          console.error('Ошибка:', _error);
+          onerror(_error);
+        }
       });
     });
   }
@@ -636,7 +635,7 @@
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
       rate: data.score,
-      title: userLang === 'ru' && data.russian && data.russian.trim() !== '' ? data.russian : data.name || data.japanese,
+      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
