@@ -553,116 +553,68 @@
     }
 	
 	// Обработка ответов от TMDB
-		const MEDIA_TYPES = {
-	  TV: 'tv',
-	  MOVIE: 'movie',
-	  DEFAULT: 'unknown'
-	};
-
-	const handleTmdbResponse = (tmdbResponse, fallbackQuery) => {
-	  try {
-		if (!tmdbResponse?.total_results) {
-		  if (!fallbackQuery) {
-			showNotification('Ничего не найдено');
-			return;
-		  }
-		  return searchTmdb(fallbackQuery, handleFallbackResponse);
-		}
-		processResults(tmdbResponse);
-	  } catch (error) {
-		handleError(error, 'Ошибка обработки TMDB ответа');
-	  }
-	};
-
-	const handleFallbackResponse = (fallbackResponse) => {
-	  try {
-		if (!fallbackResponse) throw new Error('Пустой ответ');
-		processResults(fallbackResponse);
-	  } catch (error) {
-		handleError(error, 'Ошибка запасного запроса');
-	  }
-	};
-
-	const processResults = (response) => {
-	  const { total_results, results } = response;
-	  
-	  if (typeof total_results !== 'undefined') {
-		handlePaginationResults(total_results, results);
-	  } else {
-		handleSingleResult(response);
-	  }
-	};
-
-	const handlePaginationResults = (total, items = []) => {
-	  switch (true) {
-		case total === 0:
-		  showNotification('Ничего не найдено');
-		  break;
-		
-		case total === 1 && items.length:
-		  navigateToMediaItem(items[0]);
-		  break;
-		
-		case items.length > 1:
-		  showMediaSelection(items);
-		  break;
-		
-		default:
-		  throw new Error('Некорректные данные');
-	  }
-	};
-
-	const handleSingleResult = (item) => {
-	  if (!item?.id) throw new Error('Некорректный элемент');
-	  navigateToMediaItem(item);
-	};
-
-	const showMediaSelection = (items) => {
-	  const menuItems = items.map(createMediaMenuItem);
-	  
-	  Lampa.Select.show({
-		title: 'Найти',
-		items: menuItems,
-		onBack: () => toggleController('content'),
-		onSelect: ({ card }) => navigateToMediaItem(card)
-	  });
-	};
-
-	const createMediaMenuItem = (item) => ({
-	  title: `[${(item.media_type || MEDIA_TYPES.DEFAULT).toUpperCase()}] ${item.name || item.title || 'Без названия'}`,
-	  card: validateMediaItem(item)
-	});
-
-	const validateMediaItem = (item) => {
-	  if (!item.id || !item.media_type) {
-		throw new Error('Некорректные данные элемента');
-	  }
-	  return item;
-	};
-
-	const navigateToMediaItem = (item) => {
-	  const mediaType = item.number_of_episodes ? MEDIA_TYPES.TV : MEDIA_TYPES.MOVIE;
-	  
-	  Lampa.Activity.push({
-		url: '',
-		component: 'full',
-		id: item.id,
-		method: mediaType,
-		card: item
-	  });
-	};
-
-	const showNotification = (message) => Lampa.Noty.show(message);
-	const toggleController = (name) => Lampa.Controller.toggle(name);
-	const handleError = (error, context) => {
-	  console.error(`${context}:`, error);
-	  showNotification('Ошибка обработки данных');
-	};
-};
-	const API = {
-	  main,
-	  search
-	};
+    function handleTmdbResponse(tmdbResponse, fallbackQuery) {
+      if (tmdbResponse.total_results === 0) {
+        searchTmdb(fallbackQuery, handleFallbackResponse);
+      } else {
+        processResults(tmdbResponse);
+      }
+    }
+    function handleFallbackResponse(fallbackResponse) {
+      processResults(fallbackResponse);
+    }
+    function processResults(response) {
+      var menu = [];
+      if (response.total_results !== undefined) {
+        if (response.total_results === 0) {
+          Lampa.Noty.show('Ничего не найдено');
+        } else if (response.total_results === 1) {
+          Lampa.Activity.push({
+            url: '',
+            component: 'full',
+            id: response.results[0].id,
+            method: response.results[0].media_type,
+            card: response.results[0]
+          });
+        } else if (response.total_results > 1) {
+          response.results.forEach(function (animeItem) {
+            menu.push({
+              title: "[".concat(animeItem.media_type.toUpperCase(), "] ").concat(animeItem.name ? animeItem.name : animeItem.title),
+              card: animeItem
+            });
+          });
+          Lampa.Select.show({
+            title: 'Найти',
+            items: menu,
+            onBack: function onBack() {
+              Lampa.Controller.toggle("content");
+            },
+            onSelect: function onSelect(a) {
+              Lampa.Activity.push({
+                url: '',
+                component: 'full',
+                id: a.card.id,
+                method: a.card.media_type,
+                card: a.card
+              });
+            }
+          });
+        }
+      } else {
+        Lampa.Activity.push({
+          url: '',
+          component: 'full',
+          id: response.id,
+          method: response.number_of_episodes ? 'tv' : 'movie',
+          card: response
+        });
+      }
+    }
+  }
+  var API = {
+    main: main,
+    search: search
+  };
 
 	// Класс для создания карточки аниме
   function Card(data, userLang) {
