@@ -567,7 +567,7 @@
       var menu = [];
       if (response.total_results !== undefined) {
         if (response.total_results === 0) {
-          Lampa.Noty.show('Ничего не найдено');
+          Lampa.Noty.show('Не смог победить');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
