@@ -495,122 +495,64 @@
   
 	// Поиск информации об аниме через внешние API
   function search(animeData) {
-	// Очистка названия от сезонов и частей
+    const OMDB_API_KEY = "79ec5017";
+    const TMDB_API_KEY = "4ef0d7355d9ffb5151e987764708ce96";
+
     function cleanName(name) {
-      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-      var cleanedName = name.replace(regex, '').trim();
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
+        return name.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '').trim().replace(/\s{2,}/g, ' ');
     }
-	// Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
-    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
-      if (response === null) {
-    console.log('Мы здесь шаг#1');
-    // Если получили 404, продолжаем искать на TMDB
-    searchTmdb(animeData.name, function (tmdbResponse) {
-    handleTmdbResponse(tmdbResponse, animeData.japanese);
-    });
-      } else if (response.themoviedb === null) {
-    console.log('Мы здесь шаг#2');
-    // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
-    searchTmdb(animeData.name, function (tmdbResponse) {
-    handleTmdbResponse(tmdbResponse, animeData.japanese);
-    });
-      } else {
-    console.log('Мы здесь шаг#3', animeData.kind);
-    // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
-    getTmdb(response.themoviedb, animeData.kind, processResults);
-      }
-    }).fail(function (jqXHR) {
-      if (jqXHR.status === 404) {
-    // Если получили 404, продолжаем искать на TMDB
-    searchTmdb(animeData.name, function (tmdbResponse) {
-    handleTmdbResponse(tmdbResponse, animeData.japanese);
-    });
-      } else {
-    console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
-      }
-    });
-	
-	// Поиск через TMDB API
-    function searchTmdb(query, callback) {
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+
+    function fetchOMDb(title, callback) {
+        const url = `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_API_KEY}`;
+        $.get(url, callback).fail(() => callback(null));
     }
-	
-	// Получение детальной информации из TMDB
-    function getTmdb(id) {
-      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
-      var callback = arguments.length > 2 ? arguments[2] : undefined;
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+
+    function fetchTMDb(title, callback) {
+        const url = `https://api.themoviedb.org/3/search/multi?api_key=${TMDB_API_KEY}&language=en-US&query=${encodeURIComponent(cleanName(title))}`;
+        $.get(url, callback).fail(() => callback(null));
     }
-	
-	// Обработка ответов от TMDB
-    function handleTmdbResponse(tmdbResponse, fallbackQuery) {
-      if (tmdbResponse.total_results === 0) {
-        searchTmdb(fallbackQuery, handleFallbackResponse);
-      } else {
-        processResults(tmdbResponse);
-      }
+
+    function fetchTMDbDetails(id, type, callback) {
+        const url = `https://api.themoviedb.org/3/${type}/${id}?api_key=${TMDB_API_KEY}&language=en-US`;
+        $.get(url, callback).fail(() => callback(null));
     }
-    function handleFallbackResponse(fallbackResponse) {
-      processResults(fallbackResponse);
-    }
-    function processResults(response) {
-      var menu = [];
-      if (response.total_results !== undefined) {
-        if (response.total_results === 0) {
-          Lampa.Noty.show('Не смог победить');
-        } else if (response.total_results === 1) {
-          Lampa.Activity.push({
-            url: '',
-            component: 'full',
-            id: response.results[0].id,
-            method: response.results[0].media_type,
-            card: response.results[0]
-          });
-        } else if (response.total_results > 1) {
-          response.results.forEach(function (animeItem) {
-            menu.push({
-              title: "[".concat(animeItem.media_type.toUpperCase(), "] ").concat(animeItem.name ? animeItem.name : animeItem.title),
-              card: animeItem
-            });
-          });
-          Lampa.Select.show({
-            title: 'Найти',
-            items: menu,
-            onBack: function onBack() {
-              Lampa.Controller.toggle("content");
-            },
-            onSelect: function onSelect(a) {
-              Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: a.card.id,
-                method: a.card.media_type,
-                card: a.card
-              });
-            }
-          });
+
+    function handleResults(tmdbData, omdbData) {
+        let finalData = { source: "Shikimori", ...animeData };
+
+        if (tmdbData && tmdbData.total_results > 0) {
+            const bestMatch = tmdbData.results[0];
+            finalData = { ...finalData, source: "TMDB", tmdb: bestMatch };
         }
-      } else {
-        Lampa.Activity.push({
-          url: '',
-          component: 'full',
-          id: response.id,
-          method: response.number_of_episodes ? 'tv' : 'movie',
-          card: response
-        });
-      }
+
+        if (omdbData && omdbData.Response !== "False") {
+            finalData = { ...finalData, source: "OMDb", omdb: omdbData };
+        }
+
+        console.log("Final Combined Data:", finalData);
+        return finalData;
     }
-  }
+
+    fetchTMDb(animeData.name, (tmdbResponse) => {
+        fetchOMDb(animeData.name, (omdbResponse) => {
+            const result = handleResults(tmdbResponse, omdbResponse);
+            processResults(result);
+        });
+    });
+
+    function processResults(data) {
+        if (data.source === "Shikimori") {
+            console.warn("Данные найдены только в Shikimori:", data);
+        } else if (data.source === "TMDB") {
+            console.log("Данные получены из TMDB:", data.tmdb);
+        } else if (data.source === "OMDb") {
+            console.log("Данные получены из OMDb:", data.omdb);
+        } else {
+            console.error("Аниме не найдено в TMDB и OMDb!");
+        }
+    }
+}
+
   var API = {
     main: main,
     search: search
