@@ -1,4 +1,3 @@
-<DOCUMENT>
 (function () {
   'use strict';
 
