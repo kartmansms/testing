@@ -1154,4 +1154,3 @@
   if (!window.plugin_shikimori_ready) startPlugin();
 
 })();
-</DOCUMENT>
