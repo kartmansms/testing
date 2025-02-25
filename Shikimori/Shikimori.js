@@ -662,8 +662,8 @@
     function startAuth() {
         // Здесь нужно реализовать процесс авторизации с Shikimori через OAuth 2.0
         // Замените YOUR_CLIENT_ID и YOUR_REDIRECT_URI на реальные значения
-        var clientId = 'YOUR_CLIENT_ID'; // Получите client_id после регистрации приложения на Shikimori
-        var redirectUri = 'YOUR_REDIRECT_URI'; // Укажите redirect_uri, зарегистрированный на Shikimori
+        var clientId = 'tTOLdu3qzQ2duHRBIigu6ciBpRw6c5iLZmTWpC9nw7c'; // Получите client_id после регистрации приложения на Shikimori
+        var redirectUri = 'http://bylampa.online/'; // Укажите redirect_uri, зарегистрированный на Shikimori
         var authUrl = `https://shikimori.one/oauth/authorize?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=code`;
 
         // Открываем окно авторизации
