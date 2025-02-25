@@ -23,7 +23,6 @@
                 Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
             });
         }
-<<<<<<< HEAD
       });
     }
     function makeInvokeMethod(e, r, n) {
@@ -426,7 +425,6 @@
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
 =======
         return e;
->>>>>>> fdeec19de66a32669e465954aa4369edcc809ff0
     }
 
     // Полифил для работы с генераторами
@@ -568,7 +566,7 @@
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
     // Добавляем кнопку "Топ100ТВ" в заголовок
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ100ТВТВ</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ100ТВ</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
