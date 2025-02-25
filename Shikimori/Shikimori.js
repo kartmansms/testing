@@ -981,7 +981,8 @@
           page: 1
         });
       });
-
+		
+		// Добавляем обработчик для новой вкладки "Топ100_tv"
       var top100TvElement = head.find('.Shikimori__top100_tv');
       top100TvElement.on('hover:enter', function () {
         Lampa.Activity.push({
@@ -996,6 +997,7 @@
         });
       });
 
+		// Добавляем обработчик для новой вкладки "Топ100_movies"
       var top100MoviesElement = head.find('.Shikimori__top100_movies');
       top100MoviesElement.on('hover:enter', function () {
         Lampa.Activity.push({
