@@ -424,10 +424,10 @@
     throw new TypeError("Неверная попытка распространить неитерируемый экземпляр.\nДля того чтобы быть итерируемым, не-массивные объекты должны иметь метод [Symbol.iterator]().");
   }
 
-  // Основная функция для выполнения GraphQL-запроса к Shikimori API (модифицирована для поддержки "Топ100")
+  // Основная функция для выполнения GraphQL-запроса к Shikimori API (модифицирована для поддержки "Топ100ТВ")
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      // Устанавливаем limit: 50 для "Топ100", иначе дефолтное значение 36
+      // Устанавливаем limit: 50 для "Топ100ТВ", иначе дефолтное значение 36
       var limit = params.isTop100 ? 50 : (params.limit || 36);
       var query = "\n	query Animes {\n	animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
@@ -446,7 +446,7 @@
 
       query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
 
-      // Если это запрос для "Топ100", делаем два запроса (page 1 и page 2) и объединяем результаты
+      // Если это запрос для "Топ100ТВ", делаем два запроса (page 1 и page 2) и объединяем результаты
       if (params.isTop100) {
         var requests = [
           $.ajax({
@@ -658,7 +658,7 @@
     };
   }
 
-  // Основной компонент для отображения каталога (модифицирован для поддержки "Топ100")
+  // Основной компонент для отображения каталога (модифицирован для поддержки "Топ100ТВ")
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
@@ -669,8 +669,8 @@
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    // Добавляем кнопку "Топ100" в заголовок
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ100</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    // Добавляем кнопку "Топ100ТВ" в заголовок
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100 simple-button simple-button--filter selector'>Топ100ТВТВ</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -685,7 +685,7 @@
         if (!Lampa.Controller.own(_this)) _this.start();
         if (step > 0) Navigator.move('down');else Navigator.move('up');
       };
-      // Отключаем пагинацию для "Топ100"
+      // Отключаем пагинацию для "Топ100ТВ"
       if (!object.isTop100) {
         scroll.onEnd = function () {
           object.page++;
@@ -984,12 +984,12 @@
           page: 1
         });
       });
-      // Добавляем обработчик для кнопки "Топ100"
+      // Добавляем обработчик для кнопки "Топ100ТВ"
       var top100Element = head.find('.Shikimori__top100');
       top100Element.on('hover:enter', function () {
         Lampa.Activity.push({
           url: '',
-          title: 'Shikimori Топ100',
+          title: 'Shikimori Топ100ТВТВ',
           component: 'Shikimori',
           page: 1,
           sort: 'ranked',
