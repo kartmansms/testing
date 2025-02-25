@@ -666,8 +666,8 @@
     });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
-    // Заголовок с кнопками "Главная", "Топ100_ТВ", "Топ100_Фильмы" и "Фильтр"
-    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100_tv simple-button simple-button--filter selector'>Топ100_ТВ</div><div class='Shikimori__top100_movies simple-button simple-button--filter selector'>Топ100_Фильмы</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    // Обновленный заголовок с добавленной кнопкой "Топ100_ONA"
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100_tv simple-button simple-button--filter selector'>Топ100_ТВ</div><div class='Shikimori__top100_movies simple-button simple-button--filter selector'>Топ100_Фильмы</div><div class='Shikimori__top100_ona simple-button simple-button--filter selector'>Топ100_ONA</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
@@ -770,7 +770,7 @@
       });
       filters.AnimeKindEnum = {
         title: 'Тип',
-        items: [{
+        items: [ {
           title: "ТВ Сериал",
           code: "tv"
         }, {
@@ -797,11 +797,11 @@
         }, {
           title: "CM",
           code: "cm"
-        }]
+        } ]
       };
       filters.status = {
         title: 'Статус',
-        items: [{
+        items: [ {
           title: "Анонс",
           code: "anons"
         }, {
@@ -810,11 +810,11 @@
         }, {
           title: "Вышло",
           code: "released"
-        }]
+        } ]
       };
       filters.sort = {
         title: 'Сортировка',
-        items: [{
+        items: [ {
           title: "По рейтингу",
           code: "ranked"
         }, {
@@ -838,7 +838,7 @@
         }, {
           title: "По рейтингу Shikimori",
           code: "ranked_shiki"
-        }]
+        } ]
       };
       function getCurrentSeason(date) {
         var month = date.getMonth();
@@ -939,10 +939,10 @@
         for (var i in filters) selected(filters[i]);
         Lampa.Select.show({
           title: 'Фильтры',
-          items: [{
+          items: [ {
             title: Lampa.Lang.translate('search_start'),
             searchShikimori: true
-          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
+          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons ],
           onBack: function onBack() {
             Lampa.Controller.toggle("content");
           },
@@ -1005,6 +1005,21 @@
           page: 1,
           sort: 'ranked',
           kind: 'movie',
+          status: 'released',
+          isTop100: true
+        });
+      });
+
+      // Добавляем обработчик для новой вкладки "Топ100_ONA"
+      var top100OnaElement = head.find('.Shikimori__top100_ona');
+      top100OnaElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori Топ100_ONA',
+          component: 'Shikimori',
+          page: 1,
+          sort: 'ranked',
+          kind: 'ona',
           status: 'released',
           isTop100: true
         });
