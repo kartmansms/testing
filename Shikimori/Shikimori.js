@@ -1089,6 +1089,8 @@
     };
   }
 
+ return this;
+  }
   // Компонент для расширения информации в карточке
   function Component() {
     Lampa.Listener.follow("full", /*#__PURE__*/function () {
