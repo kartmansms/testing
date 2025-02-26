@@ -1,4 +1,4 @@
-(function () {  
+(function () {
   'use strict';
 
   // Вспомогательная функция для получения всех ключей объекта, включая символьные
@@ -428,32 +428,32 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       var limit = params.isTop100 ? 50 : (params.limit || 36);
-      var query = `
-        query Animes {
-          animes(
-            limit: ${limit}, 
-            order: ${params.sort || 'aired_on'}, 
-            page: ${params.page}
-            ${params.kind ? `, kind: "${params.kind}"` : ''}
-            ${params.status ? `, status: "${params.status}"` : ''}
-            ${params.genre ? `, genre: "${params.genre}"` : ''}
-            ${params.seasons ? `, season: "${params.seasons}"` : ''}
-          ) {
+var query = `
+    query Animes($page: Int, $limit: Int, $order: String, $kind: String, $status: String, $genre: String, $season: String) {
+        animes(
+            page: $page
+            limit: $limit
+            order: $order
+            ${params.kind ? 'kind: $kind' : ''}
+            ${params.status ? 'status: $status' : ''}
+            ${params.genre ? 'genre: $genre' : ''}
+            ${params.seasons ? 'season: $season' : ''}
+        ) {
             id
             name
             russian
-            licenseNameRu
             english
             japanese
             kind
             score
             status
             season
-            airedOn { year }
+            airedOn { year month date }
             poster { originalUrl }
-          }
+            ratings { score }
+            licenseNameRu
         }
-      `;
+    }`;
 
       if (params.isTop100) {
         var requests = [
@@ -486,7 +486,9 @@
           url: 'https://shikimori.one/api/graphql',
           method: 'POST',
           contentType: 'application/json',
-          data: JSON.stringify({ query: query }),
+          data: JSON.stringify({
+            query: query
+          }),
           success: function success(response) {
             oncomplite(response.data.animes);
           },
@@ -502,26 +504,59 @@
   // Поиск информации об аниме через внешние API
   function search(animeData) {
     function cleanName(name) {
-      const regex = /(\b(?:Season|Part|Movie|Special|OVA|ONA)\s*\d*\.?\d*\b|\(\d{4}\))/gi;
-      let cleanedName = name.replace(regex, '').trim();
-      cleanedName = cleanedName.replace(/[:!?]/g, '');
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
-    }
-    
-    function searchTmdb(query, callback) {
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = `search/multi?api_key=${apiKey}&language=${Lampa.Storage.field('language')}&include_adult=true&query=${encodeURIComponent(cleanName(query))}`;
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
-    }
+    const regex = /(\b(?:Season|Part|Movie|Special|OVA|ONA)\s*\d*\.?\d*\b|\(\d{4}\)|[-_](?:S\d+|OVA|ONA)/gi;
+    let cleanedName = name.replace(regex, '').trim();
+    cleanedName = cleanedName.replace(/[:\-!?]/g, ' '); // Заменяем на пробелы
+    cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
+    return cleanedName.trim();
+}
+    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
+      if (response === null) {
+        searchTmdb(animeData.name, function (tmdbResponse) {
+          handleTmdbResponse(tmdbResponse, animeData.japanese);
+        });
+      } else if (response.themoviedb === null) {
+        searchTmdb(animeData.name, function (tmdbResponse) {
+          handleTmdbResponse(tmdbResponse, animeData.japanese);
+        });
+      } else {
+        getTmdb(response.themoviedb, animeData.kind, processResults);
+      }
+    }).fail(function (jqXHR) {
+      if (jqXHR.status === 404) {
+        searchTmdb(animeData.name, function (tmdbResponse) {
+          handleTmdbResponse(tmdbResponse, animeData.japanese);
+        });
+      } else {
+        console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
+      }
+    });
 
-    function getTmdb(id, type = 'movie', callback) {
+    function searchTmdb(query, callback) {
+    var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+    var encodedQuery = encodeURIComponent(cleanName(query));
+    var request = `search/multi?api_key=${apiKey}&language=${Lampa.Storage.field('language')}&query=${encodedQuery}`;
+    
+    $.ajax({
+        url: Lampa.Storage.field('proxy_tmdb') 
+            ? `${Lampa.Utils.protocol()}apitmdb.${Lampa.Manifest?.cub_domain || 'cub.red'}/3/${request}`
+            : `https://api.themoviedb.org/3/${request}`,
+        timeout: 15000,
+        success: callback,
+        error: function(xhr) {
+            console.error('TMDB Error:', xhr.status, xhr.statusText);
+            Lampa.Noty.show('Ошибка подключения к TMDB');
+        }
+    });
+}
+
+    function getTmdb(id) {
+      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
+      var callback = arguments.length > 2 ? arguments[2] : undefined;
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = `${type}/${id}?api_key=${apiKey}&language=${Lampa.Storage.field('language')}`;
+      var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
 
@@ -532,77 +567,50 @@
         processResults(tmdbResponse);
       }
     }
-
-    function processResults(response) {
-      var menu = [];
-      if (response.total_results !== undefined) {
-        if (response.total_results === 0) {
-          Lampa.Noty.show('Не найдено совпадений');
-        } else if (response.total_results === 1) {
-          Lampa.Activity.push({
-            url: '',
-            component: 'full',
-            id: response.results[0].id,
-            method: response.results[0].media_type,
-            card: response.results[0]
-          });
-        } else if (response.total_results > 1) {
-          response.results.forEach(function (animeItem) {
-            if(animeItem.media_type === 'tv' || animeItem.media_type === 'movie') {
-              menu.push({
-                title: `[${animeItem.media_type.toUpperCase()}] ${animeItem.name || animeItem.title}`,
-                card: animeItem
-              });
-            }
-          });
-          
-          if(menu.length > 0) {
-            Lampa.Select.show({
-              title: 'Выберите вариант',
-              items: menu,
-              onBack: function onBack() {
-                Lampa.Controller.toggle("content");
-              },
-              onSelect: function onSelect(a) {
-                Lampa.Activity.push({
-                  url: '',
-                  component: 'full',
-                  id: a.card.id,
-                  method: a.card.media_type,
-                  card: a.card
-                });
-              }
-            });
-          }
-          else {
-            Lampa.Noty.show('Нет подходящих результатов');
-          }
-        }
-      } else {
-        Lampa.Activity.push({
-          url: '',
-          component: 'full',
-          id: response.id,
-          method: response.number_of_episodes ? 'tv' : 'movie',
-          card: response
-        });
-      }
+    function handleFallbackResponse(fallbackResponse) {
+      processResults(fallbackResponse);
     }
+ function processResults(response) {
+    var menu = [];
+    if (response.results) {
+        var validResults = response.results.filter(item => 
+            ['movie', 'tv'].includes(item.media_type) &&
+            (item.title || item.name)
+        );
 
-    $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`, function (response) {
-      if (!response || response.themoviedb === null) {
-        searchTmdb(animeData.russian || animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
+        if (validResults.length === 0) {
+            Lampa.Noty.show('Совпадений не найдено');
+            return;
+        }
+
+        validResults.forEach(animeItem => {
+            menu.push({
+                title: `[${animeItem.media_type.toUpperCase()}] ${animeItem.title || animeItem.name}`,
+                card: animeItem
+            });
         });
-      } else {
-        getTmdb(response.themoviedb, 'tv', processResults);
-      }
-    }).fail(function (jqXHR) {
-      searchTmdb(animeData.russian || animeData.name, function (tmdbResponse) {
-        handleTmdbResponse(tmdbResponse, animeData.japanese);
-      });
-    });
-  }
+
+        Lampa.Select.show({
+            title: 'Выберите вариант',
+            items: menu,
+            onSelect: function(a) {
+                Lampa.Activity.push({
+                    url: '',
+                    component: 'full',
+                    id: a.card.id,
+                    method: a.card.media_type,
+                    card: a.card
+                });
+            }
+        });
+    } else {
+        Lampa.Noty.show('Ошибка обработки результатов');
+    }
+}
+  var API = {
+    main: main,
+    search: search
+  };
 
   // Класс для создания карточки аниме
   function Card(data, userLang) {
@@ -636,43 +644,54 @@
       }) : '';
 
     function capitalizeFirstLetter(string) {
-      return string ? string.charAt(0).toUpperCase() + string.slice(1) : '';
+      if (!string) return string;
+      return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
     var item = Lampa.Template.get("Shikimori-Card", {
       img: data.poster.originalUrl,
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
-      rate: data.score || 'N/A',
-      title: userLang === 'ru' ? (data.russian || data.name || data.japanese) : (data.name || data.japanese),
-      season: data.season ? formattedSeason : (data.airedOn?.year || '')
+      rate: data.score,
+      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
-    this.render = function () { return item; };
-    this.destroy = function () { item.remove(); };
+    this.render = function () {
+      return item;
+    };
+    this.destroy = function () {
+      item.remove();
+    };
   }
 
   // Основной компонент для отображения каталога
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
-    var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
+    var scroll = new Lampa.Scroll({
+      mask: true,
+      over: true,
+      step: 250
+    });
     var items = [];
     var html = $("<div class='Shikimori-module'></div>");
+    // Обновленный заголовок с добавленной кнопкой "Топ100_ONA"
     var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100_tv simple-button simple-button--filter selector'>Топ100_ТВ</div><div class='Shikimori__top100_movies simple-button simple-button--filter selector'>Топ100_Фильмы</div><div class='Shikimori__top100_ona simple-button simple-button--filter selector'>Топ100_ONA</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
 
-    this.create = function () { API.main(object, this.build.bind(this), this.empty.bind(this)); };
+    this.create = function () {
+      API.main(object, this.build.bind(this), this.empty.bind(this));
+    };
 
     this.build = function (result) {
       var _this = this;
       scroll.minus();
       scroll.onWheel = function (step) {
         if (!Lampa.Controller.own(_this)) _this.start();
-        if (step > 0) Navigator.move('down'); else Navigator.move('up');
+        if (step > 0) Navigator.move('down');else Navigator.move('up');
       };
-      
       if (!object.isTop100) {
         scroll.onEnd = function () {
           object.page++;
