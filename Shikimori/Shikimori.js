@@ -499,7 +499,15 @@ function search(animeData) {
 
     console.log('Поиск аниме:', animeData);
 
+    // Проверяем входные данные
+    if (!animeData || !animeData.id) {
+        console.error('Некорректные входные данные:', animeData);
+        Lampa.Noty.show('Ошибка: нет данных для поиска');
+        return;
+    }
+
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id, function (response) {
+        console.log('Ответ от arm.haglund.dev:', response);
         if (response && response.themoviedb) {
             console.log('Получен TMDB ID:', response.themoviedb);
             getTmdb(response.themoviedb, animeData.kind, processResults);
@@ -521,14 +529,15 @@ function search(animeData) {
         var apiUrlTMDB = 'https://api.themoviedb.org/3/';
         var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
         var language = Lampa.Storage.field('language');
-        var query = cleanName(animeData.name || animeData.japanese);
+        var query = cleanName(animeData.name || animeData.japanese || '');
         var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
         var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
         var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
+        console.log('Запрос к TMDB search:', url);
         $.get(url, function (data) {
             console.log('Ответ от TMDB search:', data);
-            callback(data);
+            callback(data || { total_results: 0 });
         }).fail(function (err) {
             console.error('Ошибка TMDB поиска:', err);
             callback({ total_results: 0 });
@@ -543,9 +552,10 @@ function search(animeData) {
         var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
         var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
+        console.log('Запрос к TMDB get:', url);
         $.get(url, function (data) {
             console.log('Ответ от TMDB get:', data);
-            callback(data);
+            callback(data || null);
         }).fail(function (err) {
             console.error('Ошибка получения данных TMDB:', err);
             callback(null);
@@ -553,13 +563,14 @@ function search(animeData) {
     }
 
     function handleTmdbResponse(tmdbResponse, animeData) {
+        console.log('Обработка TMDB ответа:', tmdbResponse);
         if (!tmdbResponse || tmdbResponse.total_results === 0) {
             if (animeData.japanese && animeData.japanese !== animeData.name) {
                 console.log('Пробуем японское название:', animeData.japanese);
                 searchTmdb({ ...animeData, name: animeData.japanese }, processResults);
             } else {
                 console.warn('Ничего не найдено для:', animeData);
-                Lampa.Noty.show('Не удалось найти аниме в TMDB');
+                processResults({ total_results: 0 });
             }
         } else {
             processResults(tmdbResponse);
@@ -569,10 +580,9 @@ function search(animeData) {
     function processResults(response) {
         console.log('Обработка результата:', response);
 
-        // Проверка на валидность ответа
         if (!response) {
             console.error('Ответ пустой');
-            Lampa.Noty.show('Ошибка при обработке данных: пустой ответ');
+            Lampa.Noty.show('Не удалось найти аниме: пустой ответ от сервера');
             return;
         }
 
@@ -585,7 +595,7 @@ function search(animeData) {
                 console.log('Найден один результат:', response.results[0]);
                 if (!response.results[0].id || !response.results[0].media_type) {
                     console.error('Некорректные данные в результате:', response.results[0]);
-                    Lampa.Noty.show('Ошибка: некорректные данные аниме');
+                    Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
                     return;
                 }
                 Lampa.Activity.push({
@@ -609,7 +619,7 @@ function search(animeData) {
                 });
                 if (menu.length === 0) {
                     console.error('Все элементы некорректны');
-                    Lampa.Noty.show('Ошибка: нет валидных данных для выбора');
+                    Lampa.Noty.show('Не удалось найти аниме: нет валидных данных');
                     return;
                 }
                 Lampa.Select.show({
@@ -629,6 +639,40 @@ function search(animeData) {
                     }
                 });
             }
+        } else {
+            console.log('Прямой результат:', response);
+            if (!response || !response.id) {
+                console.error('Некорректный прямой результат:', response);
+                Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
+                return;
+            }
+            Lampa.Activity.push({
+                url: '',
+                component: 'full',
+                id: response.id,
+                method: response.number_of_episodes ? 'tv' : 'movie',
+                card: response
+            });
+        }
+    }
+}
+        } else {
+            console.log('Прямой результат:', response);
+            if (!response || !response.id) {
+                console.error('Некорректный прямой результат:', response);
+                Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
+                return;
+            }
+            Lampa.Activity.push({
+                url: '',
+                component: 'full',
+                id: response.id,
+                method: response.number_of_episodes ? 'tv' : 'movie',
+                card: response
+            });
+        }
+    }
+}
         } else {
             // Прямой результат от getTmdb
             console.log('Прямой результат:', response);
