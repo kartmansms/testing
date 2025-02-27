@@ -1432,27 +1432,35 @@
 					return;
 				}
 
-				var item = new Card(anime, userLanguage);
+				// Логируем данные аниме перед вызовом API.search
+				console.log('Данные аниме перед вызовом API.search:', anime);
+
+				var item = new Card(anime, userLang);
 				item.render(true).on("hover:focus", function () {
 					last = item.render()[0];
 					active = items.indexOf(item);
 					scroll.update(items[active].render(true), true);
-				}).on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
-				return _regeneratorRuntime().wrap(function _callee$(_context) {
-					while (1) switch (_context.prev = _context.next) {
-						case 0:
-							console.log('Открытие карточки для аниме:', anime);
-							API.search(anime).then(function (result) {
-								console.log('Результат поиска:', result);
-							}).catch(function (error) {
-								Lampa.Noty.show(`Ошибка при открытии карточки аниме: ${error.message || 'Неизвестная ошибка'}`);
-							});
-						case 1:
-						case "end":
-							return _context.stop();
-					}
-				}, _callee);
-			})));
+				}).on("hover:enter", function () {
+					// Логируем начало обработки события hover:enter
+					console.log('Начало обработки события hover:enter для аниме:', anime);
+
+					// Вызываем API.search с обработкой результата
+					API.search(anime)
+						.then(function (result) {
+							// Логируем успешный результат поиска
+							console.log('Успешный результат поиска после hover:enter:', result);
+							// Здесь результат уже обработан в processResults, но мы можем добавить дополнительные действия, если нужно
+						})
+						.catch(function (error) {
+							// Выводим ошибку пользователю через Lampa.Noty.show
+							Lampa.Noty.show(`Ошибка при открытии карточки аниме: ${error.message || 'Неизвестная ошибка'}`);
+							console.log('Ошибка при вызове API.search:', error);
+						})
+						.finally(function () {
+							// Логируем завершение обработки события
+							console.log('Завершение обработки события hover:enter');
+						});
+				});
 				body.append(item.render(true));
 				items.push(item);
 			});
