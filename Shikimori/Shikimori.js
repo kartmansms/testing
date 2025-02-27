@@ -741,7 +741,7 @@
                 .done(function (response) {
                     if (response && response.themoviedb) {
                         getTmdb(response.themoviedb, animeData.kind, function (tmdbResponse) {
-                            console.log('Ответ от getTmdb:', tmdbResponse); // Логирование ответа перед processResults
+                           |Lampa.Noty.show(`Получен ответ от getTmdb для аниме ${animeData.name}: данные успешно загружены`);
                             processResults(tmdbResponse);
                             resolve(tmdbResponse); // Успешное завершение
                         });
@@ -767,7 +767,7 @@
                     if (response.total_results > 0) {
                         found = true;
                         const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
-                        console.log('Ответ от searchTmdb:', { total_results: response.total_results, results: filteredResults }); // Логирование ответа перед processResults
+                        Lampa.Noty.show(`Найдено ${response.total_results} результатов в TMDB для ${names[0]}`);
                         processResults({ total_results: response.total_results, results: filteredResults });
                         resolve({ total_results: response.total_results, results: filteredResults }); // Успешное завершение
                     }
@@ -842,7 +842,7 @@
                         if (media) {
                             const tmdbResult = mapAniListToTmdb(media, kind, year);
                             if (tmdbResult) {
-                                console.log('Ответ от searchAniList:', tmdbResult); // Логирование ответа перед processResults
+                                Lampa.Noty.show(`Найден результат в AniList для ${names[index]}`);
                                 processResults(tmdbResult);
                                 resolve(tmdbResult); // Успешное завершение
                             } else {
@@ -871,7 +871,7 @@
                 const request = `${type}/${id}?api_key=${apiKey}&language=${lang}`;
                 $.get(baseUrl + request)
                     .done(function (response) {
-                        console.log('Ответ от getTmdb:', response); // Логирование ответа перед callback
+                        Lampa.Noty.show(`Данные TMDB успешно получены для ID ${id}`);
                         callback(response);
                     })
                     .fail(function (error) {
@@ -1069,8 +1069,8 @@
     function Component$1(object) {
         // Проверяем и получаем язык пользователя, с резервным значением 'en' (английский) по умолчанию
         var userLang = Lampa.Storage ? Lampa.Storage.field('language') || 'en' : 'en';
-        // Логируем значение userLang для отладки
-        console.log('Значение userLang:', userLang);
+        // Выводим значение userLang через Lampa.Noty
+        Lampa.Noty.show(`Используемый язык пользователя: ${userLang}`);
 
         var network = new Lampa.Reguest();
         var scroll = new Lampa.Scroll({
@@ -1467,8 +1467,8 @@
                     return;
                 }
 
-                // Логируем данные аниме перед вызовом API.search
-                console.log('Данные аниме перед вызовом API.search:', anime);
+                // Выводим данные аниме через Lampa.Noty перед вызовом API.search
+                Lampa.Noty.show(`Загружаем карточку аниме: ${anime.name} (ID: ${anime.id})`);
 
                 var item = new Card(anime, userLang);
                 item.render(true).on("hover:focus", function () {
@@ -1476,23 +1476,22 @@
                     active = items.indexOf(item);
                     scroll.update(items[active].render(true), true);
                 }).on("hover:enter", function () {
-                    // Логируем начало обработки события hover:enter
-                    console.log('Начало обработки события hover:enter для аниме:', anime);
+                    // Выводим начало обработки события через Lampa.Noty
+                    Lampa.Noty.show(`Открываем карточку аниме: ${anime.name}`);
 
                     // Вызываем API.search с обработкой результата
                     API.search(anime)
                         .then(function (result) {
-                            // Логируем успешный результат поиска
-                            console.log('Успешный результат поиска после hover:enter:', result);
+                            // Выводим успешный результат поиска через Lampa.Noty
+                            Lampa.Noty.show(`Поиск для ${anime.name} завершен успешно`);
                         })
                         .catch(function (error) {
                             // Выводим ошибку пользователю через Lampa.Noty.show
-                            Lampa.Noty.show(`Ошибка при открытии карточки аниме: ${error.message || 'Неизвестная ошибка'}`);
-                            console.log('Ошибка при вызове API.search:', error);
+                            Lampa.Noty.show(`Ошибка при открытии карточки аниме ${anime.name}: ${error.message || 'Неизвестная ошибка'}`);
                         })
                         .finally(function () {
-                            // Логируем завершение обработки события
-                            console.log('Завершение обработки события hover:enter');
+                            // Выводим завершение обработки события через Lampa.Noty
+                            Lampa.Noty.show(`Обработка карточки ${anime.name} завершена`);
                         });
                 });
                 body.append(item.render(true));
@@ -1600,6 +1599,7 @@
 
         // Обрабатываем событие наведения на кнопку для перехода в каталог Shikimori
         button.on("hover:enter", function () {
+            Lampa.Noty.show('Переход в каталог Shikimori');
             Lampa.Activity.push({
                 url: '',
                 title: 'Shikimori',
@@ -1610,12 +1610,14 @@
 
         // Добавляем кнопку в список меню приложения
         $(".menu .menu__list").eq(0).append(button);
+        Lampa.Noty.show('Кнопка Shikimori успешно добавлена в меню');
     }
 
     // Функция инициализации плагина с проверкой готовности Lampa
     function startPlugin() {
         // Ждем, пока Lampa будет готова
         if (!window.Lampa || !window.Lampa.Storage) {
+            Lampa.Noty.show('Lampa еще не готова, повторная проверка через 100 мс');
             setTimeout(startPlugin, 100); // Проверка каждые 100 мс
             return;
         }
@@ -1633,6 +1635,7 @@
 
         // Регистрируем плагин в системе Lampa
         Lampa.Manifest.plugins = manifest;
+        Lampa.Noty.show('Плагин Shikimori зарегистрирован в системе Lampa');
 
         // Добавляем стили для компонентов Shikimori
         Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n        </style>");
@@ -1642,12 +1645,15 @@
 
         // Регистрируем основной компонент каталога
         Lampa.Component.add(manifest.component, Component$1);
+        Lampa.Noty.show('Компонент Shikimori зарегистрирован');
 
         // Регистрируем компонент для расширения информации
         Component();
+        Lampa.Noty.show('Компонент для расширения информации зарегистрирован');
 
         // Добавляем стили в тело документа
         $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
+        Lampa.Noty.show('Стили Shikimori добавлены в документ');
 
         // Если приложение уже готово, добавляем кнопку сразу, иначе ждем события готовности
         if (window.appready) {
@@ -1655,6 +1661,7 @@
         } else {
             Lampa.Listener.follow("app", function (event) {
                 if (event.type === "ready") {
+                    Lampa.Noty.show('Приложение готово, добавляем кнопку Shikimori');
                     add();
                 }
             });
@@ -1663,6 +1670,7 @@
 
     // Проверяем, не был ли плагин уже инициализирован, и запускаем его, если нет
     if (!window.plugin_shikimori_ready) {
+        Lampa.Noty.show('Запуск инициализации плагина Shikimori');
         startPlugin();
     }
 
