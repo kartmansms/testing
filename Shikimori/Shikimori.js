@@ -519,9 +519,9 @@ function search(animeData) {
             case 'music':
             case 'pv':
             case 'cm':
-                return 'movie'; // OVA, ONA и прочее обычно считаются фильмами в TMDB
+                return 'movie';
             default:
-                return 'tv'; // По умолчанию пробуем как сериал
+                return 'tv';
         }
     }
 
@@ -532,6 +532,7 @@ function search(animeData) {
             var tmdbType = mapKindToTmdbType(animeData.kind);
             getTmdb(response.themoviedb, tmdbType, function (result) {
                 if (result) {
+                    console.log('Успешный результат по ID:', result);
                     processResults(result);
                 } else {
                     console.log('Запрос по ID провалился, пробуем поиск по названию');
@@ -562,7 +563,7 @@ function search(animeData) {
         var query = cleanName(animeData.name || animeData.japanese || animeData.english || animeData.russian || '');
         var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
         var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
-        var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+        var url = Lampa.Storage.field('proxy_tmdb') && !navigator.onLine ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
         console.log('Запрос к TMDB search:', url);
         $.get(url, function (data) {
@@ -580,7 +581,7 @@ function search(animeData) {
         var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
         var language = Lampa.Storage.field('language');
         var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
-        var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+        var url = Lampa.Storage.field('proxy_tmdb') && !navigator.onLine ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
         console.log('Запрос к TMDB get:', url);
         $.get(url, function (data) {
@@ -604,7 +605,21 @@ function search(animeData) {
                 processResults({ total_results: 0 });
             }
         } else {
-            processResults(tmdbResponse);
+            // Фильтруем результаты по типу и году
+            var tmdbType = mapKindToTmdbType(animeData.kind);
+            var filteredResults = tmdbResponse.results.filter(function (item) {
+                var matchesType = item.media_type === tmdbType;
+                var matchesYear = !animeData.airedOn || !animeData.airedOn.year || 
+                    (item.first_air_date && item.first_air_date.startsWith(animeData.airedOn.year)) || 
+                    (item.release_date && item.release_date.startsWith(animeData.airedOn.year));
+                return matchesType && matchesYear;
+            });
+            console.log('Отфильтрованные результаты:', filteredResults);
+            if (filteredResults.length > 0) {
+                processResults({ total_results: filteredResults.length, results: filteredResults });
+            } else {
+                processResults({ total_results: 0 });
+            }
         }
     }
 
