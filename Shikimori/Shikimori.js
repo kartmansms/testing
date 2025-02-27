@@ -1459,45 +1459,71 @@
             this.activity.toggle();
         };
 
-        this.body = function (data) {
-            data.forEach(function (anime) {
-                // Проверяем, что anime содержит необходимые поля
-                if (!anime || !anime.id || !anime.name || !anime.kind) {
-                    Lampa.Noty.show('Некорректные данные аниме: отсутствуют обязательные поля.');
-                    return;
-                }
+    this.body = function (data) {
+        data.forEach(function (anime) {
+            // Проверяем, что anime содержит необходимые поля
+            if (!anime || !anime.id || !anime.name || !anime.kind) {
+                Lampa.Noty.show('Некорректные данные аниме: отсутствуют обязательные поля.');
+                return;
+            }
 
-                // Выводим данные аниме через Lampa.Noty перед вызовом API.search
-                Lampa.Noty.show(`Загружаем карточку аниме: ${anime.name} (ID: ${anime.id})`);
+            // Выводим данные аниме через Lampa.Noty перед вызовом API.search
+            Lampa.Noty.show(`Загружаем карточку аниме: ${anime.name} (ID: ${anime.id})`);
 
-                var item = new Card(anime, userLang);
-                item.render(true).on("hover:focus", function () {
-                    last = item.render()[0];
-                    active = items.indexOf(item);
-                    scroll.update(items[active].render(true), true);
-                }).on("hover:enter", function () {
-                    // Выводим начало обработки события через Lampa.Noty
-                    Lampa.Noty.show(`Открываем карточку аниме: ${anime.name}`);
+            var item = new Card(anime, userLang);
+            item.render(true).on("hover:focus", function () {
+                last = item.render()[0];
+                active = items.indexOf(item);
+                scroll.update(items[active].render(true), true);
+            }).on("hover:enter", function () {
+                // Выводим начало обработки события через Lampa.Noty
+                Lampa.Noty.show(`Открываем карточку аниме: ${anime.name}`);
 
-                    // Вызываем API.search с обработкой результата
-                    API.search(anime)
-                        .then(function (result) {
-                            // Выводим успешный результат поиска через Lampa.Noty
-                            Lampa.Noty.show(`Поиск для ${anime.name} завершен успешно`);
-                        })
-                        .catch(function (error) {
-                            // Выводим ошибку пользователю через Lampa.Noty.show
-                            Lampa.Noty.show(`Ошибка при открытии карточки аниме ${anime.name}: ${error.message || 'Неизвестная ошибка'}`);
-                        })
-                        .finally(function () {
-                            // Выводим завершение обработки события через Lampa.Noty
-                            Lampa.Noty.show(`Обработка карточки ${anime.name} завершена`);
-                        });
-                });
-                body.append(item.render(true));
-                items.push(item);
+                // Вызываем API.search с обработкой результата
+                API.search(anime)
+                    .then(function (result) {
+                        // Выводим успешный результат поиска через Lampa.Noty
+                        Lampa.Noty.show(`Поиск для ${anime.name} завершен успешно с ${result.total_results} результатами`);
+                        
+                        // Обрабатываем результаты поиска
+                        if (result.total_results > 0) {
+                            processResults(result);
+                            // Если есть хотя бы один результат, пытаемся открыть детальную информацию
+                            if (result.total_results === 1 && result.results && result.results[0]) {
+                                const singleResult = result.results[0];
+                                if (singleResult.id && singleResult.media_type) {
+                                    Lampa.Activity.push({
+                                        url: '',
+                                        component: 'full',
+                                        id: singleResult.id,
+                                        method: singleResult.media_type,
+                                        card: singleResult
+                                    });
+                                    Lampa.Noty.show(`Переход к детальной информации для ${anime.name}`);
+                                } else {
+                                    Lampa.Noty.show('Данные результата некорректны, отображение меню результатов.');
+                                }
+                            } else if (result.total_results > 1) {
+                                Lampa.Noty.show(`Найдено несколько результатов для ${anime.name}, отображается меню выбора.`);
+                                // Меню выбора уже обрабатывается в processResults через Lampa.Select
+                            }
+                        } else {
+                            Lampa.Noty.show(`Не найдено результатов для ${anime.name}.`);
+                        }
+                    })
+                    .catch(function (error) {
+                        // Выводим ошибку пользователю через Lampa.Noty.show
+                        Lampa.Noty.show(`Ошибка при открытии карточки аниме ${anime.name}: ${error.message || 'Неизвестная ошибка'}`);
+                    })
+                    .finally(function () {
+                        // Выводим завершение обработки события через Lampa.Noty
+                        Lampa.Noty.show(`Обработка карточки ${anime.name} завершена`);
+                    });
             });
-        };
+            body.append(item.render(true));
+            items.push(item);
+        });
+    };
 
         this.start = function () {
             if (Lampa.Activity.active().activity !== this.activity) return;
