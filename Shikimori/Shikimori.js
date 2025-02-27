@@ -499,19 +499,47 @@ function search(animeData) {
 
     console.log('Начало поиска для аниме:', animeData);
 
-    // Проверка входных данных
     if (!animeData || !animeData.id) {
         console.error('Некорректные входные данные:', animeData);
         Lampa.Noty.show('Ошибка: нет данных для поиска');
         return;
     }
 
-    // Шаг 1: Пробуем получить TMDB ID через arm.haglund.dev
+    // Маппинг типов Shikimori на TMDB
+    function mapKindToTmdbType(kind) {
+        switch (kind) {
+            case 'movie':
+                return 'movie';
+            case 'tv':
+            case 'tv_special':
+                return 'tv';
+            case 'ova':
+            case 'ona':
+            case 'special':
+            case 'music':
+            case 'pv':
+            case 'cm':
+                return 'movie'; // OVA, ONA и прочее обычно считаются фильмами в TMDB
+            default:
+                return 'tv'; // По умолчанию пробуем как сериал
+        }
+    }
+
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id, function (response) {
         console.log('Ответ от arm.haglund.dev:', response);
         if (response && response.themoviedb) {
             console.log('Получен TMDB ID:', response.themoviedb);
-            getTmdb(response.themoviedb, animeData.kind, processResults);
+            var tmdbType = mapKindToTmdbType(animeData.kind);
+            getTmdb(response.themoviedb, tmdbType, function (result) {
+                if (result) {
+                    processResults(result);
+                } else {
+                    console.log('Запрос по ID провалился, пробуем поиск по названию');
+                    searchTmdb(animeData, function (tmdbResponse) {
+                        handleTmdbResponse(tmdbResponse, animeData);
+                    });
+                }
+            });
         } else {
             console.log('TMDB ID не найден, переходим к поиску по названию');
             searchTmdb(animeData, function (tmdbResponse) {
@@ -546,7 +574,7 @@ function search(animeData) {
         });
     }
 
-    function getTmdb(id, type = 'movie', callback) {
+    function getTmdb(id, type, callback) {
         var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
         var apiUrlTMDB = 'https://api.themoviedb.org/3/';
         var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
@@ -567,7 +595,6 @@ function search(animeData) {
     function handleTmdbResponse(tmdbResponse, animeData) {
         console.log('Обработка TMDB ответа:', tmdbResponse);
         if (!tmdbResponse || tmdbResponse.total_results === 0) {
-            // Пробуем альтернативные названия
             var altNames = [animeData.japanese, animeData.english, animeData.russian].filter(n => n && n !== animeData.name);
             if (altNames.length > 0) {
                 console.log('Пробуем альтернативное название:', altNames[0]);
