@@ -521,7 +521,7 @@ function search(animeData) {
                 return 'movie';
             default:
                 console.warn('Неизвестный kind, используем tv по умолчанию:', kind);
-                return 'tv'; // По умолчанию сериал, чтобы не терять аниме
+                return 'tv';
         }
     }
 
@@ -530,7 +530,7 @@ function search(animeData) {
         if (response && response.themoviedb) {
             console.log('Получен TMDB ID:', response.themoviedb);
             var tmdbType = mapKindToTmdbType(animeData.kind);
-            console.log('Выбранный тип TMDB:', tmdbType);
+            console.log('Выбранный тип TMDB для ID:', tmdbType);
             getTmdb(response.themoviedb, tmdbType, function (result) {
                 if (result) {
                     console.log('Успешный результат по ID:', result);
@@ -608,25 +608,35 @@ function search(animeData) {
         } else {
             var tmdbType = mapKindToTmdbType(animeData.kind);
             console.log('Ожидаемый тип TMDB:', tmdbType);
+
+            // Строгая фильтрация по типу и году
             var filteredResults = tmdbResponse.results.filter(function (item) {
                 var matchesType = item.media_type === tmdbType;
                 var matchesYear = !animeData.airedOn || !animeData.airedOn.year || 
                     (item.first_air_date && item.first_air_date.startsWith(animeData.airedOn.year)) || 
                     (item.release_date && item.release_date.startsWith(animeData.airedOn.year));
+                console.log('Проверка результата:', item, 'Тип:', matchesType, 'Год:', matchesYear);
                 return matchesType && matchesYear;
             });
+
             console.log('Отфильтрованные результаты:', filteredResults);
 
-            // Если нет точного совпадения по типу, берём первый результат с правильным типом
+            // Если нет точного совпадения, берём первый результат с правильным типом
             if (filteredResults.length === 0) {
                 filteredResults = tmdbResponse.results.filter(item => item.media_type === tmdbType);
                 console.log('Нет совпадений по году, выбран результат по типу:', filteredResults);
             }
 
+            // Если всё ещё пусто, берём первый результат
+            if (filteredResults.length === 0 && tmdbResponse.results.length > 0) {
+                filteredResults = [tmdbResponse.results[0]];
+                console.warn('Нет совпадений по типу, берём первый результат:', filteredResults);
+            }
+
             if (filteredResults.length > 0) {
                 processResults({ total_results: filteredResults.length, results: filteredResults });
             } else {
-                console.warn('Нет результатов с правильным типом:', tmdbType);
+                console.warn('Нет результатов даже после всех попыток для:', animeData);
                 processResults({ total_results: 0 });
             }
         }
@@ -705,11 +715,13 @@ function search(animeData) {
                 return;
             }
             console.log('Открываем карточку:', response);
+            // Принудительно используем тип из animeData.kind для прямого результата
+            var tmdbType = mapKindToTmdbType(animeData.kind);
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
                 id: response.id,
-                method: response.number_of_episodes ? 'tv' : 'movie',
+                method: tmdbType,
                 card: response
             });
         }
