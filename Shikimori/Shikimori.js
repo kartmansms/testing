@@ -529,47 +529,43 @@
   }
 
 // Переписанная функция поиска с учетом дополнительных API, года и транслитерации
-  function search(animeData) {
-    const nameVariants = [
-      normalizeName(animeData.name),
-      normalizeName(animeData.russian),
-      normalizeName(animeData.english),
-      normalizeName(animeData.licenseNameRu),
-      transliterateJapanese(animeData.japanese)
-    ].filter(Boolean);
-    const releaseYear = animeData.airedOn?.year;
+	function search(animeData) {
+	  const nameVariants = [
+		normalizeName(animeData.name),
+		normalizeName(animeData.russian),
+		normalizeName(animeData.english),
+		normalizeName(animeData.licenseNameRu),
+		transliterateJapanese(animeData.japanese)
+	  ].filter(Boolean);
+	  const releaseYear = animeData.airedOn?.year;
 
-    // Шаг 1: Проверка через animeapi.my.id
-    $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
-      .done(response => {
-        if (response && response.themoviedb) {
-          getTmdb(response.themoviedb, animeData.kind, processResults);
-        } else {
-          searchWithFallback(nameVariants, releaseYear, animeData.kind);
-        }
-      })
-      .fail(jqXHR => {
-        if (jqXHR.status === 404) {
-          searchWithFallback(nameVariants, releaseYear, animeData.kind);
-        } else {
-          console.error('Ошибка animeapi.my.id:', jqXHR.status);
-        }
-      });
+	  $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
+		.done(response => {
+		  if (response && response.themoviedb) {
+			getTmdb(response.themoviedb, animeData.kind, processResults);
+		  } else {
+			searchWithFallback(nameVariants, releaseYear, animeData.kind);
+		  }
+		})
+		.fail(jqXHR => {
+		  console.error('Ошибка при запросе к animeapi.my.id:', jqXHR.status, jqXHR.responseText);
+		  if (jqXHR.status === 404) {
+			searchWithFallback(nameVariants, releaseYear, animeData.kind);
+		  }
+		});
 
-    // Шаг 2: Поиск через TMDB и AniList
-    function searchWithFallback(names, year, kind) {
-      let found = false;
+	  function searchWithFallback(names, year, kind) {
+		let found = false;
 
-      // Поиск через TMDB
-      searchTmdb(names, year, kind, response => {
-        if (response.total_results > 0) {
-          found = true;
-          const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
-          processResults({ ...response, results: filteredResults });
-        }
-        if (!found) searchAniList(names, year, kind); // Если TMDB не дал результатов, ищем в AniList
-      });
-    }
+		searchTmdb(names, year, kind, response => {
+		  if (response.total_results > 0) {
+			found = true;
+			const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
+			processResults({ ...response, results: filteredResults });
+		  }
+		  if (!found) searchAniList(names, year, kind);
+		});
+	  }
 
     // Поиск через TMDB
     function searchTmdb(names, year, kind, callback) {
@@ -636,48 +632,51 @@
     }
 
     // Фильтрация и ранжирование результатов
-    function filterAndRankResults(results, query, kind, year) {
-      const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
-      return results
-        .filter(item => {
-          const normalizedTitle = normalizeName(item.name || item.title);
-          const distance = getLevenshteinDistance(normalizedTitle, query);
-          const typeMatch = mediaTypeMap[item.media_type]?.includes(kind);
-          const releaseDate = item.release_date || item.first_air_date;
-          const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
-          const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
-          return distance < 5 && typeMatch && yearMatch;
-        })
-        .sort((a, b) => {
-          const distA = getLevenshteinDistance(normalizeName(a.name || a.title), query);
-          const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
-          return distA - distB;
-        });
-    }
+	function filterAndRankResults(results, query, kind, year) {
+	  if (!results || !Array.isArray(results)) return [];
+	  const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
+	  return results
+		.filter(item => {
+		  if (!item || !item.name && !item.title) return false;
+		  const normalizedTitle = normalizeName(item.name || item.title);
+		  const distance = getLevenshteinDistance(normalizedTitle, query);
+		  const typeMatch = mediaTypeMap[item.media_type]?.includes(kind);
+		  const releaseDate = item.release_date || item.first_air_date;
+		  const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
+		  const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
+		  return distance < 5 && typeMatch && yearMatch;
+		})
+		.sort((a, b) => {
+		  const distA = getLevenshteinDistance(normalizeName(a.name || a.title), query);
+		  const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
+		  return distA - distB;
+		});
+	}
 
     // Преобразование результата AniList в формат TMDB
-    function mapAniListToTmdb(media, kind, year) {
-      const formatMap = {
-        'TV': 'tv',
-        'MOVIE': 'movie',
-        'OVA': 'tv',
-        'ONA': 'tv',
-        'SPECIAL': 'tv'
-      };
-      if (year && media.startDate.year && Math.abs(media.startDate.year - year) > 1) return null;
-      if (!formatMap[media.format]?.includes(kind)) return null;
+	function mapAniListToTmdb(media, kind, year) {
+	  if (!media || !media.title || !media.format) return null;
+	  const formatMap = {
+		'TV': 'tv',
+		'MOVIE': 'movie',
+		'OVA': 'tv',
+		'ONA': 'tv',
+		'SPECIAL': 'tv'
+	  };
+	  if (year && media.startDate?.year && Math.abs(media.startDate.year - year) > 1) return null;
+	  if (!formatMap[media.format]?.includes(kind)) return null;
 
-      return {
-        total_results: 1,
-        results: [{
-          id: media.id, // AniList ID, но потребуется дополнительное сопоставление с TMDB
-          media_type: formatMap[media.format] || 'tv',
-          name: media.title.english || media.title.romaji,
-          title: media.title.english || media.title.romaji,
-          release_date: `${media.startDate.year}-01-01`
-        }]
-      };
-    }
+	  return {
+		total_results: 1,
+		results: [{
+		  id: media.id,
+		  media_type: formatMap[media.format] || 'tv',
+		  name: media.title.english || media.title.romaji || media.title.native,
+		  title: media.title.english || media.title.romaji || media.title.native,
+		  release_date: media.startDate?.year ? `${media.startDate.year}-01-01` : ''
+		}]
+	  };
+	}
 
     // Запрос данных по TMDB ID
     function getTmdb(id, type = 'movie', callback) {
@@ -691,52 +690,66 @@
     }
 
     // Обработка результатов
-    function processResults(response) {
-      const menu = [];
-      if (response.total_results !== undefined) {
-        if (response.total_results === 0) {
-          Lampa.Noty.show('Не удалось найти совпадений.');
-        } else if (response.total_results === 1) {
+function processResults(response) {
+  const menu = [];
+  // Проверяем, есть ли total_results и results в ответе
+  if (response && typeof response.total_results !== 'undefined') {
+    if (response.total_results === 0) {
+      Lampa.Noty.show('Не удалось найти совпадений.');
+    } else if (response.total_results >= 1 && response.results && Array.isArray(response.results)) {
+      if (response.total_results === 1) {
+        const result = response.results[0];
+        if (result && result.id && result.media_type) { // Проверка на наличие необходимых свойств
           Lampa.Activity.push({
             url: '',
             component: 'full',
-            id: response.results[0].id,
-            method: response.results[0].media_type,
-            card: response.results[0]
+            id: result.id,
+            method: result.media_type,
+            card: result
           });
-        } else if (response.total_results > 1) {
-          response.results.forEach(item => {
+        } else {
+          Lampa.Noty.show('Данные результата некорректны.');
+        }
+      } else if (response.total_results > 1) {
+        response.results.forEach(item => {
+          if (item && item.id && (item.name || item.title) && item.media_type) { // Проверка на наличие ключевых полей
             const year = item.release_date ? new Date(item.release_date).getFullYear() : '';
             menu.push({
               title: `[${item.media_type.toUpperCase()}] ${item.name || item.title} (${year || 'N/A'})`,
               card: item
             });
-          });
+          }
+        });
+        if (menu.length > 0) { // Убеждаемся, что есть что показывать
           Lampa.Select.show({
             title: 'Найти',
             items: menu,
             onBack: () => Lampa.Controller.toggle('content'),
             onSelect: a => {
-              Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: a.card.id,
-                method: a.card.media_type,
-                card: a.card
-              });
+              if (a.card && a.card.id && a.card.media_type) {
+                Lampa.Activity.push({
+                  url: '',
+                  component: 'full',
+                  id: a.card.id,
+                  method: a.card.media_type,
+                  card: a.card
+                });
+              } else {
+                Lampa.Noty.show('Выбранный элемент некорректен.');
+              }
             }
           });
+        } else {
+          Lampa.Noty.show('Не найдено подходящих результатов для отображения.');
         }
-      } else {
-        Lampa.Activity.push({
-          url: '',
-          component: 'full',
-          id: response.id,
-          method: response.number_of_episodes ? 'tv' : 'movie',
-          card: response
-        });
       }
+    } else {
+      Lampa.Noty.show('Получены некорректные данные от API.');
     }
+  } else {
+    Lampa.Noty.show('Ответ от API отсутствует или некорректен.');
+  }
+}
   }
 
   var API = { main: main, search: search };
