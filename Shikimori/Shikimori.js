@@ -424,6 +424,43 @@
     throw new TypeError("Неверная попытка распространить неитерируемый экземпляр.\nДля того чтобы быть итерируемым, не-массивные объекты должны иметь метод [Symbol.iterator]().");
   }
 
+	// Новая функция нормализации имени
+	  function normalizeName(name) {
+		if (!name) return '';
+		return name
+		  .toLowerCase()
+		  .replace(/\b(season|part|episode)\s*\d*\.?\d*\b/gi, '')
+		  .replace(/[^\w\s-]/g, '')
+		  .replace(/\s+/g, ' ')
+		  .trim();
+	  }
+
+	  // Алгоритм Левенштейна для сравнения строк
+	  function getLevenshteinDistance(a, b) {
+		const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+		for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+		for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+		for (let j = 1; j <= b.length; j++) {
+		  for (let i = 1; i <= a.length; i++) {
+			const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+			matrix[j][i] = Math.min(
+			  matrix[j - 1][i] + 1,
+			  matrix[j][i - 1] + 1,
+			  matrix[j - 1][i - 1] + indicator
+			);
+		  }
+		}
+		return matrix[b.length][a.length];
+	  }
+
+	  // Транслитерация японских названий (требуется wanakana)
+	  function transliterateJapanese(japaneseName) {
+		if (typeof wanakana !== 'undefined' && japaneseName) {
+		  return wanakana.toRomaji(japaneseName).toLowerCase();
+		}
+		return '';
+	  }
+
   // Основная функция для выполнения GraphQL-запроса к Shikimori API
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
@@ -491,69 +528,174 @@
     });
   }
 
-  // Поиск информации об аниме через внешние API
+// Переписанная функция поиска с учетом дополнительных API, года и транслитерации
   function search(animeData) {
-    function cleanName(name) {
-      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-      var cleanedName = name.replace(regex, '').trim();
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
-    }
-    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
-      if (response === null) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
-      } else if (response.themoviedb === null) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
-      } else {
-        getTmdb(response.themoviedb, animeData.kind, processResults);
-      }
-    }).fail(function (jqXHR) {
-      if (jqXHR.status === 404) {
-        searchTmdb(animeData.name, function (tmdbResponse) {
-          handleTmdbResponse(tmdbResponse, animeData.japanese);
-        });
-      } else {
-        console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
-      }
-    });
+    const nameVariants = [
+      normalizeName(animeData.name),
+      normalizeName(animeData.russian),
+      normalizeName(animeData.english),
+      normalizeName(animeData.licenseNameRu),
+      transliterateJapanese(animeData.japanese)
+    ].filter(Boolean);
+    const releaseYear = animeData.airedOn?.year;
 
-    function searchTmdb(query, callback) {
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
-    }
+    // Шаг 1: Проверка через animeapi.my.id
+    $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
+      .done(response => {
+        if (response && response.themoviedb) {
+          getTmdb(response.themoviedb, animeData.kind, processResults);
+        } else {
+          searchWithFallback(nameVariants, releaseYear, animeData.kind);
+        }
+      })
+      .fail(jqXHR => {
+        if (jqXHR.status === 404) {
+          searchWithFallback(nameVariants, releaseYear, animeData.kind);
+        } else {
+          console.error('Ошибка animeapi.my.id:', jqXHR.status);
+        }
+      });
 
-    function getTmdb(id) {
-      var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
-      var callback = arguments.length > 2 ? arguments[2] : undefined;
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+    // Шаг 2: Поиск через TMDB и AniList
+    function searchWithFallback(names, year, kind) {
+      let found = false;
+
+      // Поиск через TMDB
+      searchTmdb(names, year, kind, response => {
+        if (response.total_results > 0) {
+          found = true;
+          const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
+          processResults({ ...response, results: filteredResults });
+        }
+        if (!found) searchAniList(names, year, kind); // Если TMDB не дал результатов, ищем в AniList
+      });
     }
 
-    function handleTmdbResponse(tmdbResponse, fallbackQuery) {
-      if (tmdbResponse.total_results === 0) {
-        searchTmdb(fallbackQuery, handleFallbackResponse);
-      } else {
-        processResults(tmdbResponse);
+    // Поиск через TMDB
+    function searchTmdb(names, year, kind, callback) {
+      const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+      const apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest?.cub_domain || 'cub.red') + '/3/';
+      const lang = Lampa.Storage.field('language');
+      const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
+
+      function tryNextName(index = 0) {
+        if (index >= names.length) {
+          callback({ total_results: 0 });
+          return;
+        }
+        const query = encodeURIComponent(names[index]);
+        const request = `search/multi?api_key=${apiKey}&language=${lang}&include_adult=true&query=${query}`;
+        $.get(baseUrl + request)
+          .done(response => {
+            if (response.total_results > 0) callback(response);
+            else tryNextName(index + 1);
+          })
+          .fail(() => tryNextName(index + 1));
       }
+      tryNextName();
     }
-    function handleFallbackResponse(fallbackResponse) {
-      processResults(fallbackResponse);
+
+    // Поиск через AniList
+    function searchAniList(names, year, kind) {
+      const query = `
+        query ($search: String) {
+          Media(search: $search, type: ANIME) {
+            id
+            title { romaji english native }
+            startDate { year }
+            format
+          }
+        }
+      `;
+      const url = 'https://graphql.anilist.co';
+
+      function tryNextName(index = 0) {
+        if (index >= names.length) {
+          processResults({ total_results: 0 });
+          return;
+        }
+        $.ajax({
+          url,
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            query,
+            variables: { search: names[index] }
+          })
+        }).done(response => {
+          const media = response.data?.Media;
+          if (media) {
+            const tmdbResult = mapAniListToTmdb(media, kind, year);
+            if (tmdbResult) processResults(tmdbResult);
+            else tryNextName(index + 1);
+          } else tryNextName(index + 1);
+        }).fail(() => tryNextName(index + 1));
+      }
+      tryNextName();
     }
+
+    // Фильтрация и ранжирование результатов
+    function filterAndRankResults(results, query, kind, year) {
+      const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
+      return results
+        .filter(item => {
+          const normalizedTitle = normalizeName(item.name || item.title);
+          const distance = getLevenshteinDistance(normalizedTitle, query);
+          const typeMatch = mediaTypeMap[item.media_type]?.includes(kind);
+          const releaseDate = item.release_date || item.first_air_date;
+          const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
+          const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
+          return distance < 5 && typeMatch && yearMatch;
+        })
+        .sort((a, b) => {
+          const distA = getLevenshteinDistance(normalizeName(a.name || a.title), query);
+          const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
+          return distA - distB;
+        });
+    }
+
+    // Преобразование результата AniList в формат TMDB
+    function mapAniListToTmdb(media, kind, year) {
+      const formatMap = {
+        'TV': 'tv',
+        'MOVIE': 'movie',
+        'OVA': 'tv',
+        'ONA': 'tv',
+        'SPECIAL': 'tv'
+      };
+      if (year && media.startDate.year && Math.abs(media.startDate.year - year) > 1) return null;
+      if (!formatMap[media.format]?.includes(kind)) return null;
+
+      return {
+        total_results: 1,
+        results: [{
+          id: media.id, // AniList ID, но потребуется дополнительное сопоставление с TMDB
+          media_type: formatMap[media.format] || 'tv',
+          name: media.title.english || media.title.romaji,
+          title: media.title.english || media.title.romaji,
+          release_date: `${media.startDate.year}-01-01`
+        }]
+      };
+    }
+
+    // Запрос данных по TMDB ID
+    function getTmdb(id, type = 'movie', callback) {
+      const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+      const apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest?.cub_domain || 'cub.red') + '/3/';
+      const lang = Lampa.Storage.field('language');
+      const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
+      const request = `${type}/${id}?api_key=${apiKey}&language=${lang}`;
+      $.get(baseUrl + request, callback);
+    }
+
+    // Обработка результатов
     function processResults(response) {
-      var menu = [];
+      const menu = [];
       if (response.total_results !== undefined) {
         if (response.total_results === 0) {
-          Lampa.Noty.show('Не смог победить!!!');
+          Lampa.Noty.show('Не удалось найти совпадений.');
         } else if (response.total_results === 1) {
           Lampa.Activity.push({
             url: '',
@@ -563,19 +705,18 @@
             card: response.results[0]
           });
         } else if (response.total_results > 1) {
-          response.results.forEach(function (animeItem) {
+          response.results.forEach(item => {
+            const year = item.release_date ? new Date(item.release_date).getFullYear() : '';
             menu.push({
-              title: "[".concat(animeItem.media_type.toUpperCase(), "] ").concat(animeItem.name ? animeItem.name : animeItem.title),
-              card: animeItem
+              title: `[${item.media_type.toUpperCase()}] ${item.name || item.title} (${year || 'N/A'})`,
+              card: item
             });
           });
           Lampa.Select.show({
             title: 'Найти',
             items: menu,
-            onBack: function onBack() {
-              Lampa.Controller.toggle("content");
-            },
-            onSelect: function onSelect(a) {
+            onBack: () => Lampa.Controller.toggle('content'),
+            onSelect: a => {
               Lampa.Activity.push({
                 url: '',
                 component: 'full',
@@ -597,10 +738,8 @@
       }
     }
   }
-  var API = {
-    main: main,
-    search: search
-  };
+
+  var API = { main: main, search: search };
 
   // Класс для создания карточки аниме
   function Card(data, userLang) {
