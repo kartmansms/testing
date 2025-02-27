@@ -760,19 +760,16 @@
 
             // Внутренняя функция для последовательного поиска через запасные источники
             function searchWithFallback(names, year, kind) {
-                let found = false;
-
                 // Поиск через TMDB
                 searchTmdb(names, year, kind, function (response) {
                     if (response.total_results > 0) {
-                        found = true;
                         const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
                         Lampa.Noty.show(`Найдено ${response.total_results} результатов в TMDB для ${names[0]}`);
                         processResults({ total_results: response.total_results, results: filteredResults });
                         resolve({ total_results: response.total_results, results: filteredResults }); // Успешное завершение
-                    }
-                    if (!found) {
-                        searchAniList(names, year, kind); // Переход к AniList, если TMDB не дал результатов
+                    } else {
+                        processResults({ total_results: 0 });
+                        reject(new Error('Не удалось найти совпадений в TMDB для всех вариантов названий.'));
                     }
                 });
             }
@@ -788,7 +785,6 @@
                 function tryNextName(index) {
                     if (index >= names.length) {
                         callback({ total_results: 0 });
-                        reject(new Error('Не удалось найти совпадений в TMDB для всех вариантов названий.'));
                         return;
                     }
                     const query = encodeURIComponent(names[index]);
@@ -805,58 +801,6 @@
                             Lampa.Noty.show(`Ошибка при запросе к TMDB: ${error.statusText || 'Неизвестная ошибка'}`);
                             tryNextName(index + 1);
                         });
-                }
-                tryNextName(0);
-            }
-
-            // Поиск через AniList
-            function searchAniList(names, year, kind) {
-                const query = `
-                    query ($search: String) {
-                        Media(search: $search, type: ANIME) {
-                            id
-                            title { romaji english native }
-                            startDate { year }
-                            format
-                        }
-                    }
-                `;
-                const url = 'https://graphql.anilist.co';
-
-                function tryNextName(index) {
-                    if (index >= names.length) {
-                        processResults({ total_results: 0 });
-                        reject(new Error('Не удалось найти совпадений в AniList для всех вариантов названий.'));
-                        return;
-                    }
-                    $.ajax({
-                        url: url,
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({
-                            query: query,
-                            variables: { search: names[index] }
-                        })
-                    }).done(function (response) {
-                        const media = response.data ? response.data.Media : null;
-                        if (media) {
-                            const tmdbResult = mapAniListToTmdb(media, kind, year);
-                            if (tmdbResult) {
-                                Lampa.Noty.show(`Найден результат в AniList для ${names[index]}`);
-                                processResults(tmdbResult);
-                                resolve(tmdbResult); // Успешное завершение
-                            } else {
-                                Lampa.Noty.show(`Не найдено совпадений в AniList для "${names[index]}"`);
-                                tryNextName(index + 1);
-                            }
-                        } else {
-                            Lampa.Noty.show(`Не найдено совпадений в AniList для "${names[index]}"`);
-                            tryNextName(index + 1);
-                        }
-                    }).fail(function (error) {
-                        Lampa.Noty.show(`Ошибка при запросе к AniList: ${error.statusText || 'Неизвестная ошибка'}`);
-                        tryNextName(index + 1);
-                    });
                 }
                 tryNextName(0);
             }
@@ -976,40 +920,6 @@
                 const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
                 return distA - distB;
             });
-    }
-
-    // Обновленная функция mapAniListToTmdb с выводом ошибок через Lampa.Noty.show
-    function mapAniListToTmdb(media, kind, year) {
-        if (!media || !media.title || !media.format) {
-            Lampa.Noty.show('Данные из AniList некорректны или отсутствуют.');
-            return null;
-        }
-        const formatMap = {
-            'TV': 'tv',
-            'MOVIE': 'movie',
-            'OVA': 'tv',
-            'ONA': 'tv',
-            'SPECIAL': 'tv'
-        };
-        if (year && media.startDate && media.startDate.year && Math.abs(media.startDate.year - year) > 1) {
-            Lampa.Noty.show(`Год выпуска (${media.startDate.year}) не соответствует ожидаемому (${year}).`);
-            return null;
-        }
-        if (!formatMap[media.format] || !formatMap[media.format].includes(kind)) {
-            Lampa.Noty.show(`Формат ${media.format} не соответствует типу ${kind}.`);
-            return null;
-        }
-
-        return {
-            total_results: 1,
-            results: [{
-                id: media.id,
-                media_type: formatMap[media.format] || 'tv',
-                name: media.title.english || media.title.romaji || media.title.native,
-                title: media.title.english || media.title.romaji || media.title.native,
-                release_date: media.startDate && media.startDate.year ? `${media.startDate.year}-01-01` : ''
-            }]
-        };
     }
 
     // Класс для создания карточки аниме
@@ -1459,71 +1369,71 @@
             this.activity.toggle();
         };
 
-    this.body = function (data) {
-        data.forEach(function (anime) {
-            // Проверяем, что anime содержит необходимые поля
-            if (!anime || !anime.id || !anime.name || !anime.kind) {
-                Lampa.Noty.show('Некорректные данные аниме: отсутствуют обязательные поля.');
-                return;
-            }
+        this.body = function (data) {
+            data.forEach(function (anime) {
+                // Проверяем, что anime содержит необходимые поля
+                if (!anime || !anime.id || !anime.name || !anime.kind) {
+                    Lampa.Noty.show('Некорректные данные аниме: отсутствуют обязательные поля.');
+                    return;
+                }
 
-            // Выводим данные аниме через Lampa.Noty перед вызовом API.search
-            Lampa.Noty.show(`Загружаем карточку аниме: ${anime.name} (ID: ${anime.id})`);
+                // Выводим данные аниме через Lampa.Noty перед вызовом API.search
+                Lampa.Noty.show(`Загружаем карточку аниме: ${anime.name} (ID: ${anime.id})`);
 
-            var item = new Card(anime, userLang);
-            item.render(true).on("hover:focus", function () {
-                last = item.render()[0];
-                active = items.indexOf(item);
-                scroll.update(items[active].render(true), true);
-            }).on("hover:enter", function () {
-                // Выводим начало обработки события через Lampa.Noty
-                Lampa.Noty.show(`Открываем карточку аниме: ${anime.name}`);
+                var item = new Card(anime, userLang);
+                item.render(true).on("hover:focus", function () {
+                    last = item.render()[0];
+                    active = items.indexOf(item);
+                    scroll.update(items[active].render(true), true);
+                }).on("hover:enter", function () {
+                    // Выводим начало обработки события через Lampa.Noty
+                    Lampa.Noty.show(`Открываем карточку аниме: ${anime.name}`);
 
-                // Вызываем API.search с обработкой результата
-                API.search(anime)
-                    .then(function (result) {
-                        // Выводим успешный результат поиска через Lampa.Noty
-                        Lampa.Noty.show(`Поиск для ${anime.name} завершен успешно с ${result.total_results} результатами`);
-                        
-                        // Обрабатываем результаты поиска
-                        if (result.total_results > 0) {
-                            processResults(result);
-                            // Если есть хотя бы один результат, пытаемся открыть детальную информацию
-                            if (result.total_results === 1 && result.results && result.results[0]) {
-                                const singleResult = result.results[0];
-                                if (singleResult.id && singleResult.media_type) {
-                                    Lampa.Activity.push({
-                                        url: '',
-                                        component: 'full',
-                                        id: singleResult.id,
-                                        method: singleResult.media_type,
-                                        card: singleResult
-                                    });
-                                    Lampa.Noty.show(`Переход к детальной информации для ${anime.name}`);
-                                } else {
-                                    Lampa.Noty.show('Данные результата некорректны, отображение меню результатов.');
+                    // Вызываем API.search с обработкой результата
+                    API.search(anime)
+                        .then(function (result) {
+                            // Выводим успешный результат поиска через Lampa.Noty
+                            Lampa.Noty.show(`Поиск для ${anime.name} завершен успешно с ${result.total_results} результатами`);
+                            
+                            // Обрабатываем результаты поиска
+                            if (result.total_results > 0) {
+                                processResults(result);
+                                // Если есть хотя бы один результат, пытаемся открыть детальную информацию
+                                if (result.total_results === 1 && result.results && result.results[0]) {
+                                    const singleResult = result.results[0];
+                                    if (singleResult.id && singleResult.media_type) {
+                                        Lampa.Activity.push({
+                                            url: '',
+                                            component: 'full',
+                                            id: singleResult.id,
+                                            method: singleResult.media_type,
+                                            card: singleResult
+                                        });
+                                        Lampa.Noty.show(`Переход к детальной информации для ${anime.name}`);
+                                    } else {
+                                        Lampa.Noty.show('Данные результата некорректны, отображение меню результатов.');
+                                    }
+                                } else if (result.total_results > 1) {
+                                    Lampa.Noty.show(`Найдено несколько результатов для ${anime.name}, отображается меню выбора.`);
+                                    // Меню выбора уже обрабатывается в processResults через Lampa.Select
                                 }
-                            } else if (result.total_results > 1) {
-                                Lampa.Noty.show(`Найдено несколько результатов для ${anime.name}, отображается меню выбора.`);
-                                // Меню выбора уже обрабатывается в processResults через Lampa.Select
+                            } else {
+                                Lampa.Noty.show(`Не найдено результатов для ${anime.name}.`);
                             }
-                        } else {
-                            Lampa.Noty.show(`Не найдено результатов для ${anime.name}.`);
-                        }
-                    })
-                    .catch(function (error) {
-                        // Выводим ошибку пользователю через Lampa.Noty.show
-                        Lampa.Noty.show(`Ошибка при открытии карточки аниме ${anime.name}: ${error.message || 'Неизвестная ошибка'}`);
-                    })
-                    .finally(function () {
-                        // Выводим завершение обработки события через Lampa.Noty
-                        Lampa.Noty.show(`Обработка карточки ${anime.name} завершена`);
-                    });
+                        })
+                        .catch(function (error) {
+                            // Выводим ошибку пользователю через Lampa.Noty.show
+                            Lampa.Noty.show(`Ошибка при открытии карточки аниме ${anime.name}: ${error.message || 'Неизвестная ошибка'}`);
+                        })
+                        .finally(function () {
+                            // Выводим завершение обработки события через Lampa.Noty
+                            Lampa.Noty.show(`Обработка карточки ${anime.name} завершена`);
+                        });
+                });
+                body.append(item.render(true));
+                items.push(item);
             });
-            body.append(item.render(true));
-            items.push(item);
-        });
-    };
+        };
 
         this.start = function () {
             if (Lampa.Activity.active().activity !== this.activity) return;
@@ -1618,26 +1528,26 @@
         })));
     }
 
-	// Функция для добавления кнопки Shikimori в меню приложения
-	function add() {
-		// Создаем элемент кнопки с иконкой и текстом для меню
-		var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg\" alt=\"Shikimori icon\" class=\"menu-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
+// Функция для добавления кнопки Shikimori в меню приложения
+    function add() {
+        // Создаем элемент кнопки с иконкой и текстом для меню
+        var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg\" alt=\"Shikimori icon\" class=\"menu-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
 
-		// Обрабатываем событие наведения на кнопку для перехода в каталог Shikimori
-		button.on("hover:enter", function () {
-			Lampa.Noty.show('Переход в каталог Shikimori');
-			Lampa.Activity.push({
-				url: '',
-				title: 'Shikimori',
-				component: 'Shikimori',
-				page: 1
-			});
-		});
+        // Обрабатываем событие наведения на кнопку для перехода в каталог Shikimori
+        button.on("hover:enter", function () {
+            Lampa.Noty.show('Переход в каталог Shikimori');
+            Lampa.Activity.push({
+                url: '',
+                title: 'Shikimori',
+                component: 'Shikimori',
+                page: 1
+            });
+        });
 
-		// Добавляем кнопку в список меню приложения
-		$(".menu .menu__list").eq(0).append(button);
-		Lampa.Noty.show('Кнопка Shikimori успешно добавлена в меню');
-	}
+        // Добавляем кнопку в список меню приложения
+        $(".menu .menu__list").eq(0).append(button);
+        Lampa.Noty.show('Кнопка Shikimori успешно добавлена в меню');
+    }
 
     // Функция инициализации плагина с проверкой готовности Lampa
     function startPlugin() {
