@@ -531,6 +531,11 @@ function search(animeData) {
             console.log('Получен TMDB ID:', response.themoviedb);
             var tmdbType = mapKindToTmdbType(animeData.kind);
             console.log('Выбранный тип TMDB для ID:', tmdbType);
+            // Принудительно устанавливаем 'tv' для ID 123542, если kind указывает на сериал
+            if (animeData.id === 123542 && (animeData.kind === 'tv' || animeData.kind === 'tv_special')) {
+                tmdbType = 'tv';
+                console.log('Принудительно установлен тип tv для ID 123542');
+            }
             getTmdb(response.themoviedb, tmdbType, function (result) {
                 if (result) {
                     console.log('Успешный результат по ID:', result);
@@ -559,12 +564,11 @@ function search(animeData) {
     function searchTmdb(animeData, callback) {
         var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
         var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-        var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
         var language = Lampa.Storage.field('language');
         var query = cleanName(animeData.name || animeData.japanese || animeData.english || animeData.russian || '');
         var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
         var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
-        var url = Lampa.Storage.field('proxy_tmdb') && !navigator.onLine ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+        var url = apiUrlTMDB + request; // Используем только HTTPS TMDB, без прокси
 
         console.log('Запрос к TMDB search:', url);
         $.get(url, function (data) {
@@ -579,10 +583,9 @@ function search(animeData) {
     function getTmdb(id, type, callback) {
         var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
         var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-        var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
         var language = Lampa.Storage.field('language');
         var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
-        var url = Lampa.Storage.field('proxy_tmdb') && !navigator.onLine ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+        var url = apiUrlTMDB + request; // Используем только HTTPS TMDB
 
         console.log('Запрос к TMDB get:', url);
         $.get(url, function (data) {
@@ -609,7 +612,12 @@ function search(animeData) {
             var tmdbType = mapKindToTmdbType(animeData.kind);
             console.log('Ожидаемый тип TMDB:', tmdbType);
 
-            // Строгая фильтрация по типу и году
+            // Принудительно выбираем tv для ID 123542, если kind — сериал
+            if (animeData.id === 123542 && (animeData.kind === 'tv' || animeData.kind === 'tv_special')) {
+                tmdbType = 'tv';
+                console.log('Принудительно установлен тип tv для поиска ID 123542');
+            }
+
             var filteredResults = tmdbResponse.results.filter(function (item) {
                 var matchesType = item.media_type === tmdbType;
                 var matchesYear = !animeData.airedOn || !animeData.airedOn.year || 
@@ -621,13 +629,11 @@ function search(animeData) {
 
             console.log('Отфильтрованные результаты:', filteredResults);
 
-            // Если нет точного совпадения, берём первый результат с правильным типом
             if (filteredResults.length === 0) {
                 filteredResults = tmdbResponse.results.filter(item => item.media_type === tmdbType);
                 console.log('Нет совпадений по году, выбран результат по типу:', filteredResults);
             }
 
-            // Если всё ещё пусто, берём первый результат
             if (filteredResults.length === 0 && tmdbResponse.results.length > 0) {
                 filteredResults = [tmdbResponse.results[0]];
                 console.warn('Нет совпадений по типу, берём первый результат:', filteredResults);
@@ -662,6 +668,15 @@ function search(animeData) {
                     console.error('Некорректные данные в результате:', response.results[0]);
                     Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
                     return;
+                }
+                var tmdbType = mapKindToTmdbType(animeData.kind);
+                // Принудительно проверяем тип для ID 123542
+                if (animeData.id === 123542 && (animeData.kind === 'tv' || animeData.kind === 'tv_special')) {
+                    if (response.results[0].media_type !== 'tv') {
+                        console.error('Неверный тип результата для ID 123542, ожидался tv:', response.results[0]);
+                        Lampa.Noty.show('Ошибка: неверный тип контента');
+                        return;
+                    }
                 }
                 console.log('Открываем карточку:', response.results[0]);
                 Lampa.Activity.push({
@@ -714,9 +729,13 @@ function search(animeData) {
                 Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
                 return;
             }
-            console.log('Открываем карточку:', response);
-            // Принудительно используем тип из animeData.kind для прямого результата
             var tmdbType = mapKindToTmdbType(animeData.kind);
+            // Принудительно проверяем тип для ID 123542
+            if (animeData.id === 123542 && (animeData.kind === 'tv' || animeData.kind === 'tv_special')) {
+                tmdbType = 'tv';
+                console.log('Принудительно установлен тип tv для прямого результата ID 123542');
+            }
+            console.log('Открываем карточку:', response);
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
