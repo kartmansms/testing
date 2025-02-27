@@ -1202,7 +1202,6 @@
         Lampa.Noty.show('Компонент Shikimori зарегистрирован');
 
         Component();
-        Lampa.Noty.show('Компонент для расширения информации зарегистрирован');
 
         $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
 
@@ -1218,7 +1217,6 @@
     }
 
     if (!window.plugin_shikimori_ready) {
-        Lampa.Noty.show('Запуск инициализации плагина Shikimori');
         startPlugin();
     }
 })();
