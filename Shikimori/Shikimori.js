@@ -641,405 +641,344 @@
         throw new TypeError('Неверная попытка распространить неитерируемый экземпляр.\nДля того чтобы быть итерируемым, не-массивные объекты должны иметь метод [Symbol.iterator]().');
     }
 
-    // Новая функция нормализации имени
-    function normalizeName(name) {
-        // Если имя отсутствует, возвращаем пустую строку
-        if (!name) return '';
-        // Нормализуем имя: приводим к нижнему регистру, удаляем "Season", "Part" и специальные символы, убираем лишние пробелы
-        return name
-            .toLowerCase()
-            .replace(/\b(season|part|episode)\s*\d*\.?\d*\b/gi, '')
-            .replace(/[^\w\s-]/g, '')
-            .replace(/\s+/g, ' ')
-            .trim();
-    }
+// Новая функция нормализации имени
+  function normalizeName(name) {
+    if (!name) return '';
+    return name
+      .toLowerCase()
+      .replace(/\b(season|part|episode)\s*\d*\.?\d*\b/gi, '')
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
 
-    // Алгоритм Левенштейна для сравнения строк (расстояние редактирования)
-    function getLevenshteinDistance(stringA, stringB) {
-        // Создаем матрицу для вычисления расстояния Левенштейна
-        const matrix = Array(stringB.length + 1).fill(null).map(() => Array(stringA.length + 1).fill(null));
-        // Инициализируем первую строку и столбец
-        for (let i = 0; i <= stringA.length; i++) matrix[0][i] = i;
-        for (let j = 0; j <= stringB.length; j++) matrix[j][0] = j;
-        // Заполняем матрицу, вычисляя минимальные операции (вставка, удаление, замена)
-        for (let j = 1; j <= stringB.length; j++) {
-            for (let i = 1; i <= stringA.length; i++) {
-                const indicator = stringA[i - 1] === stringB[j - 1] ? 0 : 1;
-                matrix[j][i] = Math.min(
-                    matrix[j - 1][i] + 1, // Удаление
-                    matrix[j][i - 1] + 1, // Вставка
-                    matrix[j - 1][i - 1] + indicator // Замена
-                );
-            }
+  // Алгоритм Левенштейна для сравнения строк
+  function getLevenshteinDistance(a, b) {
+    const matrix = Array(b.length + 1).fill(null).map(() => Array(a.length + 1).fill(null));
+    for (let i = 0; i <= a.length; i++) matrix[0][i] = i;
+    for (let j = 0; j <= b.length; j++) matrix[j][0] = j;
+    for (let j = 1; j <= b.length; j++) {
+      for (let i = 1; i <= a.length; i++) {
+        const indicator = a[i - 1] === b[j - 1] ? 0 : 1;
+        matrix[j][i] = Math.min(
+          matrix[j - 1][i] + 1,
+          matrix[j][i - 1] + 1,
+          matrix[j - 1][i - 1] + indicator
+        );
+      }
+    }
+    return matrix[b.length][a.length];
+  }
+
+  // Транслитерация японских названий (требуется wanakana)
+  function transliterateJapanese(japaneseName) {
+    if (typeof wanakana !== 'undefined' && japaneseName) {
+      return wanakana.toRomaji(japaneseName).toLowerCase();
+    }
+    return '';
+  }
+
+  // Основная функция для выполнения GraphQL-запроса к Shikimori API (без изменений)
+  function main(params, oncomplite, onerror) {
+    $(document).ready(function () {
+      var limit = params.isTop100 ? 50 : (params.limit || 36);
+      var query = `\n\tquery Animes {\n\tanimes(limit: ${limit}, order: ${params.sort || 'aired_on'}, page: ${params.page}\n\t`;
+      if (params.kind) query += `, kind: "${params.kind}"`;
+      if (params.status) query += `, status: "${params.status}"`;
+      if (params.genre) query += `, genre: "${params.genre}"`;
+      if (params.seasons) query += `, season: "${params.seasons}"`;
+      query += `) {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        `;
+
+      if (params.isTop100) {
+        var requests = [
+          $.ajax({
+            url: 'https://shikimori.one/api/graphql',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 1") })
+          }),
+          $.ajax({
+            url: 'https://shikimori.one/api/graphql',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 2") })
+          })
+        ];
+        Promise.all(requests).then(responses => {
+          var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
+          oncomplite(allAnimes);
+        }).catch(error => {
+          Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${error.message || 'Неизвестная ошибка'}`);
+          onerror(error);
+        });
+      } else {
+        $.ajax({
+          url: 'https://shikimori.one/api/graphql',
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({ query: query }),
+          success: response => oncomplite(response.data.animes),
+          error: _error => {
+            Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${_error.statusText || _error.message || 'Неизвестная ошибка'}`);
+            onerror(_error);
+          }
+        });
+      }
+    });
+  }
+
+  // Переписанная функция поиска с выводом ошибок через Lampa.Noty.show
+  function search(animeData) {
+    const nameVariants = [
+      normalizeName(animeData.name),
+      normalizeName(animeData.russian),
+      normalizeName(animeData.english),
+      normalizeName(animeData.licenseNameRu),
+      transliterateJapanese(animeData.japanese)
+    ].filter(Boolean);
+    const releaseYear = animeData.airedOn?.year;
+
+    $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
+      .done(response => {
+        if (response && response.themoviedb) {
+          getTmdb(response.themoviedb, animeData.kind, processResults);
+        } else {
+          searchWithFallback(nameVariants, releaseYear, animeData.kind);
         }
-        // Возвращаем расстояние (число операций, необходимых для преобразования одной строки в другую)
-        return matrix[stringB.length][stringA.length];
-    }
-
-    // Транслитерация японских названий с использованием библиотеки wanakana
-    function transliterateJapanese(japaneseName) {
-        // Проверяем наличие библиотеки wanakana и японского имени
-        if (typeof wanakana !== 'undefined' && japaneseName) {
-            // Преобразуем японское имя в ромадзи и приводим к нижнему регистру
-            return wanakana.toRomaji(japaneseName).toLowerCase();
+      })
+      .fail(jqXHR => {
+        Lampa.Noty.show(`Ошибка при запросе к animeapi.my.id: Статус ${jqXHR.status}, ${jqXHR.statusText || 'Неизвестная ошибка'}`);
+        if (jqXHR.status === 404) {
+          searchWithFallback(nameVariants, releaseYear, animeData.kind);
         }
-        // Если библиотека отсутствует или имя пустое, возвращаем пустую строку
-        return '';
+      });
+
+    function searchWithFallback(names, year, kind) {
+      let found = false;
+
+      searchTmdb(names, year, kind, response => {
+        if (response.total_results > 0) {
+          found = true;
+          const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
+          processResults({ ...response, results: filteredResults });
+        }
+        if (!found) searchAniList(names, year, kind);
+      });
     }
 
-    // Основная функция для выполнения GraphQL-запроса к Shikimori API
-    function main(parameters, onCompleteCallback, onErrorCallback) {
-        // Ждем готовности документа
-        $(document).ready(function () {
-            // Определяем лимит элементов (50 для топ-100, иначе 36 по умолчанию)
-            var limit = parameters.isTop100 ? 50 : (parameters.limit || 36);
-            // Формируем строку запроса GraphQL
-            var query = `\n\tquery Animes {\n\tanimes(limit: ${limit}, order: ${parameters.sort || 'aired_on'}, page: ${parameters.page}\n\t`;
-            // Добавляем фильтры, если они указаны
-            if (parameters.kind) query += `, kind: "${parameters.kind}"`;
-            if (parameters.status) query += `, status: "${parameters.status}"`;
-            if (parameters.genre) query += `, genre: "${parameters.genre}"`;
-            if (parameters.seasons) query += `, season: "${parameters.seasons}"`;
-            // Завершаем строку запроса
-            query += `) {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        `;
+    // Поиск через TMDB
+    function searchTmdb(names, year, kind, callback) {
+      const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+      const apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest?.cub_domain || 'cub.red') + '/3/';
+      const lang = Lampa.Storage.field('language');
+      const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
 
-            // Если запрос для топ-100, выполняем два запроса для страниц 1 и 2
-            if (parameters.isTop100) {
-                var requests = [
-                    $.ajax({
-                        url: 'https://shikimori.one/api/graphql',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({ query: query.replace(`page: ${parameters.page}`, "page: 1") })
-                    }),
-                    $.ajax({
-                        url: 'https://shikimori.one/api/graphql',
-                        method: 'POST',
-                        contentType: 'application/json',
-                        data: JSON.stringify({ query: query.replace(`page: ${parameters.page}`, "page: 2") })
-                    })
-                ];
-                // Обрабатываем оба запроса параллельно
-                Promise.all(requests).then(function (responses) {
-                    var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
-                    onCompleteCallback(allAnimes);
-                }).catch(function (error) {
-                    // Выводим ошибку пользователю через Lampa.Noty.show
-                    Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${error.message || 'Неизвестная ошибка'}`);
-                    onErrorCallback(error);
-                });
-            } else {
-                // Одиночный запрос для обычного списка
-                $.ajax({
-                    url: 'https://shikimori.one/api/graphql',
-                    method: 'POST',
-                    contentType: 'application/json',
-                    data: JSON.stringify({ query: query }),
-                    success: function (response) {
-                        onCompleteCallback(response.data.animes);
-                    },
-                    error: function (_error) {
-                        // Выводим ошибку пользователю через Lampa.Noty.show
-                        Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${_error.statusText || _error.message || 'Неизвестная ошибка'}`);
-                        onErrorCallback(_error);
-                    }
-                });
-            }
+      function tryNextName(index = 0) {
+        if (index >= names.length) {
+          callback({ total_results: 0 });
+          return;
+        }
+        const query = encodeURIComponent(names[index]);
+        const request = `search/multi?api_key=${apiKey}&language=${lang}&include_adult=true&query=${query}`;
+        $.get(baseUrl + request)
+          .done(response => {
+            if (response.total_results > 0) callback(response);
+            else tryNextName(index + 1);
+          })
+          .fail(error => {
+            Lampa.Noty.show(`Ошибка при запросе к TMDB: ${error.statusText || 'Неизвестная ошибка'}`);
+            tryNextName(index + 1);
+          });
+      }
+      tryNextName();
+    }
+
+    // Поиск через AniList
+    function searchAniList(names, year, kind) {
+      const query = `
+        query ($search: String) {
+          Media(search: $search, type: ANIME) {
+            id
+            title { romaji english native }
+            startDate { year }
+            format
+          }
+        }
+      `;
+      const url = 'https://graphql.anilist.co';
+
+      function tryNextName(index = 0) {
+        if (index >= names.length) {
+          processResults({ total_results: 0 });
+          return;
+        }
+        $.ajax({
+          url,
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            query,
+            variables: { search: names[index] }
+          })
+        }).done(response => {
+          const media = response.data?.Media;
+          if (media) {
+            const tmdbResult = mapAniListToTmdb(media, kind, year);
+            if (tmdbResult) processResults(tmdbResult);
+            else tryNextName(index + 1);
+          } else {
+            Lampa.Noty.show(`Не найдено совпадений в AniList для "${names[index]}"`);
+            tryNextName(index + 1);
+          }
+        }).fail(error => {
+          Lampa.Noty.show(`Ошибка при запросе к AniList: ${error.statusText || 'Неизвестная ошибка'}`);
+          tryNextName(index + 1);
+        });
+      }
+      tryNextName();
+    }
+
+    // Запрос данных по TMDB ID
+    function getTmdb(id, type = 'movie', callback) {
+      const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+      const apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest?.cub_domain || 'cub.red') + '/3/';
+      const lang = Lampa.Storage.field('language');
+      const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
+      const request = `${type}/${id}?api_key=${apiKey}&language=${lang}`;
+      $.get(baseUrl + request)
+        .done(callback)
+        .fail(error => {
+          Lampa.Noty.show(`Ошибка при запросе данных TMDB для ID ${id}: ${error.statusText || 'Неизвестная ошибка'}`);
         });
     }
+  }
 
-    // Переписанная функция поиска с выводом ошибок через Lampa.Noty.show
-	function search(animeData) {
-		return new Promise(function (resolve, reject) {
-			// Формируем список вариантов названий для поиска
-			const nameVariants = [
-				normalizeName(animeData.name),
-				normalizeName(animeData.russian),
-				normalizeName(animeData.english),
-				normalizeName(animeData.licenseNameRu),
-				transliterateJapanese(animeData.japanese)
-			].filter(function (variant) {
-				return variant !== '';
-			});
-			// Получаем год выпуска аниме, если он есть
-			const releaseYear = animeData.airedOn ? animeData.airedOn.year : undefined;
+  var API = { main: main, search: search };
 
-			// Шаг 1: Проверка через animeapi.my.id
-			$.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
-				.done(function (response) {
-					if (response && response.themoviedb) {
-						getTmdb(response.themoviedb, animeData.kind, function (tmdbResponse) {
-							processResults(tmdbResponse);
-							resolve(tmdbResponse); // Успешное завершение
-						});
-					} else {
-						searchWithFallback(nameVariants, releaseYear, animeData.kind);
-					}
-				})
-				.fail(function (jqXHR) {
-					// Выводим ошибку пользователю через Lampa.Noty.show
-					Lampa.Noty.show(`Ошибка при запросе к animeapi.my.id: Статус ${jqXHR.status}, ${jqXHR.statusText || 'Неизвестная ошибка'}`);
-					if (jqXHR.status === 404) {
-						searchWithFallback(nameVariants, releaseYear, animeData.kind);
-					} else {
-						reject(new Error(`Ошибка при запросе к animeapi.my.id: Статус ${jqXHR.status}`));
-					}
-				});
-
-			// Внутренняя функция для последовательного поиска через запасные источники
-			function searchWithFallback(names, year, kind) {
-				let found = false;
-
-				// Поиск через TMDB
-				searchTmdb(names, year, kind, function (response) {
-					if (response.total_results > 0) {
-						found = true;
-						const filteredResults = filterAndRankResults(response.results, names[0], kind, year);
-						processResults({ total_results: response.total_results, results: filteredResults });
-						resolve({ total_results: response.total_results, results: filteredResults }); // Успешное завершение
-					}
-					if (!found) {
-						searchAniList(names, year, kind); // Переход к AniList, если TMDB не дал результатов
-					}
-				});
-			}
-
-			// Поиск через TMDB
-			function searchTmdb(names, year, kind, callback) {
-				const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
-				const apiUrlTMDB = 'https://api.themoviedb.org/3/';
-				const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-				const language = Lampa.Storage.field('language');
-				const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
-
-				function tryNextName(index) {
-					if (index >= names.length) {
-						callback({ total_results: 0 });
-						reject(new Error('Не удалось найти совпадений в TMDB для всех вариантов названий.'));
-						return;
-					}
-					const query = encodeURIComponent(names[index]);
-					const request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${query}`;
-					$.get(baseUrl + request)
-						.done(function (response) {
-							if (response.total_results > 0) {
-								callback(response);
-							} else {
-								tryNextName(index + 1);
-							}
-						})
-						.fail(function (error) {
-							// Выводим ошибку пользователю через Lampa.Noty.show
-							Lampa.Noty.show(`Ошибка при запросе к TMDB: ${error.statusText || 'Неизвестная ошибка'}`);
-							tryNextName(index + 1);
-						});
-				}
-				tryNextName(0);
-			}
-
-			// Поиск через AniList
-			function searchAniList(names, year, kind) {
-				const query = `
-					query ($search: String) {
-						Media(search: $search, type: ANIME) {
-							id
-							title { romaji english native }
-							startDate { year }
-							format
-						}
-					}
-				`;
-				const url = 'https://graphql.anilist.co';
-
-				function tryNextName(index) {
-					if (index >= names.length) {
-						processResults({ total_results: 0 });
-						reject(new Error('Не удалось найти совпадений в AniList для всех вариантов названий.'));
-						return;
-					}
-					$.ajax({
-						url: url,
-						method: 'POST',
-						contentType: 'application/json',
-						data: JSON.stringify({
-							query: query,
-							variables: { search: names[index] }
-						})
-					}).done(function (response) {
-						const media = response.data ? response.data.Media : null;
-						if (media) {
-							const tmdbResult = mapAniListToTmdb(media, kind, year);
-							if (tmdbResult) {
-								processResults(tmdbResult);
-								resolve(tmdbResult); // Успешное завершение
-							} else {
-								Lampa.Noty.show(`Не найдено совпадений в AniList для "${names[index]}"`);
-								tryNextName(index + 1);
-							}
-						} else {
-							Lampa.Noty.show(`Не найдено совпадений в AniList для "${names[index]}"`);
-							tryNextName(index + 1);
-						}
-					}).fail(function (error) {
-						// Выводим ошибку пользователю через Lampa.Noty.show
-						Lampa.Noty.show(`Ошибка при запросе к AniList: ${error.statusText || 'Неизвестная ошибка'}`);
-						tryNextName(index + 1);
-					});
-				}
-				tryNextName(0);
-			}
-
-			// Запрос данных по TMDB ID
-			function getTmdb(id, type, callback) {
-				const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
-				const apiUrlTMDB = 'https://api.themoviedb.org/3/';
-				const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-				const language = Lampa.Storage.field('language');
-				const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
-				const request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
-				$.get(baseUrl + request)
-					.done(function (response) {
-						callback(response);
-					})
-					.fail(function (error) {
-						// Выводим ошибку пользователю через Lampa.Noty.show
-						Lampa.Noty.show(`Ошибка при запросе данных TMDB для ID ${id}: ${error.statusText || 'Неизвестная ошибка'}`);
-						reject(new Error(`Ошибка при запросе данных TMDB для ID ${id}`));
-					});
-			}
-		});
-	}
-
-    // Создаем объект API с основными функциями
-    var API = {
-        main: main,
-        search: search
-    };
-
-    // Обновленная функция processResults с выводом ошибок через Lampa.Noty.show
-	function processResults(response) {
-		const menu = [];
-		// Проверяем, есть ли total_results и results в ответе
-		if (response && typeof response.total_results !== 'undefined') {
-			if (response.total_results === 0) {
-				Lampa.Noty.show('Не удалось найти совпадений.');
-			} else if (response.total_results >= 1 && response.results && Array.isArray(response.results)) {
-				if (response.total_results === 1) {
-					const result = response.results[0];
-					if (result && result.id && result.media_type) { // Проверка на наличие необходимых свойств
-						Lampa.Activity.push({
-							url: '',
-							component: 'full',
-							id: result.id,
-							method: result.media_type,
-							card: result
-						});
-					} else {
-						Lampa.Noty.show('Данные результата некорректны.');
-					}
-				} else if (response.total_results > 1) {
-					response.results.forEach(function (item) {
-						if (item && item.id && (item.name || item.title) && item.media_type) { // Проверка на наличие ключевых полей
-							const year = item.release_date ? new Date(item.release_date).getFullYear() : '';
-							menu.push({
-								title: `[${item.media_type.toUpperCase()}] ${item.name || item.title} (${year || 'N/A'})`,
-								card: item
-							});
-						}
-					});
-					if (menu.length > 0) { // Убеждаемся, что есть что показывать
-						Lampa.Select.show({
-							title: 'Найти',
-							items: menu,
-							onBack: function () {
-								Lampa.Controller.toggle('content');
-							},
-							onSelect: function (selectedItem) {
-								if (selectedItem.card && selectedItem.card.id && selectedItem.card.media_type) {
-									Lampa.Activity.push({
-										url: '',
-										component: 'full',
-										id: selectedItem.card.id,
-										method: selectedItem.card.media_type,
-										card: selectedItem.card
-									});
-								} else {
-									Lampa.Noty.show('Выбранный элемент некорректен.');
-								}
-							}
-						});
-					} else {
-						Lampa.Noty.show('Не найдено подходящих результатов для отображения.');
-					}
-				}
-			} else {
-				Lampa.Noty.show('Получены некорректные данные от API.');
-			}
-		} else {
-			Lampa.Noty.show('Ответ от API отсутствует или некорректен.');
-		}
-	}
-
-    // Обновленная функция filterAndRankResults с выводом ошибок через Lampa.Noty.show
-    function filterAndRankResults(results, query, kind, year) {
-        if (!results || !Array.isArray(results)) {
-            Lampa.Noty.show('Результаты поиска некорректны или отсутствуют.');
-            return [];
-        }
-        const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
-        return results
-            .filter(function (item) {
-                if (!item || !item.name && !item.title) {
-                    Lampa.Noty.show(`Некорректный элемент в результатах: ${JSON.stringify(item)}`);
-                    return false;
-                }
-                const normalizedTitle = normalizeName(item.name || item.title);
-                const distance = getLevenshteinDistance(normalizedTitle, query);
-                const typeMatch = mediaTypeMap[item.media_type] ? mediaTypeMap[item.media_type].includes(kind) : false;
-                const releaseDate = item.release_date || item.first_air_date;
-                const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
-                const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
-                return distance < 5 && typeMatch && yearMatch;
-            })
-            .sort(function (a, b) {
-                const distA = getLevenshteinDistance(normalizeName(a.name || a.title), query);
-                const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
-                return distA - distB;
+  // Обновленная функция processResults с выводом ошибок через Lampa.Noty.show
+  function processResults(response) {
+    const menu = [];
+    // Проверяем, есть ли total_results и results в ответе
+    if (response && typeof response.total_results !== 'undefined') {
+      if (response.total_results === 0) {
+        Lampa.Noty.show('Не удалось найти совпадений.');
+      } else if (response.total_results >= 1 && response.results && Array.isArray(response.results)) {
+        if (response.total_results === 1) {
+          const result = response.results[0];
+          if (result && result.id && result.media_type) { // Проверка на наличие необходимых свойств
+            Lampa.Activity.push({
+              url: '',
+              component: 'full',
+              id: result.id,
+              method: result.media_type,
+              card: result
             });
+          } else {
+            Lampa.Noty.show('Данные результата некорректны.');
+          }
+        } else if (response.total_results > 1) {
+          response.results.forEach(item => {
+            if (item && item.id && (item.name || item.title) && item.media_type) { // Проверка на наличие ключевых полей
+              const year = item.release_date ? new Date(item.release_date).getFullYear() : '';
+              menu.push({
+                title: `[${item.media_type.toUpperCase()}] ${item.name || item.title} (${year || 'N/A'})`,
+                card: item
+              });
+            }
+          });
+          if (menu.length > 0) { // Убеждаемся, что есть что показывать
+            Lampa.Select.show({
+              title: 'Найти',
+              items: menu,
+              onBack: () => Lampa.Controller.toggle('content'),
+              onSelect: a => {
+                if (a.card && a.card.id && a.card.media_type) {
+                  Lampa.Activity.push({
+                    url: '',
+                    component: 'full',
+                    id: a.card.id,
+                    method: a.card.media_type,
+                    card: a.card
+                  });
+                } else {
+                  Lampa.Noty.show('Выбранный элемент некорректен.');
+                }
+              }
+            });
+          } else {
+            Lampa.Noty.show('Не найдено подходящих результатов для отображения.');
+          }
+        }
+      } else {
+        Lampa.Noty.show('Получены некорректные данные от API.');
+      }
+    } else {
+      Lampa.Noty.show('Ответ от API отсутствует или некорректен.');
+    }
+  }
+
+  // Обновленная функция filterAndRankResults с выводом ошибок через Lampa.Noty.show
+  function filterAndRankResults(results, query, kind, year) {
+    if (!results || !Array.isArray(results)) {
+      Lampa.Noty.show('Результаты поиска некорректны или отсутствуют.');
+      return [];
+    }
+    const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
+    return results
+      .filter(item => {
+        if (!item || !item.name && !item.title) {
+          Lampa.Noty.show(`Некорректный элемент в результатах: ${JSON.stringify(item)}`);
+          return false;
+        }
+        const normalizedTitle = normalizeName(item.name || item.title);
+        const distance = getLevenshteinDistance(normalizedTitle, query);
+        const typeMatch = mediaTypeMap[item.media_type]?.includes(kind);
+        const releaseDate = item.release_date || item.first_air_date;
+        const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
+        const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
+        return distance < 5 && typeMatch && yearMatch;
+      })
+      .sort((a, b) => {
+        const distA = getLevenshteinDistance(normalizeName(a.name || a.title), query);
+        const distB = getLevenshteinDistance(normalizeName(b.name || b.title), query);
+        return distA - distB;
+      });
+  }
+
+  // Обновленная функция mapAniListToTmdb с выводом ошибок через Lampa.Noty.show
+  function mapAniListToTmdb(media, kind, year) {
+    if (!media || !media.title || !media.format) {
+      Lampa.Noty.show('Данные из AniList некорректны или отсутствуют.');
+      return null;
+    }
+    const formatMap = {
+      'TV': 'tv',
+      'MOVIE': 'movie',
+      'OVA': 'tv',
+      'ONA': 'tv',
+      'SPECIAL': 'tv'
+    };
+    if (year && media.startDate?.year && Math.abs(media.startDate.year - year) > 1) {
+      Lampa.Noty.show(`Год выпуска (${media.startDate.year}) не соответствует ожидаемому (${year}).`);
+      return null;
+    }
+    if (!formatMap[media.format]?.includes(kind)) {
+      Lampa.Noty.show(`Формат ${media.format} не соответствует типу ${kind}.`);
+      return null;
     }
 
-    // Обновленная функция mapAniListToTmdb с выводом ошибок через Lampa.Noty.show
-    function mapAniListToTmdb(media, kind, year) {
-        if (!media || !media.title || !media.format) {
-            Lampa.Noty.show('Данные из AniList некорректны или отсутствуют.');
-            return null;
-        }
-        const formatMap = {
-            'TV': 'tv',
-            'MOVIE': 'movie',
-            'OVA': 'tv',
-            'ONA': 'tv',
-            'SPECIAL': 'tv'
-        };
-        if (year && media.startDate && media.startDate.year && Math.abs(media.startDate.year - year) > 1) {
-            Lampa.Noty.show(`Год выпуска (${media.startDate.year}) не соответствует ожидаемому (${year}).`);
-            return null;
-        }
-        if (!formatMap[media.format] || !formatMap[media.format].includes(kind)) {
-            Lampa.Noty.show(`Формат ${media.format} не соответствует типу ${kind}.`);
-            return null;
-        }
-
-        return {
-            total_results: 1,
-            results: [{
-                id: media.id,
-                media_type: formatMap[media.format] || 'tv',
-                name: media.title.english || media.title.romaji || media.title.native,
-                title: media.title.english || media.title.romaji || media.title.native,
-                release_date: media.startDate && media.startDate.year ? `${media.startDate.year}-01-01` : ''
-            }]
-        };
+    return {
+      total_results: 1,
+      results: [{
+        id: media.id,
+        media_type: formatMap[media.format] || 'tv',
+        name: media.title.english || media.title.romaji || media.title.native,
+        title: media.title.english || media.title.romaji || media.title.native,
+        release_date: media.startDate?.year ? `${media.startDate.year}-01-01` : ''
+      }]
+    };
     }
 
     // Класс для создания карточки аниме (оставляем без изменений, так как он не связан с ошибками)
