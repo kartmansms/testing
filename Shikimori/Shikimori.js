@@ -1212,7 +1212,6 @@
         } else {
             Lampa.Listener.follow("app", function (event) {
                 if (event.type === "ready") {
-                    Lampa.Noty.show('Приложение готово, добавляем кнопку Shikimori');
                     add();
                 }
             });
