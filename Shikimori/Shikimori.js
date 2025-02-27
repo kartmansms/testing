@@ -508,11 +508,10 @@ function search(animeData) {
     // Маппинг типов Shikimori на TMDB
     function mapKindToTmdbType(kind) {
         switch (kind) {
-            case 'movie':
-                return 'movie';
             case 'tv':
             case 'tv_special':
                 return 'tv';
+            case 'movie':
             case 'ova':
             case 'ona':
             case 'special':
@@ -521,7 +520,8 @@ function search(animeData) {
             case 'cm':
                 return 'movie';
             default:
-                return 'tv';
+                console.warn('Неизвестный kind, используем tv по умолчанию:', kind);
+                return 'tv'; // По умолчанию сериал, чтобы не терять аниме
         }
     }
 
@@ -530,6 +530,7 @@ function search(animeData) {
         if (response && response.themoviedb) {
             console.log('Получен TMDB ID:', response.themoviedb);
             var tmdbType = mapKindToTmdbType(animeData.kind);
+            console.log('Выбранный тип TMDB:', tmdbType);
             getTmdb(response.themoviedb, tmdbType, function (result) {
                 if (result) {
                     console.log('Успешный результат по ID:', result);
@@ -605,8 +606,8 @@ function search(animeData) {
                 processResults({ total_results: 0 });
             }
         } else {
-            // Фильтруем результаты по типу и году
             var tmdbType = mapKindToTmdbType(animeData.kind);
+            console.log('Ожидаемый тип TMDB:', tmdbType);
             var filteredResults = tmdbResponse.results.filter(function (item) {
                 var matchesType = item.media_type === tmdbType;
                 var matchesYear = !animeData.airedOn || !animeData.airedOn.year || 
@@ -615,9 +616,17 @@ function search(animeData) {
                 return matchesType && matchesYear;
             });
             console.log('Отфильтрованные результаты:', filteredResults);
+
+            // Если нет точного совпадения по типу, берём первый результат с правильным типом
+            if (filteredResults.length === 0) {
+                filteredResults = tmdbResponse.results.filter(item => item.media_type === tmdbType);
+                console.log('Нет совпадений по году, выбран результат по типу:', filteredResults);
+            }
+
             if (filteredResults.length > 0) {
                 processResults({ total_results: filteredResults.length, results: filteredResults });
             } else {
+                console.warn('Нет результатов с правильным типом:', tmdbType);
                 processResults({ total_results: 0 });
             }
         }
@@ -644,6 +653,7 @@ function search(animeData) {
                     Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
                     return;
                 }
+                console.log('Открываем карточку:', response.results[0]);
                 Lampa.Activity.push({
                     url: '',
                     component: 'full',
@@ -668,6 +678,7 @@ function search(animeData) {
                     Lampa.Noty.show('Не удалось найти аниме: нет валидных данных');
                     return;
                 }
+                console.log('Показываем меню выбора:', menu);
                 Lampa.Select.show({
                     title: 'Выберите аниме',
                     items: menu,
@@ -675,6 +686,7 @@ function search(animeData) {
                         Lampa.Controller.toggle("content");
                     },
                     onSelect: function (a) {
+                        console.log('Выбрана карточка из меню:', a.card);
                         Lampa.Activity.push({
                             url: '',
                             component: 'full',
@@ -692,6 +704,7 @@ function search(animeData) {
                 Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
                 return;
             }
+            console.log('Открываем карточку:', response);
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
