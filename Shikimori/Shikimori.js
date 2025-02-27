@@ -720,7 +720,7 @@
         });
     }
 
-    // Переписанная функция поиска с выводом ошибок через Lampa.Noty.show
+    // Переписанная функция поиска с использованием TMDB
     function search(animeData) {
         return new Promise(function (resolve, reject) {
             // Формируем список вариантов названий для поиска
@@ -741,44 +741,61 @@
                 if (response.total_results > 0) {
                     const filteredResults = filterAndRankResults(response.results, nameVariants[0], animeData.kind, releaseYear);
                     Lampa.Noty.show(`Найдено ${response.total_results} результатов в TMDB для ${nameVariants[0]}`);
-                    processResults({ total_results: response.total_results, results: filteredResults });
                     resolve({ total_results: response.total_results, results: filteredResults }); // Успешное завершение
                 } else {
-                    processResults({ total_results: 0 });
-                    reject(new Error('Не удалось найти совпадений в TMDB для всех вариантов названий.'));
+                    Lampa.Noty.show(`Не найдено результатов в TMDB для ${nameVariants[0]}`);
+                    resolve({ total_results: 0, results: [] }); // Возвращаем пустой результат без ошибки
                 }
-            });
+            }, reject);
         });
 
         // Поиск через TMDB
-        function searchTmdb(names, year, kind, callback) {
+        function searchTmdb(names, year, kind, callback, errorCallback) {
             const apiKey = '4ef0d7355d9ffb5151e987764708ce96';
             const apiUrlTMDB = 'https://api.themoviedb.org/3/';
             const apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-            const lang = Lampa.Storage.field('language');
+            const lang = Lampa.Storage.field('language') || 'en'; // Убедимся, что язык установлен
             const baseUrl = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy : apiUrlTMDB;
 
             function tryNextName(index) {
                 if (index >= names.length) {
-                    callback({ total_results: 0 });
+                    callback({ total_results: 0, results: [] });
                     return;
                 }
                 const query = encodeURIComponent(names[index]);
-                const request = `search/multi?api_key=${apiKey}&language=${lang}&include_adult=true&query=${query}`;
+                const request = `search/multi?api_key=${apiKey}&language=${lang}&include_adult=true&query=${query}&year=${year || ''}`;
                 $.get(baseUrl + request)
                     .done(function (response) {
                         if (response.total_results > 0) {
-                            callback(response);
+                            const filtered = filterTmdbResults(response.results, kind, year);
+                            callback({ total_results: filtered.length, results: filtered });
                         } else {
                             tryNextName(index + 1);
                         }
                     })
                     .fail(function (error) {
                         Lampa.Noty.show(`Ошибка при запросе к TMDB: ${error.statusText || 'Неизвестная ошибка'}`);
-                        tryNextName(index + 1);
+                        errorCallback(error);
+                        tryNextName(index + 1); // Продолжаем попытки, даже если есть ошибка
                     });
             }
             tryNextName(0);
+        }
+
+        // Фильтрация результатов TMDB для соответствия типу и году
+        function filterTmdbResults(results, kind, year) {
+            const mediaTypeMap = { 'tv': ['tv', 'ona', 'ova'], 'movie': ['movie'] };
+            return results.filter(function (item) {
+                if (!item || !item.name && !item.title || !item.media_type) {
+                    Lampa.Noty.show(`Некорректный элемент в результатах TMDB: ${JSON.stringify(item)}`);
+                    return false;
+                }
+                const typeMatch = mediaTypeMap[kind.toLowerCase()] ? mediaTypeMap[kind.toLowerCase()].includes(item.media_type) : false;
+                const releaseDate = item.release_date || item.first_air_date;
+                const itemYear = releaseDate ? new Date(releaseDate).getFullYear() : null;
+                const yearMatch = !year || !itemYear || Math.abs(itemYear - year) <= 1;
+                return typeMatch && yearMatch;
+            });
         }
     }
 
@@ -792,40 +809,55 @@
         const menu = [];
         if (response && typeof response.total_results !== 'undefined') {
             if (response.total_results === 0) {
-                Lampa.Noty.show('Не удалось найти совпадений.');
+                Lampa.Noty.show('Не удалось найти совпадений в TMDB.');
             } else if (response.total_results >= 1 && response.results && Array.isArray(response.results)) {
                 if (response.total_results === 1) {
                     const result = response.results[0];
                     if (result && result.id && result.media_type) {
+                        Lampa.Noty.show(`Открытие детальной информации для ${result.name || result.title}`);
                         Lampa.Activity.push({
                             url: '',
                             component: 'full',
                             id: result.id,
                             method: result.media_type,
-                            card: result
+                            card: {
+                                title: result.name || result.title,
+                                original_title: result.original_title || result.name || result.title,
+                                poster: result.poster_path ? `https://image.tmdb.org/t/p/w500${result.poster_path}` : '',
+                                year: result.release_date ? new Date(result.release_date).getFullYear() : (result.first_air_date ? new Date(result.first_air_date).getFullYear() : ''),
+                                media_type: result.media_type
+                            }
                         });
                     } else {
-                        Lampa.Noty.show('Данные результата некорректны.');
+                        Lampa.Noty.show('Данные результата из TMDB некорректны.');
                     }
                 } else if (response.total_results > 1) {
                     response.results.forEach(function (item) {
                         if (item && item.id && (item.name || item.title) && item.media_type) {
-                            const year = item.release_date ? new Date(item.release_date).getFullYear() : '';
+                            const year = item.release_date ? new Date(item.release_date).getFullYear() : (item.first_air_date ? new Date(item.first_air_date).getFullYear() : '');
                             menu.push({
                                 title: `[${item.media_type.toUpperCase()}] ${item.name || item.title} (${year || 'N/A'})`,
-                                card: item
+                                card: {
+                                    id: item.id,
+                                    media_type: item.media_type,
+                                    title: item.name || item.title,
+                                    original_title: item.original_title || item.name || item.title,
+                                    poster: item.poster_path ? `https://image.tmdb.org/t/p/w500${item.poster_path}` : '',
+                                    year: year
+                                }
                             });
                         }
                     });
                     if (menu.length > 0) {
                         Lampa.Select.show({
-                            title: 'Найти',
+                            title: 'Выберите аниме',
                             items: menu,
                             onBack: function () {
                                 Lampa.Controller.toggle('content');
                             },
                             onSelect: function (a) {
                                 if (a.card && a.card.id && a.card.media_type) {
+                                    Lampa.Noty.show(`Открытие детальной информации для ${a.card.title}`);
                                     Lampa.Activity.push({
                                         url: '',
                                         component: 'full',
@@ -843,14 +875,14 @@
                     }
                 }
             } else {
-                Lampa.Noty.show('Получены некорректные данные от API.');
+                Lampa.Noty.show('Получены некорректные данные от TMDB.');
             }
         } else {
-            Lampa.Noty.show('Ответ от API отсутствует или некорректен.');
+            Lampa.Noty.show('Ответ от TMDB отсутствует или некорректен.');
         }
     }
 
-    // Обновленная функция filterAndRankResults с выводом ошибок через Lampa.Noty.show
+    // Обновленная функция filterAndRankResults (теперь не нужна, заменена filterTmdbResults)
     function filterAndRankResults(results, query, kind, year) {
         if (!results || !Array.isArray(results)) {
             Lampa.Noty.show('Результаты поиска некорректны или отсутствуют.');
@@ -1354,27 +1386,8 @@
                             // Обрабатываем результаты поиска
                             if (result.total_results > 0) {
                                 processResults(result);
-                                // Если есть хотя бы один результат, пытаемся открыть детальную информацию
-                                if (result.total_results === 1 && result.results && result.results[0]) {
-                                    const singleResult = result.results[0];
-                                    if (singleResult.id && singleResult.media_type) {
-                                        Lampa.Activity.push({
-                                            url: '',
-                                            component: 'full',
-                                            id: singleResult.id,
-                                            method: singleResult.media_type,
-                                            card: singleResult
-                                        });
-                                        Lampa.Noty.show(`Переход к детальной информации для ${anime.name}`);
-                                    } else {
-                                        Lampa.Noty.show('Данные результата некорректны, отображение меню результатов.');
-                                    }
-                                } else if (result.total_results > 1) {
-                                    Lampa.Noty.show(`Найдено несколько результатов для ${anime.name}, отображается меню выбора.`);
-                                    // Меню выбора уже обрабатывается в processResults через Lampa.Select
-                                }
                             } else {
-                                Lampa.Noty.show(`Не найдено результатов для ${anime.name}.`);
+                                Lampa.Noty.show(`Не найдено результатов для ${anime.name} в TMDB.`);
                             }
                         })
                         .catch(function (error) {
