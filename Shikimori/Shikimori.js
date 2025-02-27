@@ -1205,7 +1205,6 @@
         Lampa.Noty.show('Компонент для расширения информации зарегистрирован');
 
         $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
-        Lampa.Noty.show('Стили Shikimori добавлены в документ');
 
         if (window.appready) {
             add();
