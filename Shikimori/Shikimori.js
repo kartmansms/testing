@@ -656,41 +656,6 @@ function search(animeData) {
         }
     }
 }
-        } else {
-            console.log('Прямой результат:', response);
-            if (!response || !response.id) {
-                console.error('Некорректный прямой результат:', response);
-                Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
-                return;
-            }
-            Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: response.id,
-                method: response.number_of_episodes ? 'tv' : 'movie',
-                card: response
-            });
-        }
-    }
-}
-        } else {
-            // Прямой результат от getTmdb
-            console.log('Прямой результат:', response);
-            if (!response.id) {
-                console.error('Некорректный прямой результат:', response);
-                Lampa.Noty.show('Ошибка: некорректные данные аниме');
-                return;
-            }
-            Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: response.id,
-                method: response.number_of_episodes ? 'tv' : 'movie',
-                card: response
-            });
-        }
-    }
-}
 
   var API = {
     main: main,
