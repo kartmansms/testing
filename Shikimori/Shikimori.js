@@ -741,7 +741,7 @@
                 .done(function (response) {
                     if (response && response.themoviedb) {
                         getTmdb(response.themoviedb, animeData.kind, function (tmdbResponse) {
-                           |Lampa.Noty.show(`Получен ответ от getTmdb для аниме ${animeData.name}: данные успешно загружены`);
+                            Lampa.Noty.show(`Получен ответ от getTmdb для аниме ${animeData.name}: данные успешно загружены`);
                             processResults(tmdbResponse);
                             resolve(tmdbResponse); // Успешное завершение
                         });
