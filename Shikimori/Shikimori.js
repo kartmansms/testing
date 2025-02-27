@@ -1162,7 +1162,6 @@
         var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg\" alt=\"Shikimori icon\" class=\"menu-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
 
         button.on("hover:enter", function () {
-            Lampa.Noty.show('Переход в каталог Shikimori');
             Lampa.Activity.push({
                 url: '',
                 title: 'Shikimori',
