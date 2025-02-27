@@ -1,576 +1,381 @@
 (function () {
     'use strict';
 
-    // Вспомогательная функция для получения всех ключей объекта, включая символические
-    function ownKeys(object, enumerableOnly) {
-        var keys = Object.keys(object);
+    // Вспомогательная функция для получения всех ключей объекта, включая символьные
+    function ownKeys(e, r) {
+        var t = Object.keys(e);
         if (Object.getOwnPropertySymbols) {
-            var symbols = Object.getOwnPropertySymbols(object);
-            if (enumerableOnly) {
-                symbols = symbols.filter(function (symbol) {
-                    return Object.getOwnPropertyDescriptor(object, symbol).enumerable;
-                });
-            }
-            keys.push.apply(keys, symbols);
+            var o = Object.getOwnPropertySymbols(e);
+            r && (o = o.filter(function (r) {
+                return Object.getOwnPropertyDescriptor(e, r).enumerable;
+            })), t.push.apply(t, o);
         }
-        return keys;
+        return t;
     }
 
-    // Полифил для Object.assign с поддержкой символических ключей
-    function _objectSpread2(target) {
-        for (var index = 1; index < arguments.length; index++) {
-            var source = arguments[index] !== null ? arguments[index] : {};
-            if (index % 2) {
-                ownKeys(Object(source), true).forEach(function (key) {
-                    _defineProperty(target, key, source[key]);
-                });
-            } else if (Object.getOwnPropertyDescriptors) {
-                Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-            } else {
-                ownKeys(Object(source)).forEach(function (key) {
-                    Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-                });
-            }
+    // Полифил для Object.assign с поддержкой символьных ключей
+    function _objectSpread2(e) {
+        for (var r = 1; r < arguments.length; r++) {
+            var t = null != arguments[r] ? arguments[r] : {};
+            r % 2 ? ownKeys(Object(t), !0).forEach(function (r) {
+                _defineProperty(e, r, t[r]);
+            }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) {
+                Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
+            });
         }
-        return target;
+        return e;
     }
 
-    // Полифил для работы с генераторами (Regenerator Runtime)
+    // Полифил для работы с генераторами
     function _regeneratorRuntime() {
         _regeneratorRuntime = function () {
-            return runtime;
+            return e;
         };
-        var runtime = {},
-            objectPrototype = Object.prototype,
-            hasOwnProperty = objectPrototype.hasOwnProperty,
-            defineProperty = Object.defineProperty || function (object, key, descriptor) {
-                object[key] = descriptor.value;
+        var t,
+            e = {},
+            r = Object.prototype,
+            n = r.hasOwnProperty,
+            o = Object.defineProperty || function (t, e, r) {
+                t[e] = r.value;
             },
-            symbol = typeof Symbol === 'function' ? Symbol : {},
-            iteratorSymbol = symbol.iterator || '@@iterator',
-            asyncIteratorSymbol = symbol.asyncIterator || '@@asyncIterator',
-            toStringTagSymbol = symbol.toStringTag || '@@toStringTag';
-
-        function define(object, key, value) {
-            Object.defineProperty(object, key, {
-                value: value,
-                enumerable: true,
-                configurable: true,
-                writable: true
-            });
-            return object[key];
+            i = "function" == typeof Symbol ? Symbol : {},
+            a = i.iterator || "@@iterator",
+            c = i.asyncIterator || "@@asyncIterator",
+            u = i.toStringTag || "@@toStringTag";
+        function define(t, e, r) {
+            return Object.defineProperty(t, e, {
+                value: r,
+                enumerable: !0,
+                configurable: !0,
+                writable: !0
+            }), t[e];
         }
-
         try {
-            define({}, '');
-        } catch (error) {
-            define = function (object, key, value) {
-                object[key] = value;
+            define({}, "");
+        } catch (t) {
+            define = function (t, e, r) {
+                return t[e] = r;
             };
         }
-
-        function wrap(innerFunction, outerFunction, self, tryList) {
-            var generatorPrototype = outerFunction && outerFunction.prototype instanceof Generator ? outerFunction : Generator,
-                context = Object.create(generatorPrototype.prototype),
-                invokeMethod = makeInvokeMethod(innerFunction, self, tryList);
-
-            defineProperty(context, '_invoke', { value: invokeMethod });
-            return context;
+        function wrap(t, e, r, n) {
+            var i = e && e.prototype instanceof Generator ? e : Generator,
+                a = Object.create(i.prototype),
+                c = new Context(n || []);
+            return o(a, "_invoke", {
+                value: makeInvokeMethod(t, r, c)
+            }), a;
         }
-
-        function tryCatch(tryFunction, thisArg, argument) {
+        function tryCatch(t, e, r) {
             try {
-                return { type: 'normal', argument: tryFunction.call(thisArg, argument) };
-            } catch (error) {
-                return { type: 'throw', argument: error };
+                return {
+                    type: "normal",
+                    arg: t.call(e, r)
+                };
+            } catch (t) {
+                return {
+                    type: "throw",
+                    arg: t
+                };
             }
         }
-
-        runtime.wrap = wrap;
-
-        var suspendedStart = 'suspendedStart',
-            suspendedYield = 'suspendedYield',
-            executing = 'executing',
-            completed = 'completed',
-            generatorState = {};
-
-        function Generator() { }
-
-        function GeneratorFunction() { }
-
-        function GeneratorFunctionPrototype() { }
-
-        var generatorFunctionPrototype = {};
-        define(generatorFunctionPrototype, iteratorSymbol, function () {
+        e.wrap = wrap;
+        var h = "suspendedStart",
+            l = "suspendedYield",
+            f = "executing",
+            s = "completed",
+            y = {};
+        function Generator() {}
+        function GeneratorFunction() {}
+        function GeneratorFunctionPrototype() {}
+        var p = {};
+        define(p, a, function () {
             return this;
         });
-
-        var objectGetPrototypeOf = Object.getPrototypeOf,
-            prototypeOfPrototype = objectGetPrototypeOf && objectGetPrototypeOf(objectGetPrototypeOf([]));
-        if (prototypeOfPrototype && prototypeOfPrototype !== objectPrototype && hasOwnProperty.call(prototypeOfPrototype, iteratorSymbol)) {
-            generatorFunctionPrototype = prototypeOfPrototype;
-        }
-
-        var generatorPrototype = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(generatorFunctionPrototype);
-
-        function defineIteratorMethods(prototype) {
-            ['next', 'throw', 'return'].forEach(function (methodName) {
-                define(prototype, methodName, function (argument) {
-                    return this._invoke(methodName, argument);
+        var d = Object.getPrototypeOf,
+            v = d && d(d(values([])));
+        v && v !== r && n.call(v, a) && (p = v);
+        var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p);
+        function defineIteratorMethods(t) {
+            ["next", "throw", "return"].forEach(function (e) {
+                define(t, e, function (t) {
+                    return this._invoke(e, t);
                 });
             });
         }
-
-        function AsyncIterator(innerIterator, promiseConstructor) {
-            function invoke(method, argument, resolve, reject) {
-                var result = tryCatch(innerIterator[method], innerIterator, argument);
-                if (result.type !== 'throw') {
-                    var value = result.argument,
-                        isAwait = value && typeof value === 'object' && hasOwnProperty.call(value, '__await');
-                    if (isAwait) {
-                        return promiseConstructor.resolve(value.__await).then(function (resolvedValue) {
-                            invoke('next', resolvedValue, resolve, reject);
-                        }, function (error) {
-                            invoke('throw', error, resolve, reject);
-                        });
-                    }
-                    return promiseConstructor.resolve(value).then(function (resolvedValue) {
-                        result.argument = resolvedValue;
-                        resolve(result);
-                    }, function (error) {
-                        invoke('throw', error, resolve, reject);
+        function AsyncIterator(t, e) {
+            function invoke(r, o, i, a) {
+                var c = tryCatch(t[r], t, o);
+                if ("throw" !== c.type) {
+                    var u = c.arg,
+                        h = u.value;
+                    return h && "object" == typeof h && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) {
+                        invoke("next", t, i, a);
+                    }, function (t) {
+                        invoke("throw", t, i, a);
+                    }) : e.resolve(h).then(function (t) {
+                        u.value = t, i(u);
+                    }, function (t) {
+                        return invoke("throw", t, i, a);
                     });
                 }
-                reject(result.argument);
+                a(c.arg);
             }
-
-            var currentPromise;
-            defineProperty(this, '_invoke', {
-                value: function (method, argument) {
-                    function callInvokeWithMethodAndArgument() {
-                        return new promiseConstructor(function (resolve, reject) {
-                            invoke(method, argument, resolve, reject);
+            var r;
+            o(this, "_invoke", {
+                value: function (t, n) {
+                    function callInvokeWithMethodAndArg() {
+                        return new e(function (e, r) {
+                            invoke(t, n, e, r);
                         });
                     }
-                    return currentPromise = currentPromise ? currentPromise.then(callInvokeWithMethodAndArgument, callInvokeWithMethodAndArgument) : callInvokeWithMethodAndArgument();
+                    return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg();
                 }
             });
         }
-
-        function makeInvokeMethod(generator, self, context) {
-            var state = suspendedStart;
-            return function (method, argument) {
-                if (state === executing) {
-                    throw new Error('Генератор уже запущен');
+        function makeInvokeMethod(e, r, n) {
+            var o = h;
+            return function (i, a) {
+                if (o === f) throw Error("Генератор уже запущен");
+                if (o === s) {
+                    if ("throw" === i) throw a;
+                    return {
+                        value: t,
+                        done: !0
+                    };
                 }
-                if (state === completed) {
-                    if (method === 'throw') {
-                        throw argument;
-                    }
-                    return { value: undefined, done: true };
-                }
-
-                context.method = method;
-                context.arg = argument;
-
-                while (true) {
-                    var delegate = context.delegate;
-                    if (delegate) {
-                        var delegateResult = maybeInvokeDelegate(delegate, context);
-                        if (delegateResult) {
-                            if (delegateResult === generatorState) continue;
-                            return delegateResult;
+                for (n.method = i, n.arg = a;;) {
+                    var c = n.delegate;
+                    if (c) {
+                        var u = maybeInvokeDelegate(c, n);
+                        if (u) {
+                            if (u === y) continue;
+                            return u;
                         }
                     }
-
-                    if (method === 'next') {
-                        context.sent = context._sent = context.arg;
-                    } else if (method === 'throw') {
-                        if (state === suspendedStart) {
-                            state = completed;
-                            throw context.arg;
-                        }
-                        context.dispatchException(context.arg);
-                    } else if (method === 'return') {
-                        context.abrupt('return', context.arg);
-                    }
-
-                    state = executing;
-                    var generatorResult = tryCatch(generator, self, context);
-                    if (generatorResult.type === 'normal') {
-                        state = context.done ? completed : suspendedYield;
-                        if (generatorResult.arg === generatorState) continue;
-                        return { value: generatorResult.arg, done: context.done };
-                    }
-
-                    if (generatorResult.type === 'throw') {
-                        state = completed;
-                        context.method = 'throw';
-                        context.arg = generatorResult.arg;
-                    }
-                }
-            };
-        }
-
-        function maybeInvokeDelegate(delegate, context) {
-            var method = context.method,
-                iterator = delegate.iterator[method];
-            if (iterator === undefined) {
-                context.delegate = null;
-                if (method === 'throw' && delegate.iterator.return) {
-                    context.method = 'return';
-                    context.arg = undefined;
-                    maybeInvokeDelegate(delegate, context);
-                    if (context.method === 'throw') return generatorState;
-                } else if (method !== 'return') {
-                    context.method = 'throw';
-                    context.arg = new TypeError('Итератор не предоставляет метод "' + method + '"');
-                    return generatorState;
-                }
-            }
-
-            var result = tryCatch(iterator, delegate.iterator, context.arg);
-            if (result.type === 'throw') {
-                context.method = 'throw';
-                context.arg = result.arg;
-                context.delegate = null;
-                return generatorState;
-            }
-
-            var returnValue = result.arg;
-            if (returnValue) {
-                if (returnValue.done) {
-                    context[delegate.resultName] = returnValue.value;
-                    context.next = delegate.nextLoc;
-                    if (context.method !== 'return') {
-                        context.method = 'next';
-                        context.arg = undefined;
-                    }
-                    context.delegate = null;
-                    return generatorState;
-                }
-                return returnValue;
-            }
-
-            context.method = 'throw';
-            context.arg = new TypeError('Результат итератора не является объектом');
-            context.delegate = null;
-            return generatorState;
-        }
-
-        function pushTryEntry(tryEntry) {
-            var entry = { tryLoc: tryEntry[0] };
-            if (tryEntry.length > 1) entry.catchLoc = tryEntry[1];
-            if (tryEntry.length > 2) {
-                entry.finallyLoc = tryEntry[2];
-                entry.afterLoc = tryEntry[3];
-            }
-            this.tryEntries.push(entry);
-        }
-
-        function resetTryEntry(tryEntry) {
-            var completion = tryEntry.completion || {};
-            completion.type = 'normal';
-            delete completion.arg;
-            tryEntry.completion = completion;
-        }
-
-        function Context(tryList) {
-            this.tryEntries = [{ tryLoc: 'root' }];
-            tryList.forEach(pushTryEntry, this);
-            this.reset(true);
-        }
-
-        function values(iterable) {
-            if (iterable || iterable === '') {
-                var iterator = iterable[iteratorSymbol];
-                if (iterator) return iterator.call(iterable);
-                if (typeof iterable.next === 'function') return iterable;
-                if (!isNaN(iterable.length)) {
-                    var index = -1,
-                        next = function () {
-                            while (++index < iterable.length) {
-                                if (hasOwnProperty.call(iterable, index)) {
-                                    next.value = iterable[index];
-                                    next.done = false;
-                                    return next;
-                                }
-                            }
-                            next.value = undefined;
-                            next.done = true;
-                            return next;
+                    if ("next" === n.method) n.sent = n._sent = n.arg;
+                    else if ("throw" === n.method) {
+                        if (o === h) throw o = s, n.arg;
+                        n.dispatchException(n.arg);
+                    } else "return" === n.method && n.abrupt("return", n.arg);
+                    o = f;
+                    var p = tryCatch(e, r, n);
+                    if ("normal" === p.type) {
+                        if (o = n.done ? s : l, p.arg === y) continue;
+                        return {
+                            value: p.arg,
+                            done: n.done
                         };
-                    next.next = next;
-                    return next;
-                }
-            }
-            throw new TypeError(typeof iterable + ' не является итерируемым');
-        }
-
-        GeneratorFunctionPrototype.prototype = GeneratorFunctionPrototype;
-        defineProperty(GeneratorFunctionPrototype, 'constructor', { value: GeneratorFunctionPrototype, configurable: true });
-        defineProperty(GeneratorFunction, 'constructor', { value: GeneratorFunction, configurable: true });
-        GeneratorFunction.displayName = define(GeneratorFunctionPrototype, toStringTagSymbol, 'GeneratorFunction');
-
-        runtime.isGeneratorFunction = function (functionObject) {
-            var constructor = typeof functionObject === 'function' && functionObject.constructor;
-            return !!constructor && (constructor === GeneratorFunction || (constructor.displayName || constructor.name) === 'GeneratorFunction');
-        };
-
-        runtime.mark = function (generatorFunction) {
-            if (Object.setPrototypeOf) {
-                Object.setPrototypeOf(generatorFunction, GeneratorFunctionPrototype);
-            } else {
-                generatorFunction.__proto__ = GeneratorFunctionPrototype;
-                define(generatorFunction, toStringTagSymbol, 'GeneratorFunction');
-            }
-            generatorFunction.prototype = Object.create(generatorPrototype);
-            return generatorFunction;
-        };
-
-        runtime.awrap = function (argument) {
-            return { __await: argument };
-        };
-
-        defineIteratorMethods(AsyncIterator.prototype);
-        define(AsyncIterator.prototype, asyncIteratorSymbol, function () {
-            return this;
-        });
-        runtime.AsyncIterator = AsyncIterator;
-
-        runtime.async = function (innerFunction, outerFunction, errorCallback, successCallback, promiseConstructor) {
-            if (promiseConstructor === undefined) promiseConstructor = Promise;
-            var iterator = new AsyncIterator(wrap(innerFunction, outerFunction, errorCallback, successCallback), promiseConstructor);
-            return runtime.isGeneratorFunction(outerFunction) ? iterator : iterator.next().then(function (result) {
-                return result.done ? result.value : iterator.next();
-            });
-        };
-
-        defineIteratorMethods(generatorPrototype);
-        define(generatorPrototype, toStringTagSymbol, 'Generator');
-        define(generatorPrototype, iteratorSymbol, function () {
-            return this;
-        });
-        define(generatorPrototype, 'toString', function () {
-            return '[object Generator]';
-        });
-
-        runtime.keys = function (object) {
-            var keys = Object.keys(object),
-                reversedKeys = [];
-            for (var key in keys) reversedKeys.push(key);
-            reversedKeys.reverse();
-            return function next() {
-                while (reversedKeys.length) {
-                    var key = reversedKeys.pop();
-                    if (key in object) {
-                        next.value = key;
-                        next.done = false;
-                        return next;
                     }
+                    "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg);
                 }
-                next.done = true;
-                return next;
             };
-        };
-
-        runtime.values = values;
-
-        Context.prototype = {
-            constructor: Context,
-            reset: function (resetAll) {
-                this.prev = 0;
-                this.next = 0;
-                this.sent = this._sent = undefined;
-                this.done = false;
-                this.delegate = null;
-                this.method = 'next';
-                this.arg = undefined;
-                this.tryEntries.forEach(resetTryEntry);
-                if (!resetAll) {
-                    for (var property in this) {
-                        if (property.charAt(0) === 't' && hasOwnProperty.call(this, property) && !isNaN(+property.slice(1))) {
-                            this[property] = undefined;
-                        }
-                    }
+        }
+        function maybeInvokeDelegate(e, r) {
+            var n = r.method,
+                o = e.iterator[n];
+            if (o === t) return r.delegate = null, "throw" === n && e.iterator.return && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("Итератор не предоставляет метод '" + n + "'")), y;
+            var i = tryCatch(o, e.iterator, r.arg);
+            if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y;
+            var a = i.arg;
+            return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("результат итератора не является объектом"), r.delegate = null, y);
+        }
+        function pushTryEntry(t) {
+            var e = {
+                tryLoc: t[0]
+            };
+            1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e);
+        }
+        function resetTryEntry(t) {
+            var e = t.completion || {};
+            e.type = "normal", delete e.arg, t.completion = e;
+        }
+        function Context(t) {
+            this.tryEntries = [{
+                tryLoc: "root"
+            }], t.forEach(pushTryEntry, this), this.reset(!0);
+        }
+        function values(e) {
+            if (e || "" === e) {
+                var r = e[a];
+                if (r) return r.call(e);
+                if ("function" == typeof e.next) return e;
+                if (!isNaN(e.length)) {
+                    var o = -1,
+                        i = function next() {
+                            for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next;
+                            return next.value = t, next.done = !0, next;
+                        };
+                    return i.next = i;
                 }
+            }
+            throw new TypeError(typeof e + " не является итерируемым");
+        }
+        return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", {
+            value: GeneratorFunctionPrototype,
+            configurable: !0
+        }), o(GeneratorFunctionPrototype, "constructor", {
+            value: GeneratorFunction,
+            configurable: !0
+        }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) {
+            var e = "function" == typeof t && t.constructor;
+            return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name));
+        }, e.mark = function (t) {
+            return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t;
+        }, e.awrap = function (t) {
+            return {
+                __await: t
+            };
+        }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () {
+            return this;
+        }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) {
+            void 0 === i && (i = Promise);
+            var a = new AsyncIterator(wrap(t, r, n, o), i);
+            return e.isGeneratorFunction(r) ? a : a.next().then(function (t) {
+                return t.done ? t.value : a.next();
+            });
+        }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () {
+            return this;
+        }), define(g, "toString", function () {
+            return "[object Generator]";
+        }), e.keys = function (t) {
+            var e = Object(t),
+                r = [];
+            for (var n in e) r.push(n);
+            return r.reverse(), function next() {
+                for (; r.length;) {
+                    var t = r.pop();
+                    if (t in e) return next.value = t, next.done = !1, next;
+                }
+                return next.done = !0, next;
+            };
+        }, e.values = values, Context.prototype = {
+            constructor: Context,
+            reset: function (e) {
+                if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t);
             },
             stop: function () {
-                this.done = true;
-                var completion = this.tryEntries[0].completion;
-                if (completion.type === 'throw') {
-                    throw completion.arg;
-                }
+                this.done = !0;
+                var t = this.tryEntries[0].completion;
+                if ("throw" === t.type) throw t.arg;
                 return this.rval;
             },
-            dispatchException: function (exception) {
-                if (this.done) {
-                    throw exception;
+            dispatchException: function (e) {
+                if (this.done) throw e;
+                var r = this;
+                function handle(n, o) {
+                    return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o;
                 }
-                var context = this;
-                function handle(location, hasCatch) {
-                    completion.type = 'throw';
-                    completion.arg = exception;
-                    context.next = location;
-                    if (hasCatch) {
-                        context.method = 'next';
-                        context.arg = undefined;
-                    }
-                    return !!hasCatch;
-                }
-                for (var index = this.tryEntries.length - 1; index >= 0; index--) {
-                    var tryEntry = this.tryEntries[index],
-                        completion = tryEntry.completion;
-                    if (tryEntry.tryLoc === 'root') {
-                        return handle('end');
-                    }
-                    if (tryEntry.tryLoc <= this.prev) {
-                        var hasCatch = hasOwnProperty.call(tryEntry, 'catchLoc'),
-                            hasFinally = hasOwnProperty.call(tryEntry, 'finallyLoc');
-                        if (hasCatch && hasFinally) {
-                            if (this.prev < tryEntry.catchLoc) {
-                                return handle(tryEntry.catchLoc, true);
-                            }
-                            if (this.prev < tryEntry.finallyLoc) {
-                                return handle(tryEntry.finallyLoc);
-                            }
-                        } else if (hasCatch) {
-                            if (this.prev < tryEntry.catchLoc) {
-                                return handle(tryEntry.catchLoc, true);
-                            }
-                        } else if (hasFinally) {
-                            if (this.prev < tryEntry.finallyLoc) {
-                                return handle(tryEntry.finallyLoc);
-                            }
+                for (var o = this.tryEntries.length - 1; o >= 0; --o) {
+                    var i = this.tryEntries[o],
+                        a = i.completion;
+                    if ("root" === i.tryLoc) return handle("end");
+                    if (i.tryLoc <= this.prev) {
+                        var c = n.call(i, "catchLoc"),
+                            u = n.call(i, "finallyLoc");
+                        if (c && u) {
+                            if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
+                            if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
+                        } else if (c) {
+                            if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
                         } else {
-                            throw new Error('Оператор try без catch или finally');
+                            if (!u) throw Error("Оператор try без catch или finally");
+                            if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
                         }
                     }
                 }
             },
-            abrupt: function (type, argument) {
-                for (var index = this.tryEntries.length - 1; index >= 0; index--) {
-                    var tryEntry = this.tryEntries[index];
-                    if (tryEntry.tryLoc <= this.prev && hasOwnProperty.call(tryEntry, 'finallyLoc') && this.prev < tryEntry.finallyLoc) {
-                        var finallyEntry = tryEntry;
+            abrupt: function (t, e) {
+                for (var r = this.tryEntries.length - 1; r >= 0; --r) {
+                    var o = this.tryEntries[r];
+                    if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) {
+                        var i = o;
                         break;
                     }
                 }
-                if (finallyEntry && (type === 'break' || type === 'continue') && finallyEntry.tryLoc <= argument && argument <= finallyEntry.finallyLoc) {
-                    finallyEntry = null;
-                }
-                var completion = finallyEntry ? finallyEntry.completion : {};
-                completion.type = type;
-                completion.arg = argument;
-                if (finallyEntry) {
-                    this.method = 'next';
-                    this.next = finallyEntry.finallyLoc;
-                    return generatorState;
-                }
-                return this.complete(completion);
+                i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null);
+                var a = i ? i.completion : {};
+                return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a);
             },
-            complete: function (completion, afterLoc) {
-                if (completion.type === 'throw') {
-                    throw completion.arg;
-                }
-                if (completion.type === 'break' || completion.type === 'continue') {
-                    this.next = completion.arg;
-                } else if (completion.type === 'return') {
-                    this.rval = this.arg = completion.arg;
-                    this.method = 'return';
-                    this.next = 'end';
-                } else if (completion.type === 'normal' && afterLoc) {
-                    this.next = afterLoc;
-                }
-                return generatorState;
+            complete: function (t, e) {
+                if ("throw" === t.type) throw t.arg;
+                return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y;
             },
-            finish: function (finallyLoc) {
-                for (var index = this.tryEntries.length - 1; index >= 0; index--) {
-                    var tryEntry = this.tryEntries[index];
-                    if (tryEntry.finallyLoc === finallyLoc) {
-                        this.complete(tryEntry.completion, tryEntry.afterLoc);
-                        resetTryEntry(tryEntry);
-                        return generatorState;
-                    }
+            finish: function (t) {
+                for (var e = this.tryEntries.length - 1; e >= 0; --e) {
+                    var r = this.tryEntries[e];
+                    if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y;
                 }
             },
-            catch: function (tryLoc) {
-                for (var index = this.tryEntries.length - 1; index >= 0; index--) {
-                    var tryEntry = this.tryEntries[index];
-                    if (tryEntry.tryLoc === tryLoc) {
-                        var completion = tryEntry.completion;
-                        if (completion.type === 'throw') {
-                            var exception = completion.arg;
-                            resetTryEntry(tryEntry);
+            catch: function (t) {
+                for (var e = this.tryEntries.length - 1; e >= 0; --e) {
+                    var r = this.tryEntries[e];
+                    if (r.tryLoc === t) {
+                        var n = r.completion;
+                        if ("throw" === n.type) {
+                            var o = n.arg;
+                            resetTryEntry(r);
                         }
-                        return exception;
+                        return o;
                     }
                 }
-                throw new Error('Незаконная попытка catch');
+                throw Error("незаконная попытка catch");
             },
-            delegateYield: function (iterable, resultName, nextLoc) {
-                this.delegate = {
-                    iterator: values(iterable),
-                    resultName: resultName,
-                    nextLoc: nextLoc
-                };
-                if (this.method === 'next') {
-                    this.arg = undefined;
-                }
-                return generatorState;
+            delegateYield: function (e, r, n) {
+                return this.delegate = {
+                    iterator: values(e),
+                    resultName: r,
+                    nextLoc: n
+                }, "next" === this.method && (this.arg = t), y;
             }
-        };
-        return runtime;
+        }, e;
     }
 
     // Преобразование значения к примитивному типу
-    function _toPrimitive(input, hint) {
-        if (typeof input !== 'object' || input === null) {
-            return input;
+    function _toPrimitive(t, r) {
+        if ("object" != typeof t || !t) return t;
+        var e = t[Symbol.toPrimitive];
+        if (void 0 !== e) {
+            var i = e.call(t, r || "default");
+            if ("object" != typeof i) return i;
+            throw new TypeError("@@toPrimitive должен возвращать примитивное значение.");
         }
-        var toPrimitive = input[Symbol.toPrimitive];
-        if (toPrimitive !== undefined) {
-            var result = toPrimitive.call(input, hint || 'default');
-            if (typeof result !== 'object') {
-                return result;
-            }
-            throw new TypeError('@@toPrimitive должен возвращать примитивное значение.');
-        }
-        return hint === 'string' ? String(input) : Number(input);
+        return ("string" === r ? String : Number)(t);
     }
 
-    // Преобразование ключа свойства в строку или символ
-    function _toPropertyKey(key) {
-        var primitive = _toPrimitive(key, 'string');
-        return typeof primitive === 'symbol' ? primitive : String(primitive);
+    // Преобразование ключа свойства к строке/символу
+    function _toPropertyKey(t) {
+        var i = _toPrimitive(t, "string");
+        return "symbol" == typeof i ? i : i + "";
     }
 
     // Создание или обновление свойства объекта
-    function _defineProperty(object, key, value) {
+    function _defineProperty(obj, key, value) {
         key = _toPropertyKey(key);
-        if (key in object) {
-            Object.defineProperty(object, key, {
+        if (key in obj) {
+            Object.defineProperty(obj, key, {
                 value: value,
                 enumerable: true,
                 configurable: true,
                 writable: true
             });
         } else {
-            object[key] = value;
+            obj[key] = value;
         }
-        return object;
+        return obj;
     }
 
     // Основная функция для выполнения GraphQL-запроса к Shikimori API
     function main(params, oncomplite, onerror) {
         $(document).ready(function () {
             var limit = params.isTop100 ? 50 : (params.limit || 36);
-            var query = `\n\tquery Animes {\n\tanimes(limit: ${limit}, order: ${params.sort || 'aired_on'}, page: ${params.page}\n\t`;
-            if (params.kind) query += `, kind: "${params.kind}"`;
-            if (params.status) query += `, status: "${params.status}"`;
-            if (params.genre) query += `, genre: "${params.genre}"`;
-            if (params.seasons) query += `, season: "${params.seasons}"`;
-            query += `) {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        `;
+            var query = "\n\tquery Animes {\n\tanimes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n\t");
+
+            if (params.kind) query += ", kind: \"".concat(params.kind, "\"");
+            if (params.status) query += ", status: \"".concat(params.status, "\"");
+            if (params.genre) query += ", genre: \"".concat(params.genre, "\"");
+            if (params.seasons) query += ", season: \"".concat(params.seasons, "\"");
+
+            query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
 
             if (params.isTop100) {
                 var requests = [
@@ -578,20 +383,24 @@
                         url: 'https://shikimori.one/api/graphql',
                         method: 'POST',
                         contentType: 'application/json',
-                        data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 1") })
+                        data: JSON.stringify({
+                            query: query.replace("page: " + params.page, "page: 1")
+                        })
                     }),
                     $.ajax({
                         url: 'https://shikimori.one/api/graphql',
                         method: 'POST',
                         contentType: 'application/json',
-                        data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 2") })
+                        data: JSON.stringify({
+                            query: query.replace("page: " + params.page, "page: 2")
+                        })
                     })
                 ];
                 Promise.all(requests).then(function (responses) {
                     var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
                     oncomplite(allAnimes);
                 }).catch(function (error) {
-                    Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${error.message || 'Неизвестная ошибка'}`);
+                    Lampa.Noty.show("Ошибка при запросе к Shikimori API: " + (error.message || 'Неизвестная ошибка'));
                     onerror(error);
                 });
             } else {
@@ -599,12 +408,14 @@
                     url: 'https://shikimori.one/api/graphql',
                     method: 'POST',
                     contentType: 'application/json',
-                    data: JSON.stringify({ query: query }),
+                    data: JSON.stringify({
+                        query: query
+                    }),
                     success: function (response) {
                         oncomplite(response.data.animes);
                     },
                     error: function (_error) {
-                        Lampa.Noty.show(`Ошибка при запросе к Shikimori API: ${_error.statusText || _error.message || 'Неизвестная ошибка'}`);
+                        Lampa.Noty.show("Ошибка при запросе к Shikimori API: " + (_error.statusText || _error.message || 'Неизвестная ошибка'));
                         onerror(_error);
                     }
                 });
@@ -638,7 +449,7 @@
                     handleTmdbResponse(tmdbResponse, animeData.japanese);
                 });
             } else {
-                console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
+                Lampa.Noty.show('Ошибка при получении данных с animeapi.my.id: ' + jqXHR.status);
             }
         });
 
@@ -693,10 +504,10 @@
                     Lampa.Select.show({
                         title: 'Найти',
                         items: menu,
-                        onBack: function onBack() {
+                        onBack: function () {
                             Lampa.Controller.toggle("content");
                         },
-                        onSelect: function onSelect(a) {
+                        onSelect: function (a) {
                             Lampa.Activity.push({
                                 url: '',
                                 component: 'full',
@@ -718,7 +529,6 @@
             }
         }
     }
-
     var API = {
         main: main,
         search: search
@@ -806,7 +616,7 @@
             if (!object.isTop100) {
                 scroll.onEnd = function () {
                     object.page++;
-                    API.main(object, _this.build.bind(_this), _this.empty.bind(this));
+                    API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
                 };
             }
 
@@ -1108,6 +918,7 @@
 
             var homeElement = head.find('.Shikimori__home');
             homeElement.on('hover:enter', function () {
+                Lampa.Noty.show('Переход в каталог Shikimori');
                 Lampa.Activity.push({
                     url: '',
                     title: 'Shikimori',
@@ -1118,6 +929,7 @@
 
             var top100TvElement = head.find('.Shikimori__top100_tv');
             top100TvElement.on('hover:enter', function () {
+                Lampa.Noty.show('Переход в Топ100_ТВ');
                 Lampa.Activity.push({
                     url: '',
                     title: 'Shikimori Топ100_ТВ',
@@ -1132,6 +944,7 @@
 
             var top100MoviesElement = head.find('.Shikimori__top100_movies');
             top100MoviesElement.on('hover:enter', function () {
+                Lampa.Noty.show('Переход в Топ100_Фильмы');
                 Lampa.Activity.push({
                     url: '',
                     title: 'Shikimori Топ100_Фильмы',
@@ -1146,6 +959,7 @@
 
             var top100OnaElement = head.find('.Shikimori__top100_ona');
             top100OnaElement.on('hover:enter', function () {
+                Lampa.Noty.show('Переход в Топ100_ONA');
                 Lampa.Activity.push({
                     url: '',
                     title: 'Shikimori Топ100_ONA',
@@ -1180,6 +994,7 @@
                     active = items.indexOf(item);
                     scroll.update(items[active].render(true), true);
                 }).on("hover:enter", function () {
+                    Lampa.Noty.show('Открываем карточку аниме: ' + anime.name);
                     API.search(anime);
                 });
                 body.append(item.render(true));
@@ -1211,8 +1026,8 @@
             Lampa.Controller.toggle("content");
         };
 
-        this.pause = function () { };
-        this.stop = function () { };
+        this.pause = function () {};
+        this.stop = function () {};
         this.render = function (js) {
             return js ? html : $(html);
         };
@@ -1228,44 +1043,62 @@
 
     // Компонент для расширения информации в карточке
     function Component() {
-        Lampa.Listener.follow("full", _asyncToGenerator(_regeneratorRuntime().mark(function _callee(e) {
-            var response, dubbers, subbers, shikimoriRates;
-            return _regeneratorRuntime().wrap(function _callee$(_context) {
-                while (1) switch (_context.prev = _context.next) {
-                    case 0:
-                        if (!(e.type === "complite")) {
-                            _context.next = 7;
+        Lampa.Listener.follow("full", function () {
+            var _ref = _asyncToGenerator(_regeneratorRuntime().mark(function _callee(e) {
+                var getMAL, response, dubbers, subbers, shikimoriRates;
+                return _regeneratorRuntime().wrap(function _callee$(_context) {
+                    while (1) switch (_context.prev = _context.next) {
+                        case 0:
+                            if (!(e.type === "complite")) {
+                                _context.next = 21;
+                                break;
+                            }
+                            _context.prev = 1;
+                            Lampa.Noty.show("Попытка получить дополнительные данные для аниме...");
+                            _context.next = 5;
+                            return $.ajax({
+                                url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
+                                method: "GET",
+                                timeout: 0
+                            });
+                        case 5:
+                            getMAL = _context.sent;
+                            if (getMAL.length) {
+                                _context.next = 9;
+                                break;
+                            }
+                            Lampa.Noty.show("Данные для предоставленного ID не найдены.");
+                            return _context.abrupt("return");
+                        case 9:
+                            _context.next = 11;
+                            return $.ajax({
+                                url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
+                                method: "GET",
+                                timeout: 0
+                            });
+                        case 11:
+                            response = _context.sent;
+                            dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
+                            subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
+                            e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
+                            shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
+                            e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+                            _context.next = 21;
                             break;
-                        }
-                        _context.prev = 1;
-                        Lampa.Noty.show("Попытка получить дополнительные данные для аниме...");
-                        _context.next = 5;
-                        return $.ajax({
-                            url: "https://shikimori.one/api/animes/".concat(e.object.id),
-                            method: "GET",
-                            timeout: 0
-                        });
-
-                    case 5:
-                        response = _context.sent;
-                        dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
-                        subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
-                        e.object.activity.render().find(".full-descr__right").append(dubber, subbers);
-                        shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
-                        e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
-                        _context.next = 7;
-                        break;
-
-                    case 8:
-                        _context.prev = 8;
-                        _context.t0 = _context["catch"](1);
-                        Lampa.Noty.show("Ошибка при получении данных: " + _context.t0.message || 'Неизвестная ошибка');
-                    case 11:
-                    case "end":
-                        return _context.stop();
-                }
-            }, _callee, null, [[1, 8]]);
-        })));
+                        case 18:
+                            _context.prev = 18;
+                            _context.t0 = _context["catch"](1);
+                            Lampa.Noty.show("Ошибка при получении данных: " + (_context.t0.message || 'Неизвестная ошибка'));
+                        case 21:
+                        case "end":
+                            return _context.stop();
+                    }
+                }, _callee, null, [[1, 18]]);
+            }));
+            return function (_x) {
+                return _ref.apply(this, arguments);
+            };
+        }());
     }
 
     // Функция для добавления кнопки Shikimori в меню приложения
