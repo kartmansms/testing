@@ -1284,47 +1284,65 @@ function search(animeData) {
     $(".menu .menu__list").eq(0).append(button);
   }
 
-  // Функция инициализации плагина с проверкой готовности Lampa
-  function startPlugin() {
-    if (!window.Lampa || !window.Lampa.Storage) {
-      Lampa.Noty.show('Lampa еще не готова, повторная проверка через 100 мс');
-      setTimeout(startPlugin, 100);
-      return;
-    }
-    window.plugin_shikimori_ready = true;
-
-    var manifest = {
-      type: "other",
-      version: "1.0",
-      name: "LKE Shikimori",
-      description: "Добавляет каталог Shikimori",
-      component: "Shikimori"
-    };
-
-    Lampa.Manifest.plugins = manifest;
-
-    Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}.menu-icon{width:24px;height:24px;fill:currentColor;}\n        </style>");
-
-    Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
-
-    Lampa.Component.add(manifest.component, Component$1);
-
-    Component();
-
-    $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
-
-    if (window.appready) {
-      add();
-    } else {
-      Lampa.Listener.follow("app", function (event) {
-        if (event.type === "ready") {
-          add();
-        }
-      });
-    }
+function startPlugin() {
+  console.log('!!! Попытка запуска startPlugin !!!');
+  
+  if (!window.Lampa || !window.Lampa.Storage) {
+    console.log('Lampa не готова: window.Lampa:', !!window.Lampa, 'window.Lampa.Storage:', !!window.Lampa.Storage);
+    Lampa.Noty.show('Lampa еще не готова, повторная проверка через 100 мс');
+    setTimeout(startPlugin, 100);
+    return;
   }
 
-  if (!window.plugin_shikimori_ready) {
-    startPlugin();
+  console.log('Lampa готова, инициализация плагина Shikimori');
+  window.plugin_shikimori_ready = true;
+
+  var manifest = {
+    type: "other",
+    version: "1.0",
+    name: "LKE Shikimori",
+    description: "Добавляет каталог Shikimori",
+    component: "Shikimori"
+  };
+
+  console.log('Регистрация манифеста:', manifest);
+  Lampa.Manifest.plugins = manifest;
+
+  console.log('Добавление шаблона ShikimoriStyle');
+  Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}.menu-icon{width:24px;height:24px;fill:currentColor;}\n        </style>");
+
+  console.log('Добавление шаблона Shikimori-Card');
+  Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
+
+  console.log('Регистрация компонента Shikimori');
+  Lampa.Component.add(manifest.component, Component$1);
+
+  console.log('Запуск Component');
+  Component();
+
+  console.log('Добавление стилей в body');
+  $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
+
+  if (window.appready) {
+    console.log('window.appready уже true, вызов add()');
+    add();
+  } else {
+    console.log('Ожидание события app ready');
+    Lampa.Listener.follow("app", function (event) {
+      console.log('Событие app:', event.type);
+      if (event.type === "ready") {
+        console.log('Lampa готова, вызов add()');
+        add();
+      }
+    });
   }
+}
+
+console.log('Проверка window.plugin_shikimori_ready:', window.plugin_shikimori_ready);
+if (!window.plugin_shikimori_ready) {
+  console.log('Запуск startPlugin');
+  startPlugin();
+} else {
+  console.log('Плагин уже инициализирован');
+}
 })();
