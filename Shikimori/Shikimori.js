@@ -439,7 +439,7 @@
     });
   }
 
-  function search(animeData) {
+function search(animeData) {
     function cleanName(name) {
       return name.replace(/\s{2,}/g, ' ').trim();
     }
@@ -454,20 +454,16 @@
 
     function mapKindToTmdbType(kind) {
       switch (kind) {
-        case 'movie':
-          return 'movie';
+        case 'movie': return 'movie';
         case 'tv':
-        case 'tv_special':
-          return 'tv';
+        case 'tv_special': return 'tv';
         case 'ova':
         case 'ona':
         case 'special':
         case 'music':
         case 'pv':
-        case 'cm':
-          return 'movie';
-        default:
-          return 'tv';
+        case 'cm': return 'movie';
+        default: return 'tv';
       }
     }
 
@@ -478,7 +474,8 @@
           console.log('Получен TMDB ID:', response.themoviedb);
           var tmdbType = mapKindToTmdbType(animeData.kind);
           getTmdb(response.themoviedb, tmdbType, function (result) {
-            if (result) {
+            if (result && result.id) {
+              console.log('Успешно получены данные TMDB:', result);
               processResults(result, animeData.kind);
             } else {
               console.log('Запрос по ID провалился, пробуем расширенный поиск');
@@ -486,7 +483,7 @@
             }
           });
         } else {
-          console.log('TMDB ID не найден, переходим к расширенному поиску');
+          console.log('TMDB ID не найден в ответе, переходим к расширенному поиску');
           extendedSearch(animeData, 0);
         }
       })
@@ -501,7 +498,8 @@
         animeData.name,
         animeData.japanese,
         animeData.english,
-        animeData.russian
+        animeData.russian,
+        animeData.licenseNameRu // Добавляем лицензированное название
       ].filter(n => n && typeof n === 'string');
 
       if (nameIndex >= names.length) {
@@ -517,6 +515,7 @@
           console.log('Поиск по', currentName, 'не дал результатов, пробуем следующее название');
           extendedSearch(animeData, nameIndex + 1);
         } else {
+          console.log('Найдены результаты в TMDB:', tmdbResponse);
           handleTmdbResponse(tmdbResponse, animeData);
         }
       });
