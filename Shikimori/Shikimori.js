@@ -80,32 +80,6 @@
     function GeneratorFunction() {}
     function GeneratorFunctionPrototype() {}
 
-    // Функция для получения значений из итерируемого объекта
-    function values(iterable) {
-      if (!iterable && iterable !== "") throw new TypeError(`${typeof iterable} не является итерируемым`);
-      const iterator = iterable[iteratorSymbol];
-      if (iterator) return iterator.call(iterable);
-      if (typeof iterable.next === "function") return iterable;
-      if (!isNaN(iterable.length)) {
-        let index = -1;
-        const iterator = {
-          next: function () {
-            while (++index < iterable.length) {
-              if (hasOwn.call(iterable, index)) {
-                this.value = iterable[index];
-                this.done = false;
-                return this;
-              }
-            }
-            this.value = undefined;
-            this.done = true;
-            return this;
-          }
-        };
-        return iterator.next = iterator;
-      }
-    }
-
     const iteratorPrototype = defineProperty({}, iteratorSymbol, function () { return this; });
     const getProto = Object.getPrototypeOf;
     const protoValues = getProto && getProto(getProto(values([])));
@@ -257,6 +231,31 @@
       this.reset(true);
     }
 
+    function getValues(iterable) {
+      if (!iterable && iterable !== "") throw new TypeError(`${typeof iterable} не является итерируемым`);
+      const iterator = iterable[iteratorSymbol];
+      if (iterator) return iterator.call(iterable);
+      if (typeof iterable.next === "function") return iterable;
+      if (!isNaN(iterable.length)) {
+        let index = -1;
+        const iterator = {
+          next: function () {
+            while (++index < iterable.length) {
+              if (hasOwn.call(iterable, index)) {
+                this.value = iterable[index];
+                this.done = false;
+                return this;
+              }
+            }
+            this.value = undefined;
+            this.done = true;
+            return this;
+          }
+        };
+        return iterator.next = iterator;
+      }
+    }
+
     GeneratorFunction.prototype = GeneratorFunctionPrototype;
     defineProp(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: true });
     defineProp(GeneratorFunction, "constructor", { value: GeneratorFunction, configurable: true });
@@ -312,7 +311,7 @@
       };
     };
 
-    runtime.values = values;
+    runtime.values = getValues;
 
     Context.prototype = {
       constructor: Context,
@@ -425,7 +424,7 @@
         throw new Error("Незаконная попытка catch");
       },
       delegateYield(iterable, resultName, nextLoc) {
-        this.delegate = { iterator: values(iterable), resultName, nextLoc };
+        this.delegate = { iterator: getValues(iterable), resultName, nextLoc };
         if (this.method === "next") this.arg = undefined;
         return CONTINUE_SENTINEL;
       }
