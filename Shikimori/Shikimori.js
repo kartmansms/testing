@@ -231,7 +231,8 @@
       this.reset(true);
     }
 
-    function getValues(iterable) {
+    // Функция для получения значений из итерируемого объекта
+    function values(iterable) {
       if (!iterable && iterable !== "") throw new TypeError(`${typeof iterable} не является итерируемым`);
       const iterator = iterable[iteratorSymbol];
       if (iterator) return iterator.call(iterable);
@@ -311,7 +312,7 @@
       };
     };
 
-    runtime.values = getValues;
+    runtime.values = values;
 
     Context.prototype = {
       constructor: Context,
@@ -424,7 +425,7 @@
         throw new Error("Незаконная попытка catch");
       },
       delegateYield(iterable, resultName, nextLoc) {
-        this.delegate = { iterator: getValues(iterable), resultName, nextLoc };
+        this.delegate = { iterator: values(iterable), resultName, nextLoc };
         if (this.method === "next") this.arg = undefined;
         return CONTINUE_SENTINEL;
       }
