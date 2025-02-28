@@ -698,12 +698,17 @@
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
+    // Изменяем логику выбора заголовка: для русского языка сначала licenseNameRu
+    var title = userLang === 'ru' 
+        ? (data.licenseNameRu || data.russian || data.name || data.japanese) 
+        : (data.name || data.japanese);
+
     var item = Lampa.Template.get("Shikimori-Card", {
       img: data.poster.originalUrl,
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
       rate: data.score,
-      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      title: title,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
@@ -713,7 +718,7 @@
     this.destroy = function () {
       item.remove();
     };
-  }
+}
 
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
