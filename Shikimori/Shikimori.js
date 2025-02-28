@@ -1,549 +1,461 @@
 (function () {
   'use strict';
 
-  // Получение всех ключей объекта, включая символьные
-  function getObjectKeys(obj, enumerableOnly) {
-    let keys = Object.keys(obj);
+  function ownKeys(e, r) {
+    var t = Object.keys(e);
     if (Object.getOwnPropertySymbols) {
-      let symbols = Object.getOwnPropertySymbols(obj);
-      if (enumerableOnly) {
-        symbols = symbols.filter(symbol => Object.getOwnPropertyDescriptor(obj, symbol).enumerable);
-      }
-      keys = keys.concat(symbols);
+      var o = Object.getOwnPropertySymbols(e);
+      r && (o = o.filter(function (r) {
+        return Object.getOwnPropertyDescriptor(e, r).enumerable;
+      })), t.push.apply(t, o);
     }
-    return keys;
+    return t;
   }
 
-  // Объединение объектов с поддержкой символьных ключей
-  function mergeObjects(target, ...sources) {
-    sources.forEach((source, index) => {
-      if (!source) return;
-      if (index % 2 === 0) {
-        getObjectKeys(Object(source), true).forEach(key => {
-          defineProperty(target, key, source[key]);
-        });
-      } else if (Object.getOwnPropertyDescriptors) {
-        Object.defineProperties(target, Object.getOwnPropertyDescriptors(source));
-      } else {
-        getObjectKeys(Object(source)).forEach(key => {
-          Object.defineProperty(target, key, Object.getOwnPropertyDescriptor(source, key));
-        });
-      }
-    });
-    return target;
+  function _objectSpread2(e) {
+    for (var r = 1; r < arguments.length; r++) {
+      var t = null != arguments[r] ? arguments[r] : {};
+      r % 2 ? ownKeys(Object(t), !0).forEach(function (r) {
+        _defineProperty(e, r, t[r]);
+      }) : Object.getOwnPropertyDescriptors ? Object.defineProperties(e, Object.getOwnPropertyDescriptors(t)) : ownKeys(Object(t)).forEach(function (r) {
+        Object.defineProperty(e, r, Object.getOwnPropertyDescriptor(t, r));
+      });
+    }
+    return e;
   }
 
-  // Runtime для поддержки генераторов и асинхронных итераторов
-  function createGeneratorRuntime() {
-    const runtime = {};
-    const proto = Object.prototype;
-    const hasOwn = proto.hasOwnProperty;
-    const defineProp = Object.defineProperty || ((obj, key, desc) => obj[key] = desc.value);
-    const symbols = typeof Symbol === "function" ? Symbol : {};
-    const iteratorSymbol = symbols.iterator || "@@iterator";
-    const asyncIteratorSymbol = symbols.asyncIterator || "@@asyncIterator";
-    const toStringTagSymbol = symbols.toStringTag || "@@toStringTag";
-
-    function defineProperty(obj, key, value) {
+  function _regeneratorRuntime() {
+    _regeneratorRuntime = function () {
+      return e;
+    };
+    var t,
+      e = {},
+      r = Object.prototype,
+      n = r.hasOwnProperty,
+      o = Object.defineProperty || function (t, e, r) {
+        t[e] = r.value;
+      },
+      i = "function" == typeof Symbol ? Symbol : {},
+      a = i.iterator || "@@iterator",
+      c = i.asyncIterator || "@@asyncIterator",
+      u = i.toStringTag || "@@toStringTag";
+    function define(t, e, r) {
+      return Object.defineProperty(t, e, {
+        value: r,
+        enumerable: !0,
+        configurable: !0,
+        writable: !0
+      }), t[e];
+    }
+    try {
+      define({}, "");
+    } catch (t) {
+      define = function (t, e, r) {
+        return t[e] = r;
+      };
+    }
+    function wrap(t, e, r, n) {
+      var i = e && e.prototype instanceof Generator ? e : Generator,
+        a = Object.create(i.prototype),
+        c = new Context(n || []);
+      return o(a, "_invoke", {
+        value: makeInvokeMethod(t, r, c)
+      }), a;
+    }
+    function tryCatch(t, e, r) {
       try {
-        Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
-      } catch {
-        obj[key] = value;
-      }
-      return obj[key];
-    }
-
-    function wrapGenerator(fn, GeneratorFn, context, args) {
-      const GeneratorConstructor = GeneratorFn && GeneratorFn.prototype instanceof Generator ? GeneratorFn : Generator;
-      const generator = Object.create(GeneratorConstructor.prototype);
-      defineProp(generator, "_invoke", { value: createInvokeMethod(fn, context, args) });
-      return generator;
-    }
-
-    function tryExecute(fn, thisArg, arg) {
-      try {
-        return { type: "normal", arg: fn.call(thisArg, arg) };
-      } catch (error) {
-        return { type: "throw", arg: error };
+        return {
+          type: "normal",
+          arg: t.call(e, r)
+        };
+      } catch (t) {
+        return {
+          type: "throw",
+          arg: t
+        };
       }
     }
-
-    runtime.wrap = wrapGenerator;
-
-    const STATE_SUSPENDED_START = "suspendedStart";
-    const STATE_SUSPENDED_YIELD = "suspendedYield";
-    const STATE_EXECUTING = "executing";
-    const STATE_COMPLETED = "completed";
-    const CONTINUE_SENTINEL = {};
-
+    e.wrap = wrap;
+    var h = "suspendedStart",
+      l = "suspendedYield",
+      f = "executing",
+      s = "completed",
+      y = {};
     function Generator() {}
     function GeneratorFunction() {}
     function GeneratorFunctionPrototype() {}
-
-    const iteratorPrototype = defineProperty({}, iteratorSymbol, function () { return this; });
-    const getProto = Object.getPrototypeOf;
-    const protoValues = getProto && getProto(getProto(values([])));
-    if (protoValues && protoValues !== proto && hasOwn.call(protoValues, iteratorSymbol)) {
-      iteratorPrototype = protoValues;
-    }
-
-    GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(iteratorPrototype);
-
-    function defineIteratorMethods(prototype) {
-      ["next", "throw", "return"].forEach(method => {
-        defineProperty(prototype, method, function (arg) {
-          return this._invoke(method, arg);
+    var p = {};
+    define(p, a, function () {
+      return this;
+    });
+    var d = Object.getPrototypeOf,
+      v = d && d(d(values([])));
+    v && v !== r && n.call(v, a) && (p = v);
+    var g = GeneratorFunctionPrototype.prototype = Generator.prototype = Object.create(p);
+    function defineIteratorMethods(t) {
+      ["next", "throw", "return"].forEach(function (e) {
+        define(t, e, function (t) {
+          return this._invoke(e, t);
         });
       });
     }
-
-    function AsyncIterator(generator, PromiseImpl) {
-      let pending;
-      function invoke(method, arg, resolve, reject) {
-        const result = tryExecute(generator[method], generator, arg);
-        if (result.type !== "throw") {
-          const value = result.arg;
-          if (value && typeof value === "object" && hasOwn.call(value, "__await")) {
-            return PromiseImpl.resolve(value.__await).then(
-              val => invoke("next", val, resolve, reject),
-              err => invoke("throw", err, resolve, reject)
-            );
-          }
-          return PromiseImpl.resolve(value).then(
-            val => { value.value = val; resolve(value); },
-            err => invoke("throw", err, resolve, reject)
-          );
+    function AsyncIterator(t, e) {
+      function invoke(r, o, i, a) {
+        var c = tryCatch(t[r], t, o);
+        if ("throw" !== c.type) {
+          var u = c.arg,
+            h = u.value;
+          return h && "object" == typeof h && n.call(h, "__await") ? e.resolve(h.__await).then(function (t) {
+            invoke("next", t, i, a);
+          }, function (t) {
+            invoke("throw", t, i, a);
+          }) : e.resolve(h).then(function (t) {
+            u.value = t, i(u);
+          }, function (t) {
+            return invoke("throw", t, i, a);
+          });
         }
-        reject(result.arg);
+        a(c.arg);
       }
-      defineProp(this, "_invoke", {
-        value: function (method, arg) {
-          return pending = pending ? pending.then(() => new Promise((res, rej) => invoke(method, arg, res, rej))) :
-            new Promise((res, rej) => invoke(method, arg, res, rej));
+      var r;
+      o(this, "_invoke", {
+        value: function (t, n) {
+          function callInvokeWithMethodAndArg() {
+            return new e(function (e, r) {
+              invoke(t, n, e, r);
+            });
+          }
+          return r = r ? r.then(callInvokeWithMethodAndArg, callInvokeWithMethodAndArg) : callInvokeWithMethodAndArg();
         }
       });
     }
-
-    function createInvokeMethod(fn, context, state) {
-      let currentState = STATE_SUSPENDED_START;
-      return function (method, arg) {
-        if (currentState === STATE_EXECUTING) throw new Error("Генератор уже запущен");
-        if (currentState === STATE_COMPLETED) {
-          if (method === "throw") throw arg;
-          return { value: undefined, done: true };
+    function makeInvokeMethod(e, r, n) {
+      var o = h;
+      return function (i, a) {
+        if (o === f) throw Error("Генератор уже запущен");
+        if (o === s) {
+          if ("throw" === i) throw a;
+          return {
+            value: t,
+            done: !0
+          };
         }
-        state.method = method;
-        state.arg = arg;
-        while (true) {
-          const delegate = state.delegate;
-          if (delegate) {
-            const result = invokeDelegate(delegate, state);
-            if (result) {
-              if (result === CONTINUE_SENTINEL) continue;
-              return result;
+        for (n.method = i, n.arg = a;;) {
+          var c = n.delegate;
+          if (c) {
+            var u = maybeInvokeDelegate(c, n);
+            if (u) {
+              if (u === y) continue;
+              return u;
             }
           }
-          if (state.method === "next") state.sent = state._sent = state.arg;
-          else if (state.method === "throw") {
-            if (currentState === STATE_SUSPENDED_START) throw currentState = STATE_COMPLETED, state.arg;
-            state.dispatchException(state.arg);
-          } else if (state.method === "return") state.abrupt("return", state.arg);
-          currentState = STATE_EXECUTING;
-          const result = tryExecute(fn, context, state);
-          if (result.type === "normal") {
-            currentState = state.done ? STATE_COMPLETED : STATE_SUSPENDED_YIELD;
-            if (result.arg === CONTINUE_SENTINEL) continue;
-            return { value: result.arg, done: state.done };
+          if ("next" === n.method) n.sent = n._sent = n.arg; else if ("throw" === n.method) {
+            if (o === h) throw o = s, n.arg;
+            n.dispatchException(n.arg);
+          } else "return" === n.method && n.abrupt("return", n.arg);
+          o = f;
+          var p = tryCatch(e, r, n);
+          if ("normal" === p.type) {
+            if (o = n.done ? s : l, p.arg === y) continue;
+            return {
+              value: p.arg,
+              done: n.done
+            };
           }
-          if (result.type === "throw") {
-            currentState = STATE_COMPLETED;
-            state.method = "throw";
-            state.arg = result.arg;
-          }
+          "throw" === p.type && (o = s, n.method = "throw", n.arg = p.arg);
         }
       };
     }
-
-    function invokeDelegate(delegate, state) {
-      const method = state.method;
-      const iteratorMethod = delegate.iterator[method];
-      if (iteratorMethod === undefined) {
-        state.delegate = null;
-        if (method === "throw" && delegate.iterator.return) {
-          state.method = "return";
-          state.arg = undefined;
-          invokeDelegate(delegate, state);
-          if (state.method === "throw") return CONTINUE_SENTINEL;
-        }
-        if (method !== "return") {
-          state.method = "throw";
-          state.arg = new TypeError(`Итератор не предоставляет метод '${method}'`);
-        }
-        return CONTINUE_SENTINEL;
-      }
-      const result = tryExecute(iteratorMethod, delegate.iterator, state.arg);
-      if (result.type === "throw") {
-        state.method = "throw";
-        state.arg = result.arg;
-        state.delegate = null;
-        return CONTINUE_SENTINEL;
-      }
-      const value = result.arg;
-      if (!value) {
-        state.method = "throw";
-        state.arg = new TypeError("Результат итератора не является объектом");
-        state.delegate = null;
-        return CONTINUE_SENTINEL;
-      }
-      if (value.done) {
-        state[delegate.resultName] = value.value;
-        state.next = delegate.nextLoc;
-        if (state.method !== "return") {
-          state.method = "next";
-          state.arg = undefined;
-        }
-        state.delegate = null;
-        return CONTINUE_SENTINEL;
-      }
-      return value;
+    function maybeInvokeDelegate(e, r) {
+      var n = r.method,
+        o = e.iterator[n];
+      if (o === t) return r.delegate = null, "throw" === n && e.iterator.return && (r.method = "return", r.arg = t, maybeInvokeDelegate(e, r), "throw" === r.method) || "return" !== n && (r.method = "throw", r.arg = new TypeError("Итератор не предоставляет метод '" + n + "'")), y;
+      var i = tryCatch(o, e.iterator, r.arg);
+      if ("throw" === i.type) return r.method = "throw", r.arg = i.arg, r.delegate = null, y;
+      var a = i.arg;
+      return a ? a.done ? (r[e.resultName] = a.value, r.next = e.nextLoc, "return" !== r.method && (r.method = "next", r.arg = t), r.delegate = null, y) : a : (r.method = "throw", r.arg = new TypeError("результат итератора не является объектом"), r.delegate = null, y);
     }
-
-    function pushTryEntry(entry, tries) {
-      const tryEntry = { tryLoc: entry[0] };
-      if (1 in entry) tryEntry.catchLoc = entry[1];
-      if (2 in entry) {
-        tryEntry.finallyLoc = entry[2];
-        tryEntry.afterLoc = entry[3];
-      }
-      tries.push(tryEntry);
-    }
-
-    function resetTryEntry(entry) {
-      const completion = entry.completion || {};
-      completion.type = "normal";
-      delete completion.arg;
-      entry.completion = completion;
-    }
-
-    function Context(tryLocs) {
-      this.tryEntries = [{ tryLoc: "root" }];
-      tryLocs.forEach(entry => pushTryEntry(entry, this.tryEntries));
-      this.reset(true);
-    }
-
-    function getValues(iterable) {
-      if (!iterable && iterable !== "") throw new TypeError(`${typeof iterable} не является итерируемым`);
-      const iterator = iterable[iteratorSymbol];
-      if (iterator) return iterator.call(iterable);
-      if (typeof iterable.next === "function") return iterable;
-      if (!isNaN(iterable.length)) {
-        let index = -1;
-        const iterator = {
-          next: function () {
-            while (++index < iterable.length) {
-              if (hasOwn.call(iterable, index)) {
-                this.value = iterable[index];
-                this.done = false;
-                return this;
-              }
-            }
-            this.value = undefined;
-            this.done = true;
-            return this;
-          }
-        };
-        return iterator.next = iterator;
-      }
-    }
-
-    GeneratorFunction.prototype = GeneratorFunctionPrototype;
-    defineProp(GeneratorFunctionPrototype, "constructor", { value: GeneratorFunction, configurable: true });
-    defineProp(GeneratorFunction, "constructor", { value: GeneratorFunction, configurable: true });
-    GeneratorFunction.displayName = defineProperty(GeneratorFunctionPrototype, toStringTagSymbol, "GeneratorFunction");
-
-    runtime.isGeneratorFunction = function (fn) {
-      const constructor = typeof fn === "function" && fn.constructor;
-      return !!constructor && (constructor === GeneratorFunction || (constructor.displayName || constructor.name) === "GeneratorFunction");
-    };
-
-    runtime.mark = function (fn) {
-      if (Object.setPrototypeOf) {
-        Object.setPrototypeOf(fn, GeneratorFunctionPrototype);
-      } else {
-        fn.__proto__ = GeneratorFunctionPrototype;
-        defineProperty(fn, toStringTagSymbol, "GeneratorFunction");
-      }
-      fn.prototype = Object.create(Generator.prototype);
-      return fn;
-    };
-
-    runtime.awrap = value => ({ __await: value });
-
-    defineIteratorMethods(AsyncIterator.prototype);
-    defineProperty(AsyncIterator.prototype, asyncIteratorSymbol, function () { return this; });
-    runtime.AsyncIterator = AsyncIterator;
-
-    runtime.async = function (fn, thisArg, args, generator, PromiseImpl = Promise) {
-      const asyncIter = new AsyncIterator(wrapGenerator(fn, generator, thisArg, args), PromiseImpl);
-      return runtime.isGeneratorFunction(generator) ? asyncIter :
-        asyncIter.next().then(result => result.done ? result.value : asyncIter.next());
-    };
-
-    defineIteratorMethods(Generator.prototype);
-    defineProperty(Generator.prototype, toStringTagSymbol, "Generator");
-    defineProperty(Generator.prototype, iteratorSymbol, function () { return this; });
-    defineProperty(Generator.prototype, "toString", () => "[object Generator]");
-
-    runtime.keys = function (obj) {
-      const keys = Object(obj);
-      const keyArray = Object.keys(keys).reverse();
-      return function next() {
-        while (keyArray.length) {
-          const key = keyArray.pop();
-          if (key in keys) {
-            this.value = key;
-            this.done = false;
-            return this;
-          }
-        }
-        this.done = true;
-        return this;
+    function pushTryEntry(t) {
+      var e = {
+        tryLoc: t[0]
       };
-    };
-
-    runtime.values = getValues;
-
-    Context.prototype = {
+      1 in t && (e.catchLoc = t[1]), 2 in t && (e.finallyLoc = t[2], e.afterLoc = t[3]), this.tryEntries.push(e);
+    }
+    function resetTryEntry(t) {
+      var e = t.completion || {};
+      e.type = "normal", delete e.arg, t.completion = e;
+    }
+    function Context(t) {
+      this.tryEntries = [{
+        tryLoc: "root"
+      }], t.forEach(pushTryEntry, this), this.reset(!0);
+    }
+    function values(e) {
+      if (e || "" === e) {
+        var r = e[a];
+        if (r) return r.call(e);
+        if ("function" == typeof e.next) return e;
+        if (!isNaN(e.length)) {
+          var o = -1,
+            i = function next() {
+              for (; ++o < e.length;) if (n.call(e, o)) return next.value = e[o], next.done = !1, next;
+              return next.value = t, next.done = !0, next;
+            };
+          return i.next = i;
+        }
+      }
+      throw new TypeError(typeof e + " не является итерируемым");
+    }
+    return GeneratorFunction.prototype = GeneratorFunctionPrototype, o(g, "constructor", {
+      value: GeneratorFunctionPrototype,
+      configurable: !0
+    }), o(GeneratorFunctionPrototype, "constructor", {
+      value: GeneratorFunction,
+      configurable: !0
+    }), GeneratorFunction.displayName = define(GeneratorFunctionPrototype, u, "GeneratorFunction"), e.isGeneratorFunction = function (t) {
+      var e = "function" == typeof t && t.constructor;
+      return !!e && (e === GeneratorFunction || "GeneratorFunction" === (e.displayName || e.name));
+    }, e.mark = function (t) {
+      return Object.setPrototypeOf ? Object.setPrototypeOf(t, GeneratorFunctionPrototype) : (t.__proto__ = GeneratorFunctionPrototype, define(t, u, "GeneratorFunction")), t.prototype = Object.create(g), t;
+    }, e.awrap = function (t) {
+      return {
+        __await: t
+      };
+    }, defineIteratorMethods(AsyncIterator.prototype), define(AsyncIterator.prototype, c, function () {
+      return this;
+    }), e.AsyncIterator = AsyncIterator, e.async = function (t, r, n, o, i) {
+      void 0 === i && (i = Promise);
+      var a = new AsyncIterator(wrap(t, r, n, o), i);
+      return e.isGeneratorFunction(r) ? a : a.next().then(function (t) {
+        return t.done ? t.value : a.next();
+      });
+    }, defineIteratorMethods(g), define(g, u, "Generator"), define(g, a, function () {
+      return this;
+    }), define(g, "toString", function () {
+      return "[object Generator]";
+    }), e.keys = function (t) {
+      var e = Object(t),
+        r = [];
+      for (var n in e) r.push(n);
+      return r.reverse(), function next() {
+        for (; r.length;) {
+          var t = r.pop();
+          if (t in e) return next.value = t, next.done = !1, next;
+        }
+        return next.done = !0, next;
+      };
+    }, e.values = values, Context.prototype = {
       constructor: Context,
-      reset(skipTempReset) {
-        this.prev = 0;
-        this.next = 0;
-        this.sent = this._sent = undefined;
-        this.done = false;
-        this.delegate = null;
-        this.method = "next";
-        this.arg = undefined;
-        this.tryEntries.forEach(resetTryEntry);
-        if (!skipTempReset) {
-          for (let name in this) {
-            if (name.charAt(0) === "t" && hasOwn.call(this, name) && !isNaN(+name.slice(1))) {
-              this[name] = undefined;
-            }
-          }
-        }
+      reset: function (e) {
+        if (this.prev = 0, this.next = 0, this.sent = this._sent = t, this.done = !1, this.delegate = null, this.method = "next", this.arg = t, this.tryEntries.forEach(resetTryEntry), !e) for (var r in this) "t" === r.charAt(0) && n.call(this, r) && !isNaN(+r.slice(1)) && (this[r] = t);
       },
-      stop() {
-        this.done = true;
-        const rootEntry = this.tryEntries[0].completion;
-        if (rootEntry.type === "throw") throw rootEntry.arg;
+      stop: function () {
+        this.done = !0;
+        var t = this.tryEntries[0].completion;
+        if ("throw" === t.type) throw t.arg;
         return this.rval;
       },
-      dispatchException(exception) {
-        if (this.done) throw exception;
-        const context = this;
-        function handle(loc, caught) {
-          completion.type = "throw";
-          completion.arg = exception;
-          context.next = loc;
-          if (caught) {
-            context.method = "next";
-            context.arg = undefined;
-          }
-          return !!caught;
+      dispatchException: function (e) {
+        if (this.done) throw e;
+        var r = this;
+        function handle(n, o) {
+          return a.type = "throw", a.arg = e, r.next = n, o && (r.method = "next", r.arg = t), !!o;
         }
-        for (let i = this.tryEntries.length - 1; i >= 0; --i) {
-          const entry = this.tryEntries[i];
-          const completion = entry.completion;
-          if (entry.tryLoc === "root") return handle("end");
-          if (entry.tryLoc <= this.prev) {
-            const hasCatch = hasOwn.call(entry, "catchLoc");
-            const hasFinally = hasOwn.call(entry, "finallyLoc");
-            if (hasCatch && hasFinally) {
-              if (this.prev < entry.catchLoc) return handle(entry.catchLoc, true);
-              if (this.prev < entry.finallyLoc) return handle(entry.finallyLoc);
-            } else if (hasCatch) {
-              if (this.prev < entry.catchLoc) return handle(entry.catchLoc, true);
-            } else if (hasFinally) {
-              if (this.prev < entry.finallyLoc) return handle(entry.finallyLoc);
+        for (var o = this.tryEntries.length - 1; o >= 0; --o) {
+          var i = this.tryEntries[o],
+            a = i.completion;
+          if ("root" === i.tryLoc) return handle("end");
+          if (i.tryLoc <= this.prev) {
+            var c = n.call(i, "catchLoc"),
+              u = n.call(i, "finallyLoc");
+            if (c && u) {
+              if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
+              if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
+            } else if (c) {
+              if (this.prev < i.catchLoc) return handle(i.catchLoc, !0);
             } else {
-              throw new Error("Оператор try без catch или finally");
+              if (!u) throw Error("Оператор try без catch или finally");
+              if (this.prev < i.finallyLoc) return handle(i.finallyLoc);
             }
           }
         }
       },
-      abrupt(type, arg) {
-        for (let i = this.tryEntries.length - 1; i >= 0; --i) {
-          const entry = this.tryEntries[i];
-          if (entry.tryLoc <= this.prev && hasOwn.call(entry, "finallyLoc") && this.prev < entry.finallyLoc) {
-            var finallyEntry = entry;
+      abrupt: function (t, e) {
+        for (var r = this.tryEntries.length - 1; r >= 0; --r) {
+          var o = this.tryEntries[r];
+          if (o.tryLoc <= this.prev && n.call(o, "finallyLoc") && this.prev < o.finallyLoc) {
+            var i = o;
             break;
           }
         }
-        if (finallyEntry && (type === "break" || type === "continue") && finallyEntry.tryLoc <= arg && arg <= finallyEntry.finallyLoc) {
-          finallyEntry = null;
-        }
-        const completion = finallyEntry ? finallyEntry.completion : {};
-        completion.type = type;
-        completion.arg = arg;
-        return finallyEntry ? (this.method = "next", this.next = finallyEntry.finallyLoc, CONTINUE_SENTINEL) : this.complete(completion);
+        i && ("break" === t || "continue" === t) && i.tryLoc <= e && e <= i.finallyLoc && (i = null);
+        var a = i ? i.completion : {};
+        return a.type = t, a.arg = e, i ? (this.method = "next", this.next = i.finallyLoc, y) : this.complete(a);
       },
-      complete(completion, afterLoc) {
-        if (completion.type === "throw") throw completion.arg;
-        if (completion.type === "break" || completion.type === "continue") this.next = completion.arg;
-        else if (completion.type === "return") {
-          this.rval = this.arg = completion.arg;
-          this.method = "return";
-          this.next = "end";
-        } else if (completion.type === "normal" && afterLoc) {
-          this.next = afterLoc;
-        }
-        return CONTINUE_SENTINEL;
+      complete: function (t, e) {
+        if ("throw" === t.type) throw t.arg;
+        return "break" === t.type || "continue" === t.type ? this.next = t.arg : "return" === t.type ? (this.rval = this.arg = t.arg, this.method = "return", this.next = "end") : "normal" === t.type && e && (this.next = e), y;
       },
-      finish(finallyLoc) {
-        for (let i = this.tryEntries.length - 1; i >= 0; --i) {
-          const entry = this.tryEntries[i];
-          if (entry.finallyLoc === finallyLoc) {
-            this.complete(entry.completion, entry.afterLoc);
-            resetTryEntry(entry);
-            return CONTINUE_SENTINEL;
-          }
+      finish: function (t) {
+        for (var e = this.tryEntries.length - 1; e >= 0; --e) {
+          var r = this.tryEntries[e];
+          if (r.finallyLoc === t) return this.complete(r.completion, r.afterLoc), resetTryEntry(r), y;
         }
       },
-      catch(tryLoc) {
-        for (let i = this.tryEntries.length - 1; i >= 0; --i) {
-          const entry = this.tryEntries[i];
-          if (entry.tryLoc === tryLoc) {
-            const completion = entry.completion;
-            if (completion.type === "throw") {
-              var error = completion.arg;
-              resetTryEntry(entry);
+      catch: function (t) {
+        for (var e = this.tryEntries.length - 1; e >= 0; --e) {
+          var r = this.tryEntries[e];
+          if (r.tryLoc === t) {
+            var n = r.completion;
+            if ("throw" === n.type) {
+              var o = n.arg;
+              resetTryEntry(r);
             }
-            return error;
+            return o;
           }
         }
-        throw new Error("Незаконная попытка catch");
+        throw Error("незаконная попытка catch");
       },
-      delegateYield(iterable, resultName, nextLoc) {
-        this.delegate = { iterator: getValues(iterable), resultName, nextLoc };
-        if (this.method === "next") this.arg = undefined;
-        return CONTINUE_SENTINEL;
+      delegateYield: function (e, r, n) {
+        return this.delegate = {
+          iterator: values(e),
+          resultName: r,
+          nextLoc: n
+        }, "next" === this.method && (this.arg = t), y;
       }
-    };
-
-    return runtime;
+    }, e;
   }
 
-  // Преобразование значения в примитив
-  function toPrimitive(value, hint) {
-    if (typeof value !== "object" || !value) return value;
-    const toPrim = value[Symbol.toPrimitive];
-    if (toPrim) {
-      const result = toPrim.call(value, hint || "default");
-      if (typeof result !== "object") return result;
+  function _toPrimitive(t, r) {
+    if ("object" != typeof t || !t) return t;
+    var e = t[Symbol.toPrimitive];
+    if (void 0 !== e) {
+      var i = e.call(t, r || "default");
+      if ("object" != typeof i) return i;
       throw new TypeError("@@toPrimitive должен возвращать примитивное значение.");
     }
-    return (hint === "string" ? String : Number)(value);
+    return ("string" === r ? String : Number)(t);
   }
 
-  // Преобразование ключа свойства в строку или символ
-  function toPropertyKey(value) {
-    const primitive = toPrimitive(value, "string");
-    return typeof primitive === "symbol" ? primitive : String(primitive);
+  function _toPropertyKey(t) {
+    var i = _toPrimitive(t, "string");
+    return "symbol" == typeof i ? i : i + "";
   }
 
-  // Выполнение шага асинхронного генератора
-  function executeAsyncStep(generator, resolve, reject, next, throwFn, key, arg) {
+  function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
-      const info = generator[key](arg);
-      const value = info.value;
-      if (info.done) resolve(value);
-      else Promise.resolve(value).then(next, throwFn);
+      var info = gen[key](arg);
+      var value = info.value;
     } catch (error) {
       reject(error);
+      return;
+    }
+    if (info.done) {
+      resolve(value);
+    } else {
+      Promise.resolve(value).then(_next, _throw);
     }
   }
 
-  // Преобразование генератора в асинхронную функцию
-  function wrapAsync(fn) {
-    return function (...args) {
-      const self = this;
-      return new Promise((resolve, reject) => {
-        const generator = fn.apply(self, args);
-        function next(value) {
-          executeAsyncStep(generator, resolve, reject, next, throwFn, "next", value);
+  function _asyncToGenerator(fn) {
+    return function () {
+      var self = this,
+        args = arguments;
+      return new Promise(function (resolve, reject) {
+        var gen = fn.apply(self, args);
+        function _next(value) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "next", value);
         }
-        function throwFn(err) {
-          executeAsyncStep(generator, resolve, reject, next, throwFn, "throw", err);
+        function _throw(err) {
+          asyncGeneratorStep(gen, resolve, reject, _next, _throw, "throw", err);
         }
-        next(undefined);
+        _next(undefined);
       });
     };
   }
 
-  // Определение или обновление свойства объекта
-  function defineProperty(obj, key, value) {
-    key = toPropertyKey(key);
+  function _defineProperty(obj, key, value) {
+    key = _toPropertyKey(key);
     if (key in obj) {
-      Object.defineProperty(obj, key, { value, enumerable: true, configurable: true, writable: true });
+      Object.defineProperty(obj, key, {
+        value: value,
+        enumerable: true,
+        configurable: true,
+        writable: true
+      });
     } else {
       obj[key] = value;
     }
     return obj;
   }
 
-  // Выполнение GraphQL-запроса к Shikimori API
-  function fetchAnimeList(params, onComplete, onError) {
-    $(document).ready(() => {
-      const limit = params.isTop100 ? 50 : (params.limit || 36);
-      let query = `
-        query Animes {
-          animes(limit: ${limit}, order: ${params.sort || 'aired_on'}, page: ${params.page}
-      `;
+  function main(params, oncomplite, onerror) {
+    $(document).ready(function () {
+      var limit = params.isTop100 ? 50 : (params.limit || 36);
+      var query = "\n	query Animes {\n	animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
-      if (params.kind) query += `, kind: "${params.kind}"`;
-      if (params.status) query += `, status: "${params.status}"`;
-      if (params.genre) query += `, genre: "${params.genre}"`;
-      if (params.seasons) query += `, season: "${params.seasons}"`;
+      if (params.kind) {
+        query += ", kind: \"".concat(params.kind, "\"");
+      }
+      if (params.status) {
+        query += ", status: \"".concat(params.status, "\"");
+      }
+      if (params.genre) {
+        query += ", genre: \"".concat(params.genre, "\"");
+      }
+      if (params.seasons) {
+        query += ", season: \"".concat(params.seasons, "\"");
+      }
 
-      query += `) {
-          id name russian licenseNameRu english japanese kind score status season
-          airedOn { year } poster { originalUrl }
-        }}
-      `;
-
-      const ajaxConfig = {
-        url: 'https://shikimori.one/api/graphql',
-        method: 'POST',
-        contentType: 'application/json',
-        data: JSON.stringify({ query })
-      };
+      query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
 
       if (params.isTop100) {
-        const requests = [
-          $.ajax({ ...ajaxConfig, data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 1") }) }),
-          $.ajax({ ...ajaxConfig, data: JSON.stringify({ query: query.replace(`page: ${params.page}`, "page: 2") }) })
+        var requests = [
+          $.ajax({
+            url: 'https://shikimori.one/api/graphql',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+              query: query.replace("page: " + params.page, "page: 1")
+            })
+          }),
+          $.ajax({
+            url: 'https://shikimori.one/api/graphql',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({
+              query: query.replace("page: " + params.page, "page: 2")
+            })
+          })
         ];
-        Promise.all(requests)
-          .then(responses => onComplete(responses[0].data.animes.concat(responses[1].data.animes)))
-          .catch(error => {
-            console.error('Ошибка:', error);
-            onError(error);
-          });
+        Promise.all(requests).then(function (responses) {
+          var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
+          oncomplite(allAnimes);
+        }).catch(function (error) {
+          console.error('Ошибка:', error);
+          onerror(error);
+        });
       } else {
         $.ajax({
-          ...ajaxConfig,
-          success: response => onComplete(response.data.animes),
-          error: error => {
-            console.error('Ошибка:', error);
-            onError(error);
+          url: 'https://shikimori.one/api/graphql',
+          method: 'POST',
+          contentType: 'application/json',
+          data: JSON.stringify({
+            query: query
+          }),
+          success: function success(response) {
+            oncomplite(response.data.animes);
+          },
+          error: function error(_error) {
+            console.error('Ошибка:', _error);
+            onerror(_error);
           }
         });
       }
     });
   }
 
-  // Поиск информации об аниме через внешние API
-  function searchAnime(animeData) {
+  function search(animeData) {
     function cleanName(name) {
       return name.replace(/\s{2,}/g, ' ').trim();
     }
@@ -557,29 +469,34 @@
     }
 
     function mapKindToTmdbType(kind) {
-      const typeMap = {
-        movie: 'movie',
-        tv: 'tv',
-        tv_special: 'tv',
-        ova: 'movie',
-        ona: 'movie',
-        special: 'movie',
-        music: 'movie',
-        pv: 'movie',
-        cm: 'movie'
-      };
-      return typeMap[kind] || 'tv';
+      switch (kind) {
+        case 'movie':
+          return 'movie';
+        case 'tv':
+        case 'tv_special':
+          return 'tv';
+        case 'ova':
+        case 'ona':
+        case 'special':
+        case 'music':
+        case 'pv':
+        case 'cm':
+          return 'movie';
+        default:
+          return 'tv';
+      }
     }
 
-    $.get(`https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=${animeData.id}`)
-      .done(response => {
+    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id)
+      .done(function (response) {
         console.log('Ответ от arm.haglund.dev:', response);
-        if (response?.themoviedb) {
+        if (response && response.themoviedb) {
           console.log('Получен TMDB ID:', response.themoviedb);
-          const tmdbType = mapKindToTmdbType(animeData.kind);
-          fetchTmdbById(response.themoviedb, tmdbType, result => {
-            if (result) processSearchResults(result, animeData.kind);
-            else {
+          var tmdbType = mapKindToTmdbType(animeData.kind);
+          getTmdb(response.themoviedb, tmdbType, function (result) {
+            if (result) {
+              processResults(result, animeData.kind);
+            } else {
               console.log('Запрос по ID провалился, пробуем расширенный поиск');
               extendedSearch(animeData, 0);
             }
@@ -589,23 +506,29 @@
           extendedSearch(animeData, 0);
         }
       })
-      .fail(jqXHR => {
+      .fail(function (jqXHR) {
         console.warn('Ошибка запроса к arm.haglund.dev:', jqXHR.status, jqXHR.statusText);
         console.log('Переходим к расширенному поиску');
         extendedSearch(animeData, 0);
       });
 
     function extendedSearch(animeData, nameIndex) {
-      const names = [animeData.name, animeData.japanese, animeData.english, animeData.russian]
-        .filter(n => n && typeof n === 'string');
+      var names = [
+        animeData.name,
+        animeData.japanese,
+        animeData.english,
+        animeData.russian
+      ].filter(n => n && typeof n === 'string');
+
       if (nameIndex >= names.length) {
         console.warn('Все варианты поиска исчерпаны для:', animeData);
-        processSearchResults({ total_results: 0 }, animeData.kind);
+        processResults({ total_results: 0 }, animeData.kind);
         return;
       }
-      const currentName = cleanName(names[nameIndex]);
+
+      var currentName = cleanName(names[nameIndex]);
       console.log('Попытка поиска с названием:', currentName);
-      searchTmdb({ ...animeData, name: currentName }, tmdbResponse => {
+      searchTmdb({ ...animeData, name: currentName }, function (tmdbResponse) {
         if (!tmdbResponse || tmdbResponse.total_results === 0) {
           console.log('Поиск по', currentName, 'не дал результатов, пробуем следующее название');
           extendedSearch(animeData, nameIndex + 1);
@@ -616,36 +539,42 @@
     }
 
     function searchTmdb(animeData, callback) {
-      const apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      const baseUrl = 'https://api.themoviedb.org/3/';
-      const proxyUrl = `apitmdb.${Lampa.Manifest?.cub_domain || 'cub.red'}/3/`;
-      const language = Lampa.Storage.field('language');
-      const query = cleanName(animeData.name || '');
-      const year = animeData.airedOn?.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
-      const request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
-      const url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + proxyUrl + request : baseUrl + request;
+      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+      var language = Lampa.Storage.field('language');
+      var query = cleanName(animeData.name || '');
+      var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
+      var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
+      var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
       console.log('Запрос к TMDB search:', url);
       $.get(url)
-        .done(data => callback(data || { total_results: 0 }))
-        .fail(err => {
+        .done(function (data) {
+          console.log('Ответ от TMDB search:', data);
+          callback(data || { total_results: 0 });
+        })
+        .fail(function (err) {
           console.error('Ошибка TMDB поиска:', err.status, err.statusText);
           callback({ total_results: 0 });
         });
     }
 
-    function fetchTmdbById(id, type, callback) {
-      const apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      const baseUrl = 'https://api.themoviedb.org/3/';
-      const proxyUrl = `apitmdb.${Lampa.Manifest?.cub_domain || 'cub.red'}/3/`;
-      const language = Lampa.Storage.field('language');
-      const request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
-      const url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + proxyUrl + request : baseUrl + request;
+    function getTmdb(id, type, callback) {
+      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+      var language = Lampa.Storage.field('language');
+      var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
+      var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
 
       console.log('Запрос к TMDB get:', url);
       $.get(url)
-        .done(data => callback(data || null))
-        .fail(err => {
+        .done(function (data) {
+          console.log('Ответ от TMDB get:', data);
+          callback(data || null);
+        })
+        .fail(function (err) {
           console.error('Ошибка TMDB get:', err.status, err.statusText);
           callback(null);
         });
@@ -653,19 +582,23 @@
 
     function handleTmdbResponse(tmdbResponse, animeData) {
       console.log('Обработка TMDB ответа:', tmdbResponse);
-      if (!tmdbResponse || tmdbResponse.total_results === 0) extendedSearch(animeData, 0);
-      else processSearchResults(tmdbResponse, animeData.kind);
+      if (!tmdbResponse || tmdbResponse.total_results === 0) {
+        extendedSearch(animeData, 0);
+      } else {
+        processResults(tmdbResponse, animeData.kind);
+      }
     }
 
-    function processSearchResults(response, kind) {
+    function processResults(response, kind) {
       console.log('Обработка результата:', response);
+
       if (!response) {
         console.error('Ответ пустой');
         Lampa.Noty.show('Не удалось найти аниме: сервер вернул пустой ответ');
         return;
       }
 
-      const menu = [];
+      var menu = [];
       if ('total_results' in response) {
         if (response.total_results === 0) {
           console.warn('Результатов не найдено');
@@ -686,7 +619,7 @@
           });
         } else {
           console.log('Найдено несколько результатов:', response.results);
-          response.results.forEach(item => {
+          response.results.forEach(function (item) {
             if (!item.id || !item.media_type) {
               console.warn('Пропущен элемент с некорректными данными:', item);
               return;
@@ -704,14 +637,18 @@
           Lampa.Select.show({
             title: kind === 'ona' ? 'Выберите ONA из списка' : 'Выберите аниме',
             items: menu,
-            onBack: () => Lampa.Controller.toggle("content"),
-            onSelect: a => Lampa.Activity.push({
-              url: '',
-              component: 'full',
-              id: a.card.id,
-              method: a.card.media_type,
-              card: a.card
-            })
+            onBack: function () {
+              Lampa.Controller.toggle("content");
+            },
+            onSelect: function (a) {
+              Lampa.Activity.push({
+                url: '',
+                component: 'full',
+                id: a.card.id,
+                method: a.card.media_type,
+                card: a.card
+              });
+            }
           });
         }
       } else if (kind !== 'ona') {
@@ -730,250 +667,464 @@
         });
       } else {
         console.log('Тип ONA: принудительный поиск списка даже для прямого результата');
-        searchTmdb(animeData, tmdbResponse => handleTmdbResponse(tmdbResponse, animeData));
+        searchTmdb(animeData, function (tmdbResponse) {
+          handleTmdbResponse(tmdbResponse, animeData);
+        });
       }
     }
   }
 
-  const API = {
-    fetchAnimeList,
-    searchAnime
+  var API = {
+    main: main,
+    search: search
   };
 
-  // Класс для создания карточки аниме
-  class AnimeCard {
-    constructor(data, userLang) {
-      const typeTranslations = {
-        tv: 'ТВ', movie: 'Фильм', ova: 'OVA', ona: 'ONA', special: 'Спешл',
-        tv_special: 'ТВ Спешл', music: 'Музыка', pv: 'PV', cm: 'CM'
-      };
-      const statusTranslations = { anons: 'Анонс', ongoing: 'Онгоинг', released: 'Вышло' };
+  function Card(data, userLang) {
+    var typeTranslations = {
+      'tv': 'ТВ',
+      'movie': 'Фильм',
+      'ova': 'OVA',
+      'ona': 'ONA',
+      'special': 'Спешл',
+      'tv_special': 'ТВ Спешл',
+      'music': 'Музыка',
+      'pv': 'PV',
+      'cm': 'CM'
+    };
 
-      const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
+    var statusTranslations = {
+      'anons': 'Анонс',
+      'ongoing': 'Онгоинг',
+      'released': 'Вышло'
+    };
 
-      this.element = Lampa.Template.get("Shikimori-Card", {
-        img: data.poster.originalUrl,
-        type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-        status: statusTranslations[data.status] || capitalize(data.status),
-        rate: data.score,
-        title: userLang === 'ru' ? (data.russian || data.name || data.japanese) : (data.name || data.japanese)
-      });
+    var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
+      .replace(/^\w/, function (c) { return c.toUpperCase(); })
+      .replace(/(winter|spring|summer|fall)/gi, function (match) {
+        return {
+          'winter': 'Зима',
+          'spring': 'Весна',
+          'summer': 'Лето',
+          'fall': 'Осень'
+        }[match.toLowerCase()];
+      }) : '';
+
+    function capitalizeFirstLetter(string) {
+      if (!string) return string;
+      return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
-    render() { return this.element; }
-    destroy() { this.element.remove(); }
+    var item = Lampa.Template.get("Shikimori-Card", {
+      img: data.poster.originalUrl,
+      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
+      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
+      rate: data.score,
+      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
+      season: data.season !== null ? formattedSeason : data.airedOn.year
+    });
+
+    this.render = function () {
+      return item;
+    };
+    this.destroy = function () {
+      item.remove();
+    };
   }
 
-  // Компонент каталога аниме с постерами
-  function AnimeCatalog(object) {
-    const userLang = Lampa.Storage.field('language');
-    const network = new Lampa.Reguest();
-    const scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
-    const items = [];
-    const html = $("<div class='Shikimori-module'></div>");
-    const header = $(`
-      <div class='Shikimori-head poster-grid'>
-        <div class='Shikimori__home poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Home');" title="Главная"></div>
-        <div class='Shikimori__top100_tv poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+TV');" title="Топ100 ТВ"></div>
-        <div class='Shikimori__top100_movies poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+Movies');" title="Топ100 Фильмы"></div>
-        <div class='Shikimori__top100_ona poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+ONA');" title="Топ100 ONA"></div>
-        <div class='Shikimori__search poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Search');" title="Фильтр"></div>
-      </div>
-    `);
-    const body = $('<div class="Shikimori-catalog--list poster-grid"></div>');
-    let active, last;
+  function Component$1(object) {
+    var userLang = Lampa.Storage.field('language');
+    var network = new Lampa.Reguest();
+    var scroll = new Lampa.Scroll({
+      mask: true,
+      over: true,
+      step: 250
+    });
+    var items = [];
+    var html = $("<div class='Shikimori-module'></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100_tv simple-button simple-button--filter selector'>Топ100_ТВ</div><div class='Shikimori__top100_movies simple-button simple-button--filter selector'>Топ100_Фильмы</div><div class='Shikimori__top100_ona simple-button simple-button--filter selector'>Топ100_ONA</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var body = $('<div class="Shikimori-catalog--list category-full"></div>');
+    var active, last;
 
     this.create = function () {
-      API.fetchAnimeList(object, this.build.bind(this), this.showEmpty.bind(this));
+      API.main(object, this.build.bind(this), this.empty.bind(this));
     };
 
     this.build = function (result) {
+      var _this = this;
       scroll.minus();
-      scroll.onWheel = step => {
-        if (!Lampa.Controller.own(this)) this.start();
-        Navigator.move(step > 0 ? 'down' : 'up');
+      scroll.onWheel = function (step) {
+        if (!Lampa.Controller.own(_this)) _this.start();
+        if (step > 0) Navigator.move('down'); else Navigator.move('up');
       };
       if (!object.isTop100) {
-        scroll.onEnd = () => {
+        scroll.onEnd = function () {
           object.page++;
-          API.fetchAnimeList(object, this.build.bind(this), this.showEmpty.bind(this));
+          API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
         };
       }
 
-      this.setupHeaderActions();
-      this.renderBody(result);
-      scroll.append(header);
+      this.headeraction();
+      this.body(result);
+      scroll.append(head);
       scroll.append(body);
       html.append(scroll.render(true));
       this.activity.loader(false);
       this.activity.toggle();
     };
 
-    this.setupHeaderActions = function () {
-      const settings = { url: "https://shikimori.one/api/genres", method: "GET", timeout: 0 };
-      const filters = {};
-
-      $.ajax(settings).done(response => {
-        const genreTranslations = {
-          Action: "Экшен", Adventure: "Приключения", Cars: "Машины", Comedy: "Комедия", Dementia: "Деменция",
-          Demons: "Демоны", Drama: "Драма", Ecchi: "Этти", Fantasy: "Фэнтези", Game: "Игра",
-          Harem: "Гарем", Historical: "Исторический", Horror: "Ужасы", Josei: "Дзёсей", Kids: "Детский",
-          Magic: "Магия", "Martial Arts": "Боевые искусства", Mecha: "Меха", Military: "Военный", Music: "Музыка",
-          Mystery: "Мистика", Parody: "Пародия", Police: "Полиция", Psychological: "Психологический", Romance: "Романтика",
-          Samurai: "Самурайский", School: "Школьный", "Sci-Fi": "Научная фантастика", Seinen: "Сейнэн", Shoujo: "Сёдзё",
-          "Shoujo Ai": "Сёдзё-ай", Shounen: "Сёнэн", "Shounen Ai": "Сёнэн-ай", "Slice of Life": "Повседневность", Space: "Космос",
-          Sports: "Спорт", "Super Power": "Суперсила", Supernatural: "Сверхъестественное", Thriller: "Триллер", Erotica: "Эротика",
-          Hentai: "Хентай", Yaoi: "Яой", Yuri: "Юри", Gourmet: "Гурман", "Work Life": "Трудяги", Vampire: "Вампиры"
+    this.headeraction = function () {
+      var settings = {
+        "url": "https://shikimori.one/api/genres",
+        "method": "GET",
+        "timeout": 0
+      };
+      var filters = {};
+      $.ajax(settings).done(function (response) {
+        var genreTranslations = {
+          "Action": "Экшен",
+          "Adventure": "Приключения",
+          "Cars": "Машины",
+          "Comedy": "Комедия",
+          "Dementia": "Деменция",
+          "Demons": "Демоны",
+          "Drama": "Драма",
+          "Ecchi": "Этти",
+          "Fantasy": "Фэнтези",
+          "Game": "Игра",
+          "Harem": "Гарем",
+          "Historical": "Исторический",
+          "Horror": "Ужасы",
+          "Josei": "Дзёсей",
+          "Kids": "Детский",
+          "Magic": "Магия",
+          "Martial Arts": "Боевые искусства",
+          "Mecha": "Меха",
+          "Military": "Военный",
+          "Music": "Музыка",
+          "Mystery": "Мистика",
+          "Parody": "Пародия",
+          "Police": "Полиция",
+          "Psychological": "Психологический",
+          "Romance": "Романтика",
+          "Samurai": "Самурайский",
+          "School": "Школьный",
+          "Sci-Fi": "Научная фантастика",
+          "Seinen": "Сейнэн",
+          "Shoujo": "Сёдзё",
+          "Shoujo Ai": "Сёдзё-ай",
+          "Shounen": "Сёнэн",
+          "Shounen Ai": "Сёнэн-ай",
+          "Slice of Life": "Повседневность",
+          "Space": "Космос",
+          "Sports": "Спорт",
+          "Super Power": "Суперсила",
+          "Supernatural": "Сверхъестественное",
+          "Thriller": "Триллер",
+          "Erotica": "Эротика",
+          "Hentai": "Хентай",
+          "Yaoi": "Яой",
+          "Yuri": "Юри",
+          "Gourmet": "Гурман",
+          "Work Life": "Трудяги",
+          "Vampire": "Вампиры"
         };
 
+        var filteredResponse = response.filter(function (item) {
+          return item.entry_type === "Anime";
+        }).map(function (item) {
+          return _objectSpread2(_objectSpread2({}, item), {}, {
+            title: genreTranslations[item.name] || item.name,
+            name: undefined
+          });
+        });
         filters.kind = {
           title: 'Жанр',
-          items: response.filter(item => item.entry_type === "Anime").map(item => 
-            mergeObjects(mergeObjects({}, item), { title: genreTranslations[item.name] || item.name, name: undefined })
-          )
+          items: filteredResponse
         };
       });
-
       filters.AnimeKindEnum = {
         title: 'Тип',
-        items: [
-          { title: "ТВ Сериал", code: "tv" }, { title: "Фильм", code: "movie" }, { title: "OVA", code: "ova" },
-          { title: "ONA", code: "ona" }, { title: "Спешл", code: "special" }, { title: "ТВ Спешл", code: "tv_special" },
-          { title: "Музыка", code: "music" }, { title: "PV", code: "pv" }, { title: "CM", code: "cm" }
-        ]
+        items: [{
+          title: "ТВ Сериал",
+          code: "tv"
+        }, {
+          title: "Фильм",
+          code: "movie"
+        }, {
+          title: "OVA",
+          code: "ova"
+        }, {
+          title: "ONA",
+          code: "ona"
+        }, {
+          title: "Спешл",
+          code: "special"
+        }, {
+          title: "ТВ Спешл",
+          code: "tv_special"
+        }, {
+          title: "Музыка",
+          code: "music"
+        }, {
+          title: "PV",
+          code: "pv"
+        }, {
+          title: "CM",
+          code: "cm"
+        }]
       };
       filters.status = {
         title: 'Статус',
-        items: [
-          { title: "Анонс", code: "anons" }, { title: "Онгоинг", code: "ongoing" }, { title: "Вышло", code: "released" }
-        ]
+        items: [{
+          title: "Анонс",
+          code: "anons"
+        }, {
+          title: "Онгоинг",
+          code: "ongoing"
+        }, {
+          title: "Вышло",
+          code: "released"
+        }]
       };
       filters.sort = {
         title: 'Сортировка',
-        items: [
-          { title: "По рейтингу", code: "ranked" }, { title: "По популярности", code: "popularity" },
-          { title: "По алфавиту", code: "name" }, { title: "По дате выхода", code: "aired_on" },
-          { title: "По типу", code: "kind" }, { title: "По количеству эпизодов", code: "episodes" },
-          { title: "По статусу", code: "status" }, { title: "По рейтингу Shikimori", code: "ranked_shiki" }
-        ]
+        items: [{
+          title: "По рейтингу",
+          code: "ranked"
+        }, {
+          title: "По популярности",
+          code: "popularity"
+        }, {
+          title: "По алфавиту",
+          code: "name"
+        }, {
+          title: "По дате выхода",
+          code: "aired_on"
+        }, {
+          title: "По типу",
+          code: "kind"
+        }, {
+          title: "По количеству эпизодов",
+          code: "episodes"
+        }, {
+          title: "По статусу",
+          code: "status"
+        }, {
+          title: "По рейтингу Shikimori",
+          code: "ranked_shiki"
+        }]
       };
-
       function getCurrentSeason(date) {
-        const month = date.getMonth();
-        const year = date.getFullYear();
-        const seasons = ['winter', 'spring', 'summer', 'fall'];
-        const seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
-        const seasonIndex = Math.floor((month + 1) / 3) % 4;
-        return { code: `${seasons[seasonIndex]}_${year}`, title: `${seasonTitles[seasonIndex]} ${year}` };
+        var month = date.getMonth();
+        var year = date.getFullYear();
+        var seasons = ['winter', 'spring', 'summer', 'fall'];
+        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
+        var seasonIndex = Math.floor((month + 1) / 3) % 4;
+        return {
+          code: `${seasons[seasonIndex]}_${year}`,
+          title: `${seasonTitles[seasonIndex]} ${year}`
+        };
       }
-
       function generateDynamicSeasons() {
-        const now = new Date();
-        return Array.from({ length: 5 }, (_, i) => {
-          const nextDate = new Date(now);
-          nextDate.setMonth(now.getMonth() + 3 * (i - 3));
-          return getCurrentSeason(nextDate);
-        });
+        var now = new Date();
+        var seasons = [];
+        for (var i = 1; i >= -3; i--) {
+          var nextDate = new Date(now);
+          nextDate.setMonth(now.getMonth() + 3 * i);
+          seasons.push(getCurrentSeason(nextDate));
+        }
+        return seasons;
       }
-
       function generateYearRanges() {
-        const currentYear = new Date().getFullYear();
-        const ranges = Array.from({ length: 4 }, (_, i) => ({
-          code: `${currentYear - i}`,
-          title: `${currentYear - i} год`
-        }));
-        for (let startYear = currentYear; startYear >= currentYear - 20; startYear -= 5) {
-          const endYear = startYear - 5;
-          if (endYear <= startYear) ranges.push({ code: `${endYear}_${startYear}`, title: `${startYear}–${endYear} год` });
+        var currentYear = new Date().getFullYear();
+        var ranges = [];
+        for (var year = currentYear; year >= currentYear - 3; year--) {
+          ranges.push({
+            code: `${year}`,
+            title: `${year} год`
+          });
+        }
+        for (var startYear = currentYear; startYear >= currentYear - 20; startYear -= 5) {
+          var endYear = startYear - 5;
+          if (endYear <= startYear) {
+            ranges.push({
+              code: `${endYear}_${startYear}`,
+              title: `${startYear}–${endYear} год`
+            });
+          }
           if (endYear === currentYear - 20) break;
         }
         return ranges;
       }
-
-      filters.seasons = { title: 'Сезон', items: [...generateDynamicSeasons(), ...generateYearRanges()] };
-
-      const searchElement = header.find('.Shikimori__search');
-
-      function buildQuery() {
-        const query = {};
-        Object.entries(filters).forEach(([key, filter]) => {
-          filter.items.forEach(item => {
-            if (item.selected) query[key === "AnimeKindEnum" ? "kind" : key] = key === "kind" ? item.id : item.code;
-          });
+      function generateSeasonJSON() {
+        var dynamicSeasons = generateDynamicSeasons();
+        var yearRanges = generateYearRanges();
+        return [...dynamicSeasons, ...yearRanges];
+      }
+      filters.seasons = {
+        title: 'Сезон',
+        items: generateSeasonJSON()
+      };
+      var serverElement = head.find('.Shikimori__search');
+      function queryForShikimori() {
+        var query = {};
+        filters.AnimeKindEnum.items.forEach(function (a) {
+          if (a.selected) query.kind = a.code;
+        });
+        filters.status.items.forEach(function (a) {
+          if (a.selected) query.status = a.code;
+        });
+        filters.kind.items.forEach(function (a) {
+          if (a.selected) query.genre = a.id;
+        });
+        filters.sort.items.forEach(function (a) {
+          if (a.selected) query.sort = a.code;
+        });
+        filters.seasons.items.forEach(function (a) {
+          if (a.selected) query.seasons = a.code;
         });
         return query;
       }
-
-      function updateFilterSubtitle(filter) {
-        const selectedTitles = filter.items.filter(a => a.selected || a.checked).map(a => a.title);
-        filter.subtitle = selectedTitles.length ? selectedTitles.join(', ') : Lampa.Lang.translate('nochoice');
+      function selected(where) {
+        var title = [];
+        where.items.forEach(function (a) {
+          if (a.selected || a.checked) title.push(a.title);
+        });
+        where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
       }
-
-      function selectFilterOption(options, selected) {
-        options.forEach(opt => opt.selected = false);
-        selected.selected = true;
+      function select(where, a) {
+        where.forEach(function (element) {
+          element.selected = false;
+        });
+        a.selected = true;
       }
-
-      function showSubmenu(filter, mainMenu) {
+      function submenu(item, main) {
         Lampa.Select.show({
-          title: filter.title,
-          items: filter.items,
-          onBack: mainMenu,
-          onSelect: item => { selectFilterOption(filter.items, item); mainMenu(); }
+          title: item.title,
+          items: item.items,
+          onBack: main,
+          onSelect: function onSelect(a) {
+            select(item.items, a);
+            main();
+          }
         });
       }
-
-      function showMainMenu() {
-        Object.values(filters).forEach(updateFilterSubtitle);
+      function mainMenu() {
+        for (var i in filters) selected(filters[i]);
         Lampa.Select.show({
           title: 'Фильтры',
-          items: [{ title: Lampa.Lang.translate('search_start'), searchShikimori: true }, ...Object.values(filters)],
-          onBack: () => Lampa.Controller.toggle("content"),
-          onSelect: item => item.searchShikimori ? performSearch() : showSubmenu(item, showMainMenu)
+          items: [{
+            title: Lampa.Lang.translate('search_start'),
+            searchShikimori: true
+          }, filters.status, filters.AnimeKindEnum, filters.kind, filters.sort, filters.seasons],
+          onBack: function onBack() {
+            Lampa.Controller.toggle("content");
+          },
+          onSelect: function onSelect(a) {
+            if (a.searchShikimori) {
+              search();
+            } else submenu(a, mainMenu);
+          }
         });
       }
-
-      function performSearch() {
-        const query = buildQuery();
-        const params = { url: '', title: 'Shikimori', component: 'Shikimori', page: 1, ...query };
+      function search() {
+        var query = queryForShikimori();
+        var params = {
+          url: '',
+          title: 'Shikimori',
+          component: 'Shikimori',
+          page: 1
+        };
+        if (query.kind) params.kind = query.kind;
+        if (query.status) params.status = query.status;
+        if (query.genre) params.genre = query.genre;
+        if (query.sort) params.sort = query.sort;
+        if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
+      serverElement.on('hover:enter', function () {
+        mainMenu();
+      });
 
-      searchElement.on('hover:enter', showMainMenu);
+      var homeElement = head.find('.Shikimori__home');
+      homeElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori',
+          component: 'Shikimori',
+          page: 1
+        });
+      });
 
-      header.find('.Shikimori__home').on('hover:enter', () =>
-        Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'Shikimori', page: 1 }));
+      var top100TvElement = head.find('.Shikimori__top100_tv');
+      top100TvElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori Топ100_ТВ',
+          component: 'Shikimori',
+          page: 1,
+          sort: 'ranked',
+          kind: 'tv',
+          status: 'released',
+          isTop100: true
+        });
+      });
 
-      header.find('.Shikimori__top100_tv').on('hover:enter', () =>
-        Lampa.Activity.push({ url: '', title: 'Shikimori Топ100_ТВ', component: 'Shikimori', page: 1, sort: 'ranked', kind: 'tv', status: 'released', isTop100: true }));
+      var top100MoviesElement = head.find('.Shikimori__top100_movies');
+      top100MoviesElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori Топ100_Фильмы',
+          component: 'Shikimori',
+          page: 1,
+          sort: 'ranked',
+          kind: 'movie',
+          status: 'released',
+          isTop100: true
+        });
+      });
 
-      header.find('.Shikimori__top100_movies').on('hover:enter', () =>
-        Lampa.Activity.push({ url: '', title: 'Shikimori Топ100_Фильмы', component: 'Shikimori', page: 1, sort: 'ranked', kind: 'movie', status: 'released', isTop100: true }));
-
-      header.find('.Shikimori__top100_ona').on('hover:enter', () =>
-        Lampa.Activity.push({ url: '', title: 'Shikimori Топ100_ONA', component: 'Shikimori', page: 1, sort: 'ranked', kind: 'ona', status: 'released', isTop100: true }));
+      var top100OnaElement = head.find('.Shikimori__top100_ona');
+      top100OnaElement.on('hover:enter', function () {
+        Lampa.Activity.push({
+          url: '',
+          title: 'Shikimori Топ100_ONA',
+          component: 'Shikimori',
+          page: 1,
+          sort: 'ranked',
+          kind: 'ona',
+          status: 'released',
+          isTop100: true
+        });
+      });
     };
 
-    this.showEmpty = function () {
-      const empty = new Lampa.Empty();
+    this.empty = function () {
+      var empty = new Lampa.Empty();
       html.appendChild(empty.render(true));
       this.start = empty.start;
       this.activity.loader(false);
       this.activity.toggle();
     };
 
-    this.renderBody = function (data) {
-      data.forEach(anime => {
-        const item = new AnimeCard(anime, userLang);
-        item.render(true)
-          .on("hover:focus", () => {
-            last = item.render()[0];
-            active = items.indexOf(item);
-            scroll.update(items[active].render(true), true);
-          })
-          .on("hover:enter", wrapAsync( /*#__PURE__*/createGeneratorRuntime().mark(function* () {
-            API.searchAnime(anime);
-          })));
+    this.body = function (data) {
+      data.forEach(function (anime) {
+        var item = new Card(anime, userLang);
+        item.render(true).on("hover:focus", function () {
+          last = item.render()[0];
+          active = items.indexOf(item);
+          scroll.update(items[active].render(true), true);
+        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                API.search(anime);
+              case 1:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
+        })));
         body.append(item.render(true));
         items.push(item);
       });
@@ -982,78 +1133,124 @@
     this.start = function () {
       if (Lampa.Activity.active().activity !== this.activity) return;
       Lampa.Controller.add("content", {
-        toggle: () => {
+        toggle: function toggle() {
           Lampa.Controller.collectionSet(scroll.render());
           Lampa.Controller.collectionFocus(last || false, scroll.render());
         },
-        left: () => Navigator.canmove("left") ? Navigator.move("left") : Lampa.Controller.toggle("menu"),
-        right: () => Navigator.move("right"),
-        up: () => Navigator.canmove("up") ? Navigator.move("up") : Lampa.Controller.toggle("head"),
-        down: () => Navigator.canmove("down") && Navigator.move("down"),
+        left: function left() {
+          if (Navigator.canmove("left")) Navigator.move("left"); else Lampa.Controller.toggle("menu");
+        },
+        right: function right() {
+          Navigator.move("right");
+        },
+        up: function up() {
+          if (Navigator.canmove("up")) Navigator.move("up"); else Lampa.Controller.toggle("head");
+        },
+        down: function down() {
+          if (Navigator.canmove("down")) Navigator.move("down");
+        },
         back: this.back
       });
       Lampa.Controller.toggle("content");
     };
 
-    this.pause = () => {};
-    this.stop = () => {};
-    this.render = js => js ? html : $(html);
-    this.destroy = () => {
+    this.pause = function () {};
+    this.stop = function () {};
+    this.render = function (js) {
+      return js ? html : $(html);
+    };
+    this.destroy = function () {
       network.clear();
       Lampa.Arrays.destroy(items);
       scroll.destroy();
       html.remove();
-      items.length = 0;
+      items = null;
       network = null;
     };
   }
 
-  // Компонент для расширения информации в карточке
-  function FullDetailsEnhancer() {
-    Lampa.Listener.follow("full", wrapAsync( /*#__PURE__*/createGeneratorRuntime().mark(function* (e) {
-      if (e.type !== "complite") return;
-      try {
-        const malData = yield $.ajax({ url: `https://arm.haglund.dev/api/v2/themoviedb?id=${e.object.id}`, method: "GET", timeout: 0 });
-        if (!malData.length) {
-          console.warn("Данные для предоставленного ID не найдены.");
-          return;
-        }
-        const response = yield $.ajax({ url: `https://shikimori.one/api/animes/${malData[0].myanimelist}`, method: "GET", timeout: 0 });
-        const dubbers = `<div class="full-descr__info"><div class="full-descr__info-name">Фандабберы</div><div class="full-descr__text">${response.fandubbers.join(', ')}</div></div>`;
-        const subbers = `<div class="full-descr__info"><div class="full-descr__info-name">Фансабберы</div><div class="full-descr__text">${response.fansubbers.join(', ')}</div></div>`;
-        e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
-        const shikimoriRates = `<div class="full-start__rate rate--shikimori"><div>${response.score}</div><div>Shikimori</div></div>`;
-        e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
-      } catch (error) {
-        console.error("Ошибка при получении данных:", error);
-      }
-    })));
+  function Component() {
+    Lampa.Listener.follow("full", /*#__PURE__*/function () {
+      var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
+        var getMAL, response, dubbers, subbers, shikimoriRates;
+        return _regeneratorRuntime().wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              if (!(e.type === "complite")) {
+                _context.next = 21;
+                break;
+              }
+              _context.prev = 1;
+              _context.next = 4;
+              return $.ajax({
+                url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
+                method: "GET",
+                timeout: 0
+              });
+            case 4:
+              getMAL = _context.sent;
+              if (getMAL.length) {
+                _context.next = 8;
+                break;
+              }
+              console.warn("Данные для предоставленного ID не найдены.");
+              return _context.abrupt("return");
+            case 8:
+              _context.next = 10;
+              return $.ajax({
+                url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
+                method: "GET",
+                timeout: 0
+              });
+            case 10:
+              response = _context.sent;
+              dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
+              subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
+              e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
+              shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
+              e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+              _context.next = 21;
+              break;
+            case 18:
+              _context.prev = 18;
+              _context.t0 = _context["catch"](1);
+              console.error("Ошибка при получении данных:", _context.t0);
+            case 21:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, null, [[1, 18]]);
+      }));
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
   }
 
-  // Добавление кнопки Shikimori в меню
-  function addMenuButton() {
-    const button = $(`
-      <li class="menu__item selector">
-        <div class="menu__ico">
-          <img src="https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg" alt="Shikimori icon" class="menu-icon" />
-        </div>
-        <div class="menu__text">Shikimori</div>
-      </li>
-    `);
-    button.on("hover:enter", () => Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'Shikimori', page: 1 }));
+  function add() {
+    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg\" alt=\"Shikimori icon\" class=\"menu-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
+
+    button.on("hover:enter", function () {
+      Lampa.Activity.push({
+        url: '',
+        title: 'Shikimori',
+        component: 'Shikimori',
+        page: 1
+      });
+    });
+
     $(".menu .menu__list").eq(0).append(button);
   }
 
-  // Инициализация плагина
-  function initializePlugin() {
+  function startPlugin() {
     if (!window.Lampa || !window.Lampa.Storage) {
       Lampa.Noty.show('Lampa еще не готова, повторная проверка через 100 мс');
-      setTimeout(initializePlugin, 100);
+      setTimeout(startPlugin, 100);
       return;
     }
     window.plugin_shikimori_ready = true;
 
-    const manifest = {
+    var manifest = {
       type: "other",
       version: "1.0",
       name: "LKE Shikimori",
@@ -1063,89 +1260,28 @@
 
     Lampa.Manifest.plugins = manifest;
 
-    Lampa.Template.add('ShikimoriStyle', `
-      <style>
-        .poster-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-          gap: 10px;
-          padding: 10px;
-          background: #1a1a1a;
-        }
-        .poster-item {
-          aspect-ratio: 2 / 3;
-          background-size: cover;
-          background-position: center;
-          border-radius: 8px;
-          transition: transform 0.3s ease, box-shadow 0.3s ease;
-          cursor: pointer;
-        }
-        .poster-item:hover, .poster-item:focus {
-          transform: scale(1.05);
-          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-        }
-        .Shikimori-catalog--list.poster-grid {
-          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-        }
-        .Shikimori.card {
-          background: none;
-          border: none;
-        }
-        .Shikimori.card__view {
-          position: relative;
-          width: 100%;
-          height: 100%;
-        }
-        .Shikimori.card__img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-          border-radius: 8px;
-        }
-        .Shikimori.card__type, .Shikimori.card__status, .Shikimori.card__vote {
-          position: absolute;
-          padding: 4px 8px;
-          border-radius: 4px;
-          font-size: 0.8em;
-          color: #fff;
-        }
-        .Shikimori.card__type { top: 8px; left: 8px; background: rgba(255, 66, 66, 0.8); }
-        .Shikimori.card__status { bottom: 8px; left: 8px; background: rgba(255, 226, 22, 0.8); color: #000; }
-        .Shikimori.card__vote { top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); }
-        .Shikimori.card__title {
-          position: absolute;
-          bottom: 0;
-          width: 100%;
-          padding: 8px;
-          background: rgba(0, 0, 0, 0.7);
-          color: #fff;
-          text-align: center;
-          border-bottom-left-radius: 8px;
-          border-bottom-right-radius: 8px;
-        }
-        .menu-icon { width: 24px; height: 24px; fill: currentColor; }
-      </style>
-    `);
+    Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}.menu-icon{width:24px;height:24px;fill:currentColor;}\n        </style>");
 
-    Lampa.Template.add("Shikimori-Card", `
-      <div class="Shikimori card selector layer--visible layer--render">
-        <div class="Shikimori card__view">
-          <img src="{img}" class="Shikimori card__img" />
-          <div class="Shikimori card__type">{type}</div>
-          <div class="Shikimori card__vote">{rate}</div>
-          <div class="Shikimori card__status">{status}</div>
-          <div class="Shikimori card__title">{title}</div>
-        </div>
-      </div>
-    `);
+    Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
 
-    Lampa.Component.add(manifest.component, AnimeCatalog);
-    FullDetailsEnhancer();
+    Lampa.Component.add(manifest.component, Component$1);
+
+    Component();
+
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
 
-    if (window.appready) addMenuButton();
-    else Lampa.Listener.follow("app", e => e.type === "ready" && addMenuButton());
+    if (window.appready) {
+      add();
+    } else {
+      Lampa.Listener.follow("app", function (event) {
+        if (event.type === "ready") {
+          add();
+        }
+      });
+    }
   }
 
-  if (!window.plugin_shikimori_ready) initializePlugin();
+  if (!window.plugin_shikimori_ready) {
+    startPlugin();
+  }
 })();
