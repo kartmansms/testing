@@ -493,6 +493,8 @@
 
 // Поиск информации об аниме через внешние API
 function search(animeData) {
+  Lampa.Noty.show('Начало поиска для аниме: ' + JSON.stringify(animeData));
+  console.log('Начало поиска для аниме:', JSON.stringify(animeData));
   function cleanName(name) {
     return name.replace(/\s{2,}/g, ' ').trim();
   }
