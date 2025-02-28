@@ -749,12 +749,6 @@
       };
       const statusTranslations = { anons: 'Анонс', ongoing: 'Онгоинг', released: 'Вышло' };
 
-      const formatSeason = season => season ? season.replace(/_/g, ' ')
-        .replace(/^\w/, c => c.toUpperCase())
-        .replace(/(winter|spring|summer|fall)/gi, match => ({
-          winter: 'Зима', spring: 'Весна', summer: 'Лето', fall: 'Осень'
-        })[match.toLowerCase()]) : '';
-
       const capitalize = str => str ? str.charAt(0).toUpperCase() + str.slice(1) : str;
 
       this.element = Lampa.Template.get("Shikimori-Card", {
@@ -762,8 +756,7 @@
         type: typeTranslations[data.kind] || data.kind.toUpperCase(),
         status: statusTranslations[data.status] || capitalize(data.status),
         rate: data.score,
-        title: userLang === 'ru' ? (data.russian || data.name || data.japanese) : (data.name || data.japanese),
-        season: data.season !== null ? formatSeason(data.season) : data.airedOn.year
+        title: userLang === 'ru' ? (data.russian || data.name || data.japanese) : (data.name || data.japanese)
       });
     }
 
@@ -771,15 +764,23 @@
     destroy() { this.element.remove(); }
   }
 
-  // Компонент каталога аниме
+  // Компонент каталога аниме с постерами
   function AnimeCatalog(object) {
     const userLang = Lampa.Storage.field('language');
     const network = new Lampa.Reguest();
     const scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
     const items = [];
     const html = $("<div class='Shikimori-module'></div>");
-    const header = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__top100_tv simple-button simple-button--filter selector'>Топ100_ТВ</div><div class='Shikimori__top100_movies simple-button simple-button--filter selector'>Топ100_Фильмы</div><div class='Shikimori__top100_ona simple-button simple-button--filter selector'>Топ100_ONA</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
-    const body = $('<div class="Shikimori-catalog--list category-full"></div>');
+    const header = $(`
+      <div class='Shikimori-head poster-grid'>
+        <div class='Shikimori__home poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Home');" title="Главная"></div>
+        <div class='Shikimori__top100_tv poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+TV');" title="Топ100 ТВ"></div>
+        <div class='Shikimori__top100_movies poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+Movies');" title="Топ100 Фильмы"></div>
+        <div class='Shikimori__top100_ona poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Top+ONA');" title="Топ100 ONA"></div>
+        <div class='Shikimori__search poster-item selector' style="background-image: url('https://placehold.co/120x180?text=Search');" title="Фильтр"></div>
+      </div>
+    `);
+    const body = $('<div class="Shikimori-catalog--list poster-grid"></div>');
     let active, last;
 
     this.create = function () {
@@ -1064,23 +1065,64 @@
 
     Lampa.Template.add('ShikimoriStyle', `
       <style>
-        .Shikimori-catalog--list.category-full {
-          -webkit-box-pack: justify !important;
-          -webkit-justify-content: space-between !important;
-          -ms-flex-pack: justify !important;
-          justify-content: space-between !important;
+        .poster-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+          gap: 10px;
+          padding: 10px;
+          background: #1a1a1a;
         }
-        .Shikimori-head.torrent-filter { margin-left: 1.5em; }
-        .Shikimori.card__type { background: #ff4242; color: #fff; }
-        .Shikimori .card__season {
-          position: absolute; left: -0.8em; top: 3.4em; padding: .4em .4em;
-          background: #05f; color: #fff; font-size: .8em; -webkit-border-radius: .3em; border-radius: .3em;
+        .poster-item {
+          aspect-ratio: 2 / 3;
+          background-size: cover;
+          background-position: center;
+          border-radius: 8px;
+          transition: transform 0.3s ease, box-shadow 0.3s ease;
+          cursor: pointer;
         }
-        .Shikimori .card__status {
-          position: absolute; left: -0.8em; bottom: 1em; padding: .4em .4em;
-          background: #ffe216; color: #000; font-size: .8em; -webkit-border-radius: .3em; border-radius: .3em;
+        .poster-item:hover, .poster-item:focus {
+          transform: scale(1.05);
+          box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
-        .Shikimori.card__season.no-season { display: none; }
+        .Shikimori-catalog--list.poster-grid {
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        }
+        .Shikimori.card {
+          background: none;
+          border: none;
+        }
+        .Shikimori.card__view {
+          position: relative;
+          width: 100%;
+          height: 100%;
+        }
+        .Shikimori.card__img {
+          width: 100%;
+          height: 100%;
+          object-fit: cover;
+          border-radius: 8px;
+        }
+        .Shikimori.card__type, .Shikimori.card__status, .Shikimori.card__vote {
+          position: absolute;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 0.8em;
+          color: #fff;
+        }
+        .Shikimori.card__type { top: 8px; left: 8px; background: rgba(255, 66, 66, 0.8); }
+        .Shikimori.card__status { bottom: 8px; left: 8px; background: rgba(255, 226, 22, 0.8); color: #000; }
+        .Shikimori.card__vote { top: 8px; right: 8px; background: rgba(0, 0, 0, 0.7); }
+        .Shikimori.card__title {
+          position: absolute;
+          bottom: 0;
+          width: 100%;
+          padding: 8px;
+          background: rgba(0, 0, 0, 0.7);
+          color: #fff;
+          text-align: center;
+          border-bottom-left-radius: 8px;
+          border-bottom-right-radius: 8px;
+        }
         .menu-icon { width: 24px; height: 24px; fill: currentColor; }
       </style>
     `);
@@ -1091,10 +1133,9 @@
           <img src="{img}" class="Shikimori card__img" />
           <div class="Shikimori card__type">{type}</div>
           <div class="Shikimori card__vote">{rate}</div>
-          <div class="Shikimori card__season">{season}</div>
           <div class="Shikimori card__status">{status}</div>
+          <div class="Shikimori card__title">{title}</div>
         </div>
-        <div class="Shikimori card__title">{title}</div>
       </div>
     `);
 
