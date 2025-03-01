@@ -462,6 +462,7 @@
       }
     }
 
+    // Попытка через TMDB
     console.log('Запрос к arm.haglund.dev с ID:', animeData.id);
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id)
       .done(function (response) {
@@ -474,19 +475,59 @@
               console.log('Успешное сопоставление с TMDB ID:', result.id);
               processResults(result, animeData.kind);
             } else {
-              console.warn('Не удалось получить данные по TMDB ID через getTmdb:', response.themoviedb);
-              extendedSearch(animeData, 0);
+              console.warn('TMDB не сработал, переход к AniList');
+              searchAniList(animeData);
             }
           });
         } else {
-          console.log('TMDB ID не найден, переход к расширенному поиску');
-          extendedSearch(animeData, 0);
+          console.log('TMDB ID не найден, переход к AniList');
+          searchAniList(animeData);
         }
       })
       .fail(function (jqXHR) {
         console.error('Ошибка запроса к arm.haglund.dev:', jqXHR.status, jqXHR.statusText);
-        extendedSearch(animeData, 0);
+        searchAniList(animeData);
       });
+
+    // Поиск через AniList как запасной вариант
+    function searchAniList(animeData) {
+      const query = `
+        query ($id: Int) {
+          Media (idMal: $id, type: ANIME) {
+            id
+            title { romaji english native }
+            startDate { year }
+            format
+          }
+        }
+      `;
+      $.ajax({
+        url: "https://graphql.anilist.co",
+        method: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({ query, variables: { id: animeData.id } }),
+        success: function (response) {
+          console.log('Ответ от AniList:', JSON.stringify(response, null, 2));
+          if (response.data && response.data.Media) {
+            console.log('AniList данные:', response.data.Media);
+            const aniListResult = {
+              id: response.data.Media.id,
+              name: response.data.Media.title.romaji || response.data.Media.title.english || response.data.Media.title.native,
+              first_air_date: response.data.Media.startDate.year ? `${response.data.Media.startDate.year}-01-01` : null,
+              media_type: mapKindToTmdbType(animeData.kind)
+            };
+            processResults(aniListResult, animeData.kind);
+          } else {
+            console.warn('AniList не нашёл данные, переход к расширенному поиску');
+            extendedSearch(animeData, 0);
+          }
+        },
+        error: function (jqXHR) {
+          console.error('Ошибка AniList:', jqXHR.status, jqXHR.statusText);
+          extendedSearch(animeData, 0);
+        }
+      });
+    }
 
     function extendedSearch(animeData, nameIndex) {
       var names = [
@@ -621,7 +662,7 @@
             Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
             return;
           }
-          console.log('Запуск активности для единственного результата:', {
+          console.log('Zapusk aktivnosti dlya edinstvennogo rezul`tata:', {
             id: response.results[0].id,
             media_type: response.results[0].media_type
           });
