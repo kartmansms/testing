@@ -617,7 +617,7 @@
 
   // Добавление кнопки в меню
   function add() {
-    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
+    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico icon\">\n                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" class=\"icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
     button.on("hover:enter", function () {
       Lampa.Activity.push({
         url: '',
