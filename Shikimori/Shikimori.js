@@ -1117,7 +1117,6 @@
         Lampa.Activity.push(params);
       }
 
-      // Добавляем обработку активности кнопок
       function setActiveButton(element) {
         head.find('.simple-button').removeClass('active');
         element.addClass('active');
@@ -1382,6 +1381,8 @@
           background: linear-gradient(135deg, #4169e1, #1e90ff);
           box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
           transform: translateY(-2px);
+          outline: 3px solid red; /* Красный контур при наведении */
+          outline-offset: 2px;
         }
         .Shikimori-head .simple-button:active,
         .Shikimori-head .simple-button.active {
