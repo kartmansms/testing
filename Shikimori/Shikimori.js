@@ -1125,6 +1125,9 @@
       serverElement.on('hover:enter', function () {
         setActiveButton(serverElement);
         mainMenu();
+      }).on('hover:focus', function () {
+        // Убедимся, что фокус обрабатывается
+        serverElement.focus();
       });
 
       var homeElement = head.find('.Shikimori__home');
@@ -1136,6 +1139,8 @@
           component: 'Shikimori',
           page: 1
         });
+      }).on('hover:focus', function () {
+        homeElement.focus();
       });
 
       var top100TvElement = head.find('.Shikimori__top100_tv');
@@ -1151,6 +1156,8 @@
           status: 'released',
           isTop100: true
         });
+      }).on('hover:focus', function () {
+        top100TvElement.focus();
       });
 
       var top100MoviesElement = head.find('.Shikimori__top100_movies');
@@ -1166,6 +1173,8 @@
           status: 'released',
           isTop100: true
         });
+      }).on('hover:focus', function () {
+        top100MoviesElement.focus();
       });
 
       var top100OnaElement = head.find('.Shikimori__top100_ona');
@@ -1181,6 +1190,8 @@
           status: 'released',
           isTop100: true
         });
+      }).on('hover:focus', function () {
+        top100OnaElement.focus();
       });
     };
 
@@ -1383,6 +1394,11 @@
           transform: translateY(-2px);
           outline: 3px solid red; /* Красный контур при наведении */
           outline-offset: 2px;
+        }
+        .Shikimori-head .simple-button:focus {
+          outline: 3px solid yellow; /* Желтый контур при фокусе клавиатурой */
+          outline-offset: 2px;
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
         }
         .Shikimori-head .simple-button:active,
         .Shikimori-head .simple-button.active {
