@@ -1365,10 +1365,16 @@
           font-weight: 500;
           text-align: center;
           cursor: pointer;
+          outline: none; /* Убираем стандартный контур браузера */
         }
         .Shikimori-head .simple-button:hover {
           background: linear-gradient(135deg, #32cd32, #228b22);
           box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+          transform: translateY(-2px);
+        }
+        .Shikimori-head .simple-button:focus {
+          background: linear-gradient(135deg, #32cd32, #228b22);
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 0 0 2px #fff; /* Добавляем белую обводку для фокуса */
           transform: translateY(-2px);
         }
         .Shikimori-head .simple-button:active {
