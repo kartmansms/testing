@@ -376,7 +376,7 @@
   function main(params, oncomplete, onerror) {
     $(document).ready(function () {
       var limit = params.isTop100 ? 50 : (params.limit || 36);
-      var query = "\n	query Animes {\n	animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
+      var query = "\n    query Animes {\n    animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n    ");
 
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
@@ -820,7 +820,16 @@
     var active, last;
 
     this.create = function () {
-      API.main(object, this.build.bind(this), this.empty.bind(this));
+        var _this = this;
+        API.main(
+            object,
+            function(result) {
+                _this.build(result);
+            },
+            function(error) {
+                _this.empty(error);
+            }
+        );
     };
 
     this.build = function (result) {
