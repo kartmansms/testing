@@ -1,6 +1,7 @@
 (function () {
   'use strict';
 
+  // Вспомогательная функция для получения всех ключей объекта, включая символьные
   function ownKeys(e, r) {
     var t = Object.keys(e);
     if (Object.getOwnPropertySymbols) {
@@ -12,6 +13,7 @@
     return t;
   }
 
+  // Полифил для Object.assign с поддержкой символьных ключей
   function _objectSpread2(e) {
     for (var r = 1; r < arguments.length; r++) {
       var t = null != arguments[r] ? arguments[r] : {};
@@ -24,6 +26,7 @@
     return e;
   }
 
+  // Полифил для работы с генераторами
   function _regeneratorRuntime() {
     _regeneratorRuntime = function () {
       return e;
@@ -326,6 +329,25 @@
     }, e;
   }
 
+  // Преобразование значения к примитивному типу
+  function _toPrimitive(t, r) {
+    if ("object" != typeof t || !t) return t;
+    var e = t[Symbol.toPrimitive];
+    if (void 0 !== e) {
+      var i = e.call(t, r || "default");
+      if ("object" != typeof i) return i;
+      throw new TypeError("@@toPrimitive должен возвращать примитивное значение.");
+    }
+    return ("string" === r ? String : Number)(t);
+  }
+
+  // Преобразование ключа свойства к строке/символу
+  function _toPropertyKey(t) {
+    var i = _toPrimitive(t, "string");
+    return "symbol" == typeof i ? i : i + "";
+  }
+
+  // Шаг выполнения асинхронного генератора
   function asyncGeneratorStep(gen, resolve, reject, _next, _throw, key, arg) {
     try {
       var info = gen[key](arg);
@@ -341,6 +363,7 @@
     }
   }
 
+  // Преобразование функции с генератором в асинхронную
   function _asyncToGenerator(fn) {
     return function () {
       var self = this,
@@ -358,8 +381,9 @@
     };
   }
 
+  // Создание или обновление свойства объекта
   function _defineProperty(obj, key, value) {
-    key = String(key);
+    key = _toPropertyKey(key);
     if (key in obj) {
       Object.defineProperty(obj, key, {
         value: value,
@@ -373,10 +397,38 @@
     return obj;
   }
 
-  function main(params, oncomplete, onerror) {
+  // Преобразование массиво-подобных структур в массив
+  function _toConsumableArray(arr) {
+    return _arrayWithoutHoles(arr) || _iterableToArray(arr) || _unsupportedIterableToArray(arr) || _nonIterableSpread();
+  }
+  function _arrayWithoutHoles(arr) {
+    if (Array.isArray(arr)) return _arrayLikeToArray(arr);
+  }
+  function _iterableToArray(iter) {
+    if (typeof Symbol !== "undefined" && iter[Symbol.iterator] != null || iter["@@iterator"] != null) return Array.from(iter);
+  }
+  function _unsupportedIterableToArray(o, minLen) {
+    if (!o) return;
+    if (typeof o === "string") return _arrayLikeToArray(o, minLen);
+    var n = Object.prototype.toString.call(o).slice(8, -1);
+    if (n === "Object" && o.constructor) n = o.constructor.name;
+    if (n === "Map" || n === "Set") return Array.from(o);
+    if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _arrayLikeToArray(o, minLen);
+  }
+  function _arrayLikeToArray(arr, len) {
+    if (len == null || len > arr.length) len = arr.length;
+    for (var i = 0, arr2 = new Array(len); i < len; i++) arr2[i] = arr[i];
+    return arr2;
+  }
+  function _nonIterableSpread() {
+    throw new TypeError("Неверная попытка распространить неитерируемый экземпляр.\nДля того чтобы быть итерируемым, не-массивные объекты должны иметь метод [Symbol.iterator]().");
+  }
+
+  // Основная функция для выполнения GraphQL-запроса к Shikimori API
+  function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       var limit = params.isTop100 ? 50 : (params.limit || 36);
-      var query = "\n    query Animes {\n    animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n    ");
+      var query = "\n	query Animes {\n	animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
 
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
@@ -412,15 +464,13 @@
             })
           })
         ];
-        Promise.all(requests)
-          .then(function (responses) {
-            var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
-            oncomplete(allAnimes);
-          })
-          .catch(function (error) {
-            console.error('Ошибка в Promise.all:', error);
-            onerror(error);
-          });
+        Promise.all(requests).then(function (responses) {
+          var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
+          oncomplite(allAnimes);
+        }).catch(function (error) {
+          console.error('Ошибка:', error);
+          onerror(error);
+        });
       } else {
         $.ajax({
           url: 'https://shikimori.one/api/graphql',
@@ -430,11 +480,7 @@
             query: query
           }),
           success: function success(response) {
-            if (response && response.data && response.data.animes) {
-              oncomplete(response.data.animes);
-            } else {
-              onerror(new Error('Некорректный ответ от API'));
-            }
+            oncomplite(response.data.animes);
           },
           error: function error(_error) {
             console.error('Ошибка:', _error);
@@ -445,310 +491,239 @@
     });
   }
 
+  // Поиск информации об аниме через внешние API
   function search(animeData) {
-    function cleanName(name) {
-      return name.replace(/\s{2,}/g, ' ').trim();
+  function cleanName(name) {
+    return name.replace(/\s{2,}/g, ' ').trim();
+  }
+
+  console.log('Начало поиска для аниме:', animeData);
+
+  if (!animeData || !animeData.id) {
+    console.error('Некорректные входные данные:', animeData);
+    Lampa.Noty.show('Ошибка: нет данных для поиска');
+    return;
+  }
+
+  // Маппинг типов Shikimori на TMDB
+  function mapKindToTmdbType(kind) {
+    switch (kind) {
+      case 'movie':
+        return 'movie';
+      case 'tv':
+      case 'tv_special':
+        return 'tv';
+      case 'ova':
+      case 'ona':
+      case 'special':
+      case 'music':
+      case 'pv':
+      case 'cm':
+        return 'movie';
+      default:
+        return 'tv';
     }
+  }
 
-    console.log('=== Начало поиска для аниме ===');
-    console.log('Входные данные:', JSON.stringify(animeData, null, 2));
+  // Попытка найти через arm.haglund.dev
+  $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id)
+    .done(function (response) {
+      console.log('Ответ от arm.haglund.dev:', response);
+      if (response && response.themoviedb) {
+        console.log('Получен TMDB ID:', response.themoviedb);
+        var tmdbType = mapKindToTmdbType(animeData.kind);
+        getTmdb(response.themoviedb, tmdbType, function (result) {
+          if (result) {
+            processResults(result, animeData.kind);
+          } else {
+            console.log('Запрос по ID провалился, пробуем расширенный поиск');
+            extendedSearch(animeData, 0); // Начинаем расширенный поиск
+          }
+        });
+      } else {
+        console.log('TMDB ID не найден, переходим к расширенному поиску');
+        extendedSearch(animeData, 0);
+      }
+    })
+    .fail(function (jqXHR) {
+      console.warn('Ошибка запроса к arm.haglund.dev:', jqXHR.status, jqXHR.statusText);
+      console.log('Переходим к расширенному поиску');
+      extendedSearch(animeData, 0);
+    });
 
-    if (!animeData || !animeData.id) {
-      console.error('Ошибка: Некорректные входные данные', animeData);
-      Lampa.Noty.show('Ошибка: нет данных для поиска');
+  // Расширенный поиск по всем доступным названиям
+  function extendedSearch(animeData, nameIndex) {
+    var names = [
+      animeData.name,
+      animeData.japanese,
+      animeData.english,
+      animeData.russian
+    ].filter(n => n && typeof n === 'string'); // Фильтруем пустые или некорректные значения
+
+    if (nameIndex >= names.length) {
+      console.warn('Все варианты поиска исчерпаны для:', animeData);
+      processResults({ total_results: 0 }, animeData.kind);
       return;
     }
 
-    function mapKindToTmdbType(kind) {
-      switch (kind) {
-        case 'movie': return 'movie';
-        case 'tv': case 'tv_special': return 'tv';
-        case 'ova': case 'ona': case 'special': case 'music': case 'pv': case 'cm': return 'movie';
-        default: return 'tv';
-      }
-    }
-
-    console.log('Запрос к arm.haglund.dev с ID:', animeData.id);
-    $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id)
-      .done(function (response) {
-        console.log('Успешный ответ от arm.haglund.dev:', JSON.stringify(response, null, 2));
-        if (response && response.themoviedb) {
-          console.log('TMDB ID найден:', response.themoviedb);
-          var tmdbType = mapKindToTmdbType(animeData.kind);
-          getTmdb(response.themoviedb, tmdbType, function (result) {
-            if (result && result.id) {
-              console.log('Успешное сопоставление с TMDB ID:', result.id);
-              processResults(result, animeData.kind);
-            } else {
-              console.warn('TMDB не сработал, переход к AniList');
-              searchAniList(animeData);
-            }
-          });
-        } else {
-          console.log('TMDB ID не найден, переход к AniList');
-          searchAniList(animeData);
-        }
-      })
-      .fail(function (jqXHR) {
-        console.error('Ошибка запроса к arm.haglund.dev:', jqXHR.status, jqXHR.statusText);
-        searchAniList(animeData);
-      });
-
-    function searchAniList(animeData) {
-      const query = `
-        query ($id: Int) {
-          Media (idMal: $id, type: ANIME) {
-            id
-            title { romaji english native }
-            startDate { year }
-            format
-          }
-        }
-      `;
-      $.ajax({
-        url: "https://graphql.anilist.co",
-        method: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ query, variables: { id: animeData.id } }),
-        success: function (response) {
-          console.log('Ответ от AniList:', JSON.stringify(response, null, 2));
-          if (response.data && response.data.Media) {
-            console.log('AniList данные:', response.data.Media);
-            const aniListResult = {
-              id: response.data.Media.id,
-              name: response.data.Media.title.romaji || response.data.Media.title.english || response.data.Media.title.native,
-              first_air_date: response.data.Media.startDate.year ? `${response.data.Media.startDate.year}-01-01` : null,
-              media_type: mapKindToTmdbType(animeData.kind)
-            };
-            processResults(aniListResult, animeData.kind);
-          } else {
-            console.warn('AniList не нашёл данные, переход к расширенному поиску');
-            extendedSearch(animeData, 0);
-          }
-        },
-        error: function (jqXHR) {
-          console.error('Ошибка AniList:', jqXHR.status, jqXHR.statusText);
-          Lampa.Noty.show('Ошибка при запросе к AniList');
-          extendedSearch(animeData, 0);
-        }
-      });
-    }
-
-    function extendedSearch(animeData, nameIndex) {
-      var names = [
-        animeData.name,
-        animeData.japanese,
-        animeData.english,
-        animeData.russian,
-        animeData.licenseNameRu
-      ].filter(n => n && typeof n === 'string');
-
-      console.log('Список названий для поиска:', names);
-      console.log('Текущий индекс названия:', nameIndex);
-
-      if (nameIndex >= names.length || nameIndex > 10) {
-        console.warn('Все варианты названий исчерпаны или превышен лимит:', JSON.stringify(animeData, null, 2));
-        processResults({ total_results: 0 }, animeData.kind);
-        return;
-      }
-
-      var currentName = cleanName(names[nameIndex]);
-      console.log('Попытка поиска с очищенным названием:', currentName);
-      searchTmdb({ ...animeData, name: currentName }, function (tmdbResponse) {
-        console.log('Результат searchTmdb для названия', currentName, ':', JSON.stringify(tmdbResponse, null, 2));
-        if (!tmdbResponse || tmdbResponse.total_results === 0) {
-          console.log('Поиск по', currentName, 'не дал результатов, переход к следующему названию');
-          extendedSearch(animeData, nameIndex + 1);
-        } else {
-          console.log('Успешный поиск, обработка ответа TMDB');
-          handleTmdbResponse(tmdbResponse, animeData);
-        }
-      });
-    }
-
-    function searchTmdb(animeData, callback) {
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var language = Lampa.Storage.field('language') || 'en-US';
-      var query = cleanName(animeData.name || '');
-      var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
-      var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
-      var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
-
-      console.log('Формирование URL для TMDB поиска:', url);
-      $.get(url)
-        .done(function (data) {
-          console.log('Успешный ответ от TMDB search:', JSON.stringify(data, null, 2));
-          callback(data || { total_results: 0 });
-        })
-        .fail(function (err) {
-          console.error('Ошибка TMDB поиска:', err.status, err.statusText);
-          if (Lampa.Storage.field('proxy_tmdb')) {
-            console.log('Попытка без прокси:', apiUrlTMDB + request);
-            $.get(apiUrlTMDB + request)
-              .done(function (data) {
-                console.log('Успешный ответ без прокси:', JSON.stringify(data, null, 2));
-                callback(data || { total_results: 0 });
-              })
-              .fail(function (err) {
-                console.error('Ошибка повторного поиска:', err.status, err.statusText);
-                callback({ total_results: 0 });
-              });
-          } else {
-            callback({ total_results: 0 });
-          }
-        });
-    }
-
-    function getTmdb(id, type, callback) {
-      var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-      var apiUrlTMDB = 'https://api.themoviedb.org/3/';
-      var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-      var language = Lampa.Storage.field('language') || 'en-US';
-      var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
-      var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
-
-      console.log('Формирование URL для TMDB get:', url);
-      $.get(url)
-        .done(function (data) {
-          console.log('Успешный ответ от TMDB get:', JSON.stringify(data, null, 2));
-          callback(data || null);
-        })
-        .fail(function (err) {
-          console.error('Ошибка TMDB get:', err.status, err.statusText);
-          if (Lampa.Storage.field('proxy_tmdb')) {
-            console.log('Попытка без прокси:', apiUrlTMDB + request);
-            $.get(apiUrlTMDB + request)
-              .done(function (data) {
-                console.log('Успешный ответ без прокси:', JSON.stringify(data, null, 2));
-                callback(data || null);
-              })
-              .fail(function (err) {
-                console.error('Ошибка повторного запроса:', err.status, err.statusText);
-                callback(null);
-              });
-          } else {
-            callback(null);
-          }
-        });
-    }
-
-    function handleTmdbResponse(tmdbResponse, animeData) {
-      console.log('Обработка TMDB ответа:', JSON.stringify(tmdbResponse, null, 2));
+    var currentName = cleanName(names[nameIndex]);
+    console.log('Попытка поиска с названием:', currentName);
+    searchTmdb({ ...animeData, name: currentName }, function (tmdbResponse) {
       if (!tmdbResponse || tmdbResponse.total_results === 0) {
-        console.log('Ответ пустой или результатов нет, переход к расширенному поиску');
-        extendedSearch(animeData, 0);
+        console.log('Поиск по', currentName, 'не дал результатов, пробуем следующее название');
+        extendedSearch(animeData, nameIndex + 1); // Переходим к следующему названию
       } else {
-        console.log('Передача результатов в processResults');
-        processResults(tmdbResponse, animeData.kind);
+        handleTmdbResponse(tmdbResponse, animeData);
       }
+    });
+  }
+
+  // Поиск через TMDB API
+  function searchTmdb(animeData, callback) {
+    var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+    var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+    var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+    var language = Lampa.Storage.field('language');
+    var query = cleanName(animeData.name || '');
+    var year = animeData.airedOn && animeData.airedOn.year ? `&first_air_date_year=${animeData.airedOn.year}` : '';
+    var request = `search/multi?api_key=${apiKey}&language=${language}&include_adult=true&query=${encodeURIComponent(query)}${year}`;
+    var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+
+    console.log('Запрос к TMDB search:', url);
+    $.get(url)
+      .done(function (data) {
+        console.log('Ответ от TMDB search:', data);
+        callback(data || { total_results: 0 });
+      })
+      .fail(function (err) {
+        console.error('Ошибка TMDB поиска:', err.status, err.statusText);
+        callback({ total_results: 0 });
+      });
+  }
+
+  // Получение данных по TMDB ID
+  function getTmdb(id, type, callback) {
+    var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+    var apiUrlTMDB = 'https://api.themoviedb.org/3/';
+    var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+    var language = Lampa.Storage.field('language');
+    var request = `${type}/${id}?api_key=${apiKey}&language=${language}`;
+    var url = Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request;
+
+    console.log('Запрос к TMDB get:', url);
+    $.get(url)
+      .done(function (data) {
+        console.log('Ответ от TMDB get:', data);
+        callback(data || null);
+      })
+      .fail(function (err) {
+        console.error('Ошибка TMDB get:', err.status, err.statusText);
+        callback(null);
+      });
+  }
+
+  // Обработка ответа от TMDB
+  function handleTmdbResponse(tmdbResponse, animeData) {
+    console.log('Обработка TMDB ответа:', tmdbResponse);
+    if (!tmdbResponse || tmdbResponse.total_results === 0) {
+      extendedSearch(animeData, 0); // Если ничего не найдено, запускаем расширенный поиск с начала
+    } else {
+      processResults(tmdbResponse, animeData.kind);
+    }
+  }
+
+  // Обработка результатов поиска
+  function processResults(response, kind) {
+    console.log('Обработка результата:', response);
+
+    if (!response) {
+      console.error('Ответ пустой');
+      Lampa.Noty.show('Не удалось найти аниме: сервер вернул пустой ответ');
+      return;
     }
 
-    function processResults(response, kind) {
-      console.log('=== Обработка финального результата ===');
-      console.log('Ответ для обработки:', JSON.stringify(response, null, 2));
-      console.log('Тип аниме (kind):', kind);
-
-      if (!response) {
-        console.error('Ответ пустой');
-        Lampa.Noty.show('Не удалось найти аниме: сервер вернул пустой ответ');
-        return;
-      }
-
-      if ('total_results' in response) {
-        if (response.total_results === 0) {
-          console.warn('Результатов не найдено в поиске');
-          Lampa.Noty.show('Не удалось найти аниме в TMDB');
-        } else if (response.total_results === 1 && kind !== 'ona') {
-          console.log('Найден один результат:', JSON.stringify(response.results[0], null, 2));
-          if (!response.results[0].id || !response.results[0].media_type) {
-            console.error('Некорректные данные в результате:', response.results[0]);
-            Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
-            return;
-          }
-          console.log('Запуск активности для единственного результата:', {
-            id: response.results[0].id,
-            media_type: response.results[0].media_type
-          });
-          Lampa.Activity.push({
-            url: '',
-            component: 'full',
-            id: response.results[0].id,
-            method: response.results[0].media_type,
-            card: response.results[0]
-          });
-        } else {
-          console.log('Найдено несколько результатов:', response.results.length);
-          var menu = [];
-          response.results.forEach(function (item) {
-            if (!item.id || !item.media_type) {
-              console.warn('Пропущен элемент с некорректными данными:', JSON.stringify(item, null, 2));
-              return;
-            }
-            menu.push({
-              title: `[${item.media_type.toUpperCase()}] ${item.name || item.title}`,
-              card: item
-            });
-          });
-          console.log('Сформированное меню:', JSON.stringify(menu, null, 2));
-          if (menu.length === 0) {
-            console.error('Все элементы некорректны');
-            Lampa.Noty.show('Не удалось найти аниме: нет валидных данных');
-            return;
-          }
-          Lampa.Select.show({
-            title: kind === 'ona' ? 'Выберите ONA из списка' : 'Выберите аниме',
-            items: menu,
-            onBack: function () {
-              console.log('Пользователь вернулся назад');
-              Lampa.Controller.toggle("content");
-            },
-            onSelect: function (a) {
-              console.log('Выбран элемент меню:', JSON.stringify(a.card, null, 2));
-              Lampa.Activity.push({
-                url: '',
-                component: 'full',
-                id: a.card.id,
-                method: a.card.media_type,
-                card: a.card
-              });
-            }
-          });
-        }
-      } else if (kind !== 'ona') {
-        console.log('Прямой результат:', JSON.stringify(response, null, 2));
-        if (!response || !response.id) {
-          console.error('Некорректный прямой результат:', response);
+    var menu = [];
+    if ('total_results' in response) {
+      if (response.total_results === 0) {
+        console.warn('Результатов не найдено');
+        Lampa.Noty.show('Не удалось найти аниме в TMDB');
+      } else if (response.total_results === 1 && kind !== 'ona') {
+        console.log('Найден один результат:', response.results[0]);
+        if (!response.results[0].id || !response.results[0].media_type) {
+          console.error('Некорректные данные в результате:', response.results[0]);
           Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
           return;
         }
-        console.log('Запуск активности для прямого результата:', {
-          id: response.id,
-          method: response.number_of_episodes ? 'tv' : 'movie'
-        });
         Lampa.Activity.push({
           url: '',
           component: 'full',
-          id: response.id,
-          method: response.number_of_episodes ? 'tv' : 'movie',
-          card: response
+          id: response.results[0].id,
+          method: response.results[0].media_type,
+          card: response.results[0]
         });
       } else {
-        console.log('Тип ONA: принудительный поиск списка');
-        searchTmdb(animeData, function (tmdbResponse) {
-          console.log('Повторный вызов handleTmdbResponse для ONA');
-          handleTmdbResponse(tmdbResponse, animeData);
+        console.log('Найдено несколько результатов:', response.results);
+        response.results.forEach(function (item) {
+          if (!item.id || !item.media_type) {
+            console.warn('Пропущен элемент с некорректными данными:', item);
+            return;
+          }
+          menu.push({
+            title: `[${item.media_type.toUpperCase()}] ${item.name || item.title}`,
+            card: item
+          });
+        });
+        if (menu.length === 0) {
+          console.error('Все элементы некорректны');
+          Lampa.Noty.show('Не удалось найти аниме: нет валидных данных');
+          return;
+        }
+        Lampa.Select.show({
+          title: kind === 'ona' ? 'Выберите ONA из списка' : 'Выберите аниме',
+          items: menu,
+          onBack: function () {
+            Lampa.Controller.toggle("content");
+          },
+          onSelect: function (a) {
+            Lampa.Activity.push({
+              url: '',
+              component: 'full',
+              id: a.card.id,
+              method: a.card.media_type,
+              card: a.card
+            });
+          }
         });
       }
+    } else if (kind !== 'ona') {
+      console.log('Прямой результат:', response);
+      if (!response || !response.id) {
+        console.error('Некорректный прямой результат:', response);
+        Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
+        return;
+      }
+      Lampa.Activity.push({
+        url: '',
+        component: 'full',
+        id: response.id,
+        method: response.number_of_episodes ? 'tv' : 'movie',
+        card: response
+      });
+    } else {
+      console.log('Тип ONA: принудительный поиск списка даже для прямого результата');
+      searchTmdb(animeData, function (tmdbResponse) {
+        handleTmdbResponse(tmdbResponse, animeData);
+      });
     }
   }
+}
 
   var API = {
     main: main,
     search: search
   };
 
+  // Класс для создания карточки аниме
   function Card(data, userLang) {
     var typeTranslations = {
       'tv': 'ТВ',
@@ -784,16 +759,12 @@
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
-    var title = userLang === 'ru'
-      ? (data.licenseNameRu || data.russian || data.name || data.japanese)
-      : (data.name || data.japanese);
-
     var item = Lampa.Template.get("Shikimori-Card", {
       img: data.poster.originalUrl,
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
       status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
       rate: data.score,
-      title: title,
+      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
@@ -805,6 +776,7 @@
     };
   }
 
+  // Основной компонент для отображения каталога
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
@@ -820,16 +792,7 @@
     var active, last;
 
     this.create = function () {
-        var _this = this;
-        API.main(
-            object,
-            function(result) {
-                _this.build(result);
-            },
-            function(error) {
-                _this.empty(error);
-            }
-        );
+      API.main(object, this.build.bind(this), this.empty.bind(this));
     };
 
     this.build = function (result) {
@@ -1193,25 +1156,22 @@
     this.body = function (data) {
       data.forEach(function (anime) {
         var item = new Card(anime, userLang);
-        var $item = item.render(true);
-        $item
-          .on("hover:focus", function () {
-            last = $item[0];
-            active = items.indexOf(item);
-            scroll.update(items[active] ? items[active].render(true) : last, true);
-          })
-          .on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
-            return _regeneratorRuntime().wrap(function _callee$(_context) {
-              while (1) switch (_context.prev = _context.next) {
-                case 0:
-                  API.search(anime);
-                case 1:
-                case "end":
-                  return _context.stop();
-              }
-            }, _callee);
-          })));
-        body.append($item);
+        item.render(true).on("hover:focus", function () {
+          last = item.render()[0];
+          active = items.indexOf(item);
+          scroll.update(items[active].render(true), true);
+        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
+          return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+              case 0:
+                API.search(anime);
+              case 1:
+              case "end":
+                return _context.stop();
+            }
+          }, _callee);
+        })));
+        body.append(item.render(true));
         items.push(item);
       });
     };
@@ -1247,7 +1207,6 @@
     };
     this.destroy = function () {
       network.clear();
-      items.forEach(item => item.destroy());
       Lampa.Arrays.destroy(items);
       scroll.destroy();
       html.remove();
@@ -1256,66 +1215,66 @@
     };
   }
 
+  // Компонент для расширения информации в карточке
   function Component() {
-    Lampa.Listener.follow("full", _asyncToGenerator(_regeneratorRuntime().mark(function _callee(e) {
-      var getMAL, response, dubbers, subbers, shikimoriRates;
-      return _regeneratorRuntime().wrap(function _callee$(_context) {
-        while (1) switch (_context.prev = _context.next) {
-          case 0:
-            if (!(e.type === "complite")) {
+    Lampa.Listener.follow("full", /*#__PURE__*/function () {
+      var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
+        var getMAL, response, dubbers, subbers, shikimoriRates;
+        return _regeneratorRuntime().wrap(function _callee$(_context) {
+          while (1) switch (_context.prev = _context.next) {
+            case 0:
+              if (!(e.type === "complite")) {
+                _context.next = 21;
+                break;
+              }
+              _context.prev = 1;
+              _context.next = 4;
+              return $.ajax({
+                url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
+                method: "GET",
+                timeout: 0
+              });
+            case 4:
+              getMAL = _context.sent;
+              if (getMAL.length) {
+                _context.next = 8;
+                break;
+              }
+              console.warn("Данные для предоставленного ID не найдены.");
+              return _context.abrupt("return");
+            case 8:
+              _context.next = 10;
+              return $.ajax({
+                url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
+                method: "GET",
+                timeout: 0
+              });
+            case 10:
+              response = _context.sent;
+              dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
+              subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
+              e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
+              shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
+              e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
               _context.next = 21;
               break;
-            }
-            _context.prev = 1;
-            _context.next = 4;
-            return $.ajax({
-              url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
-              method: "GET",
-              timeout: 0
-            });
-          case 4:
-            getMAL = _context.sent;
-            if (getMAL.length) {
-              _context.next = 8;
-              break;
-            }
-            console.warn("Данные для предоставленного ID не найдены.");
-            return _context.abrupt("return");
-          case 8:
-            _context.next = 10;
-            return $.ajax({
-              url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
-              method: "GET",
-              timeout: 0
-            });
-          case 10:
-            response = _context.sent;
-            if (!(!response || !response.fandubbers || !response.fansubbers)) {
-              _context.next = 13;
-              break;
-            }
-            console.warn("Некорректный ответ от Shikimori:", response);
-            return _context.abrupt("return");
-          case 13:
-            dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
-            subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
-            e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
-            shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
-            e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
-            _context.next = 21;
-            break;
-          case 18:
-            _context.prev = 18;
-            _context.t0 = _context["catch"](1);
-            console.error("Ошибка при получении данных:", _context.t0);
-          case 21:
-          case "end":
-            return _context.stop();
-        }
-      }, _callee, null, [[1, 18]]);
-    })));
+            case 18:
+              _context.prev = 18;
+              _context.t0 = _context["catch"](1);
+              console.error("Ошибка при получении данных:", _context.t0);
+            case 21:
+            case "end":
+              return _context.stop();
+          }
+        }, _callee, null, [[1, 18]]);
+      }));
+      return function (_x) {
+        return _ref.apply(this, arguments);
+      };
+    }());
   }
 
+  // Функция для добавления кнопки Shikimori в меню приложения
   function add() {
     var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/Shikimori/icons/shikimori-icon.svg\" alt=\"Shikimori icon\" class=\"menu-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
 
@@ -1331,6 +1290,7 @@
     $(".menu .menu__list").eq(0).append(button);
   }
 
+  // Функция инициализации плагина с проверкой готовности Lampa
   function startPlugin() {
     if (!window.Lampa || !window.Lampa.Storage) {
       Lampa.Noty.show('Lampa еще не готова, повторная проверка через 100 мс');
@@ -1370,15 +1330,7 @@
     }
   }
 
-  function ensureLampa(callback) {
-    if (window.Lampa && window.Lampa.Storage) {
-      callback();
-    } else {
-      setTimeout(() => ensureLampa(callback), 100);
-    }
-  }
-
   if (!window.plugin_shikimori_ready) {
-    ensureLampa(startPlugin);
+    startPlugin();
   }
 })();
