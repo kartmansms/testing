@@ -1116,36 +1116,22 @@
         if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
-
-      function setActiveButton(element) {
-        head.find('.simple-button').removeClass('active');
-        element.addClass('active');
-      }
-
       serverElement.on('hover:enter', function () {
-        setActiveButton(serverElement);
         mainMenu();
-      }).on('hover:focus', function () {
-        // Убедимся, что фокус обрабатывается
-        serverElement.focus();
       });
 
       var homeElement = head.find('.Shikimori__home');
       homeElement.on('hover:enter', function () {
-        setActiveButton(homeElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori',
           component: 'Shikimori',
           page: 1
         });
-      }).on('hover:focus', function () {
-        homeElement.focus();
       });
 
       var top100TvElement = head.find('.Shikimori__top100_tv');
       top100TvElement.on('hover:enter', function () {
-        setActiveButton(top100TvElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_ТВ',
@@ -1156,13 +1142,10 @@
           status: 'released',
           isTop100: true
         });
-      }).on('hover:focus', function () {
-        top100TvElement.focus();
       });
 
       var top100MoviesElement = head.find('.Shikimori__top100_movies');
       top100MoviesElement.on('hover:enter', function () {
-        setActiveButton(top100MoviesElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_Фильмы',
@@ -1173,13 +1156,10 @@
           status: 'released',
           isTop100: true
         });
-      }).on('hover:focus', function () {
-        top100MoviesElement.focus();
       });
 
       var top100OnaElement = head.find('.Shikimori__top100_ona');
       top100OnaElement.on('hover:enter', function () {
-        setActiveButton(top100OnaElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_ONA',
@@ -1190,8 +1170,6 @@
           status: 'released',
           isTop100: true
         });
-      }).on('hover:focus', function () {
-        top100OnaElement.focus();
       });
     };
 
@@ -1389,20 +1367,11 @@
           cursor: pointer;
         }
         .Shikimori-head .simple-button:hover {
-          background: linear-gradient(135deg, #4169e1, #1e90ff);
+          background: linear-gradient(135deg, #32cd32, #228b22);
           box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
           transform: translateY(-2px);
-          outline: 3px solid red; /* Красный контур при наведении */
-          outline-offset: 2px;
         }
-        .Shikimori-head .simple-button:focus {
-          outline: 3px solid yellow; /* Желтый контур при фокусе клавиатурой */
-          outline-offset: 2px;
-          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
-        }
-        .Shikimori-head .simple-button:active,
-        .Shikimori-head .simple-button.active {
-          background: linear-gradient(135deg, #32cd32, #228b22);
+        .Shikimori-head .simple-button:active {
           transform: translateY(0);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
