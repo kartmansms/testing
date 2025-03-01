@@ -616,42 +616,42 @@
   }
 
   // Добавление кнопки в меню
-  function add() {
-    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
+function add() {
+    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" class=\"shikimori-icon\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
     button.on("hover:enter", function () {
-      Lampa.Activity.push({
-        url: '',
-        title: 'Shikimori',
-        component: 'Shikimori',
-        page: 1
-      });
+        Lampa.Activity.push({
+            url: '',
+            title: 'Shikimori',
+            component: 'Shikimori',
+            page: 1
+        });
     });
     $(".menu .menu__list").eq(0).append(button);
-  }
+}
 
-  // Инициализация плагина
-  function startPlugin() {
+// Инициализация плагина
+function startPlugin() {
     window.plugin_shikimori_ready = true;
     var manifest = {
-      type: "other",
-      version: "1.0",
-      name: "LKE Shikimori",
-      description: "Добавляет каталог Shikimori",
-      component: "Shikimori"
+        type: "other",
+        version: "1.0",
+        name: "LKE Shikimori",
+        description: "Добавляет каталог Shikimori",
+        component: "Shikimori"
     };
 
     // Регистрация компонентов и шаблонов
     Lampa.Manifest.plugins = manifest;
-    Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n        </style>");
+    Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n            .shikimori-icon { filter: invert(100%) sepia(0%) saturate(7500%) hue-rotate(0deg) brightness(100%) contrast(100%); }\n            .menu__item:hover .shikimori-icon { filter: invert(0%) sepia(0%) saturate(7500%) hue-rotate(0deg) brightness(0%) contrast(100%); }\n        </style>");
     Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
     Lampa.Component.add(manifest.component, Component$1);
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
     if (window.appready) add();else {
-      Lampa.Listener.follow("app", function (e) {
-        if (e.type === "ready") add();
-      });
+        Lampa.Listener.follow("app", function (e) {
+            if (e.type === "ready") add();
+        });
     }
-  }
+}
 
   // Запуск плагина при готовности
   if (!window.plugin_shikimori_ready) startPlugin();
