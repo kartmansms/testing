@@ -1116,12 +1116,21 @@
         if (query.seasons) params.seasons = query.seasons;
         Lampa.Activity.push(params);
       }
+
+      // Добавляем обработку активности кнопок
+      function setActiveButton(element) {
+        head.find('.simple-button').removeClass('active');
+        element.addClass('active');
+      }
+
       serverElement.on('hover:enter', function () {
+        setActiveButton(serverElement);
         mainMenu();
       });
 
       var homeElement = head.find('.Shikimori__home');
       homeElement.on('hover:enter', function () {
+        setActiveButton(homeElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori',
@@ -1132,6 +1141,7 @@
 
       var top100TvElement = head.find('.Shikimori__top100_tv');
       top100TvElement.on('hover:enter', function () {
+        setActiveButton(top100TvElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_ТВ',
@@ -1146,6 +1156,7 @@
 
       var top100MoviesElement = head.find('.Shikimori__top100_movies');
       top100MoviesElement.on('hover:enter', function () {
+        setActiveButton(top100MoviesElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_Фильмы',
@@ -1160,6 +1171,7 @@
 
       var top100OnaElement = head.find('.Shikimori__top100_ona');
       top100OnaElement.on('hover:enter', function () {
+        setActiveButton(top100OnaElement);
         Lampa.Activity.push({
           url: '',
           title: 'Shikimori Топ100_ONA',
@@ -1371,7 +1383,9 @@
           box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
           transform: translateY(-2px);
         }
-        .Shikimori-head .simple-button:active {
+        .Shikimori-head .simple-button:active,
+        .Shikimori-head .simple-button.active {
+          background: linear-gradient(135deg, #32cd32, #228b22);
           transform: translateY(0);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
