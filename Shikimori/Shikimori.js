@@ -4,9 +4,7 @@
   // Основная функция для выполнения GraphQL-запроса к Shikimori API
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
-      // Формирование GraphQL-запроса с параметрами
       var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
-
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
       }
@@ -19,10 +17,7 @@
       if (params.seasons) {
         query += ", season: \"".concat(params.seasons, "\"");
       }
-
       query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
-
-      // AJAX-запрос к API Shikimori
       $.ajax({
         url: 'https://shikimori.one/api/graphql',
         method: 'POST',
@@ -43,36 +38,29 @@
 
   // Поиск информации об аниме через внешние API
   function search(animeData) {
-    // Очистка названия от сезонов и частей
     function cleanName(name) {
       var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
       var cleanedName = name.replace(regex, '').trim();
       cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
       return cleanedName;
     }
-
-    // Первый GET запрос к https://animeapi.my.id/shikimori/{animeData.id}
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
       if (response === null) {
         console.log('Мы здесь шаг#1');
-        // Если получили 404, продолжаем искать на TMDB
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
       } else if (response.themoviedb === null) {
         console.log('Мы здесь шаг#2');
-        // Если themoviedb: null, делаем запрос к https://api.themoviedb.org/3/search/multi?include_adult=true&query={animeData.name}
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
       } else {
         console.log('Мы здесь шаг#3', animeData.kind);
-        // Если themoviedb не равно null, делаем запрос к https://api.themoviedb.org/3/movie/{response.themoviedb}
         getTmdb(response.themoviedb, animeData.kind, processResults);
       }
     }).fail(function (jqXHR) {
       if (jqXHR.status === 404) {
-        // Если получили 404, продолжаем искать на TMDB
         searchTmdb(animeData.name, function (tmdbResponse) {
           handleTmdbResponse(tmdbResponse, animeData.japanese);
         });
@@ -80,8 +68,6 @@
         console.error('Ошибка при получении данных с animeapi.my.id:', jqXHR.status);
       }
     });
-
-    // Поиск через TMDB API
     function searchTmdb(query, callback) {
       var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
@@ -89,8 +75,6 @@
       var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
-
-    // Получение детальной информации из TMDB
     function getTmdb(id) {
       var type = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 'movie';
       var callback = arguments.length > 2 ? arguments[2] : undefined;
@@ -100,8 +84,6 @@
       var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
       $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
     }
-
-    // Обработка ответов от TMDB
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
       if (tmdbResponse.total_results === 0) {
         searchTmdb(fallbackQuery, handleFallbackResponse);
@@ -109,11 +91,9 @@
         processResults(tmdbResponse);
       }
     }
-
     function handleFallbackResponse(fallbackResponse) {
       processResults(fallbackResponse);
     }
-
     function processResults(response) {
       var menu = [];
       if (response.total_results !== undefined) {
@@ -168,9 +148,7 @@
     search: search
   };
 
-  // Класс для создания карточки аниме
   function Card(data, userLang) {
-    // Локализация типов и статусов
     var typeTranslations = {
       'tv': 'ТВ',
       'movie': 'Фильм',
@@ -182,14 +160,11 @@
       'pv': 'PV',
       'cm': 'CM'
     };
-
     var statusTranslations = {
       'anons': 'Анонс',
       'ongoing': 'Онгоинг',
       'released': 'Вышло'
     };
-
-    // Форматирование сезона
     var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
       .replace(/^\w/, function (c) { return c.toUpperCase(); })
       .replace(/(winter|spring|summer|fall)/gi, function (match) {
@@ -200,12 +175,10 @@
           'fall': 'Осень'
         }[match.toLowerCase()];
       }) : '';
-
     function capitalizeFirstLetter(string) {
       if (!string) return string;
       return string.charAt(0).toUpperCase() + string.slice(1);
     }
-
     var item = Lampa.Template.get("Shikimori-Card", {
       img: data.poster.originalUrl,
       type: typeTranslations[data.kind] || data.kind.toUpperCase(),
@@ -214,8 +187,6 @@
       title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
       season: data.season !== null ? formattedSeason : data.airedOn.year
     });
-
-    // Создание DOM-элемента карточки
     this.render = function () {
       return item;
     };
@@ -224,7 +195,6 @@
     };
   }
 
-  // Основной компонент для отображения каталога
   function Component$1(object) {
     var userLang = Lampa.Storage.field('language');
     var network = new Lampa.Reguest();
@@ -238,26 +208,20 @@
     var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
     var body = $('<div class="Shikimori-catalog--list category-full"></div>');
     var active, last;
-
-    // Инициализация элементов интерфейса
     this.create = function () {
       API.main(object, this.build.bind(this), this.empty.bind(this));
     };
-
-    // Построение списка карточек
     this.build = function (result) {
       var _this = this;
       scroll.minus();
       scroll.onWheel = function (step) {
         if (!Lampa.Controller.own(_this)) _this.start();
-        if (step > 0) Navigator.move('down');else Navigator.move('up');
+        if (step > 0) Navigator.move('down'); else Navigator.move('up');
       };
       scroll.onEnd = function () {
         object.page++;
         API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
       };
-
-      // Обработка фильтров
       this.headeraction();
       this.body(result);
       scroll.append(head);
@@ -266,7 +230,6 @@
       this.activity.loader(false);
       this.activity.toggle();
     };
-
     this.headeraction = function () {
       var settings = {
         "url": "https://shikimori.one/api/genres",
@@ -323,7 +286,6 @@
           "Work Life": "Трудяги",
           "Vampire": "Вампиры"
         };
-
         var filteredResponse = response.filter(function (item) {
           return item.entry_type === "Anime";
         }).map(function (item) {
@@ -433,26 +395,20 @@
       function generateYearRanges() {
         var currentYear = new Date().getFullYear();
         var ranges = [];
-
-        // Добавляем текущий год и предыдущие 3 года
         for (var year = currentYear; year >= currentYear - 3; year--) {
           ranges.push({
             code: `${year}`,
             title: `${year} год`
           });
         }
-
-        // Генерируем диапазоны по 5 лет, начиная с текущего года
         for (var startYear = currentYear; startYear >= currentYear - 20; startYear -= 5) {
           var endYear = startYear - 5;
-          // Проверка на корректность диапазона
           if (endYear <= startYear) {
             ranges.push({
               code: `${endYear}_${startYear}`,
               title: `${startYear}–${endYear} год`
             });
           }
-          // Прерываем цикл, если достигли currentYear-20
           if (endYear === currentYear - 20) break;
         }
         return ranges;
@@ -585,13 +541,13 @@
           Lampa.Controller.collectionFocus(last || false, scroll.render());
         },
         left: function left() {
-          if (Navigator.canmove("left")) Navigator.move("left");else Lampa.Controller.toggle("menu");
+          if (Navigator.canmove("left")) Navigator.move("left"); else Lampa.Controller.toggle("menu");
         },
         right: function right() {
           Navigator.move("right");
         },
         up: function up() {
-          if (Navigator.canmove("up")) Navigator.move("up");else Lampa.Controller.toggle("head");
+          if (Navigator.canmove("up")) Navigator.move("up"); else Lampa.Controller.toggle("head");
         },
         down: function down() {
           if (Navigator.canmove("down")) Navigator.move("down");
@@ -615,9 +571,14 @@
     };
   }
 
-  // Добавление кнопки в меню
+  // Добавление кнопки в меню с реверсией иконки
   function add() {
-    var button = $("<li class=\"menu__item selector\">\n            <div class=\"menu__ico\">\n                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" />\n            </div>\n            <div class=\"menu__text\">Shikimori</div>\n        </li>");
+    var button = $("<li class=\"menu__item selector\">\n" +
+      "            <div class=\"menu__ico\">\n" +
+      "                <img src=\"https://kartmansms.github.io/testing/icons/Shiki_icon.svg\" class=\"shikimori-icon\" />\n" +
+      "            </div>\n" +
+      "            <div class=\"menu__text\">Shikimori</div>\n" +
+      "        </li>");
     button.on("hover:enter", function () {
       Lampa.Activity.push({
         url: '',
@@ -639,21 +600,37 @@
       description: "Добавляет каталог Shikimori",
       component: "Shikimori"
     };
-
-    // Регистрация компонентов и шаблонов
     Lampa.Manifest.plugins = manifest;
-    Lampa.Template.add('ShikimoriStyle', "<style>\n            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}.Shikimori-head.torrent-filter{margin-left:1.5em}.Shikimori.card__type{background:#ff4242;color:#fff}.Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}.Shikimori.card__season.no-season{display:none}\n        </style>");
-    Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n                <div class=\"Shikimori card__view\">\n                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n                    <div class=\"Shikimori card__type\">{type}</div>\n                    <div class=\"Shikimori card__vote\">{rate}</div>\n                    <div class=\"Shikimori card__season\">{season}</div>\n                    <div class=\"Shikimori card__status\">{status}</div>\n                </div>\n                <div class=\"Shikimori card__title\">{title}</div>\n            </div>");
+    Lampa.Template.add('ShikimoriStyle', "<style>\n" +
+      "            .Shikimori-catalog--list.category-full{-webkit-box-pack:justify !important;-webkit-justify-content:space-between !important;-ms-flex-pack:justify !important;justify-content:space-between !important}\n" +
+      "            .Shikimori-head.torrent-filter{margin-left:1.5em}\n" +
+      "            .Shikimori.card__type{background:#ff4242;color:#fff}\n" +
+      "            .Shikimori .card__season{position:absolute;left:-0.8em;top:3.4em;padding:.4em .4em;background:#05f;color:#fff;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}\n" +
+      "            .Shikimori .card__status{position:absolute;left:-0.8em;bottom:1em;padding:.4em .4em;background:#ffe216;color:#000;font-size:.8em;-webkit-border-radius:.3em;border-radius:.3em}\n" +
+      "            .Shikimori.card__season.no-season{display:none}\n" +
+      "            .shikimori-icon { width: 24px; height: 24px; transition: filter 0.3s ease; }\n" +
+      "            body.light .shikimori-icon { filter: invert(0); } /* Черная иконка на светлом фоне */\n" +
+      "            body:not(.light) .shikimori-icon { filter: invert(1); } /* Белая иконка на темном фоне */\n" +
+      "        </style>");
+    Lampa.Template.add("Shikimori-Card", "<div class=\"Shikimori card selector layer--visible layer--render\">\n" +
+      "                <div class=\"Shikimori card__view\">\n" +
+      "                    <img src=\"{img}\" class=\"Shikimori card__img\" />\n" +
+      "                    <div class=\"Shikimori card__type\">{type}</div>\n" +
+      "                    <div class=\"Shikimori card__vote\">{rate}</div>\n" +
+      "                    <div class=\"Shikimori card__season\">{season}</div>\n" +
+      "                    <div class=\"Shikimori card__status\">{status}</div>\n" +
+      "                </div>\n" +
+      "                <div class=\"Shikimori card__title\">{title}</div>\n" +
+      "            </div>");
     Lampa.Component.add(manifest.component, Component$1);
     $('body').append(Lampa.Template.get('ShikimoriStyle', {}, true));
-    if (window.appready) add();else {
+    if (window.appready) add(); else {
       Lampa.Listener.follow("app", function (e) {
         if (e.type === "ready") add();
       });
     }
   }
 
-  // Запуск плагина при готовности
   if (!window.plugin_shikimori_ready) startPlugin();
 
 })();
