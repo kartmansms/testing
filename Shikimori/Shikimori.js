@@ -373,7 +373,7 @@
     return obj;
   }
 
-  function main(params, oncomplite, onerror) {
+  function main(params, oncomplete, onerror) {
     $(document).ready(function () {
       var limit = params.isTop100 ? 50 : (params.limit || 36);
       var query = "\n	query Animes {\n	animes(limit: ".concat(limit, ", order: ").concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
@@ -412,13 +412,15 @@
             })
           })
         ];
-        Promise.all(requests).then(function (responses) {
-          var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
-          oncomplite(allAnimes);
-        }).catch(function (error) {
-          console.error('Ошибка:', error);
-          onerror(error);
-        });
+        Promise.all(requests)
+          .then(function (responses) {
+            var allAnimes = responses[0].data.animes.concat(responses[1].data.animes);
+            oncomplete(allAnimes);
+          })
+          .catch(function (error) {
+            console.error('Ошибка в Promise.all:', error);
+            onerror(error);
+          });
       } else {
         $.ajax({
           url: 'https://shikimori.one/api/graphql',
@@ -428,7 +430,11 @@
             query: query
           }),
           success: function success(response) {
-            oncomplite(response.data.animes);
+            if (response && response.data && response.data.animes) {
+              oncomplete(response.data.animes);
+            } else {
+              onerror(new Error('Некорректный ответ от API'));
+            }
           },
           error: function error(_error) {
             console.error('Ошибка:', _error);
@@ -462,7 +468,6 @@
       }
     }
 
-    // Попытка через TMDB
     console.log('Запрос к arm.haglund.dev с ID:', animeData.id);
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=" + animeData.id)
       .done(function (response) {
@@ -489,7 +494,6 @@
         searchAniList(animeData);
       });
 
-    // Поиск через AniList как запасной вариант
     function searchAniList(animeData) {
       const query = `
         query ($id: Int) {
@@ -524,6 +528,7 @@
         },
         error: function (jqXHR) {
           console.error('Ошибка AniList:', jqXHR.status, jqXHR.statusText);
+          Lampa.Noty.show('Ошибка при запросе к AniList');
           extendedSearch(animeData, 0);
         }
       });
@@ -541,8 +546,8 @@
       console.log('Список названий для поиска:', names);
       console.log('Текущий индекс названия:', nameIndex);
 
-      if (nameIndex >= names.length) {
-        console.warn('Все варианты названий исчерпаны для:', JSON.stringify(animeData, null, 2));
+      if (nameIndex >= names.length || nameIndex > 10) {
+        console.warn('Все варианты названий исчерпаны или превышен лимит:', JSON.stringify(animeData, null, 2));
         processResults({ total_results: 0 }, animeData.kind);
         return;
       }
@@ -662,7 +667,7 @@
             Lampa.Noty.show('Не удалось открыть аниме: некорректные данные');
             return;
           }
-          console.log('Zapusk aktivnosti dlya edinstvennogo rezul`tata:', {
+          console.log('Запуск активности для единственного результата:', {
             id: response.results[0].id,
             media_type: response.results[0].media_type
           });
@@ -1179,22 +1184,25 @@
     this.body = function (data) {
       data.forEach(function (anime) {
         var item = new Card(anime, userLang);
-        item.render(true).on("hover:focus", function () {
-          last = item.render()[0];
-          active = items.indexOf(item);
-          scroll.update(items[active].render(true), true);
-        }).on("hover:enter", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee() {
-          return _regeneratorRuntime().wrap(function _callee$(_context) {
-            while (1) switch (_context.prev = _context.next) {
-              case 0:
-                API.search(anime);
-              case 1:
-              case "end":
-                return _context.stop();
-            }
-          }, _callee);
-        })));
-        body.append(item.render(true));
+        var $item = item.render(true);
+        $item
+          .on("hover:focus", function () {
+            last = $item[0];
+            active = items.indexOf(item);
+            scroll.update(items[active] ? items[active].render(true) : last, true);
+          })
+          .on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
+            return _regeneratorRuntime().wrap(function _callee$(_context) {
+              while (1) switch (_context.prev = _context.next) {
+                case 0:
+                  API.search(anime);
+                case 1:
+                case "end":
+                  return _context.stop();
+              }
+            }, _callee);
+          })));
+        body.append($item);
         items.push(item);
       });
     };
@@ -1230,6 +1238,7 @@
     };
     this.destroy = function () {
       network.clear();
+      items.forEach(item => item.destroy());
       Lampa.Arrays.destroy(items);
       scroll.destroy();
       html.remove();
@@ -1239,61 +1248,63 @@
   }
 
   function Component() {
-    Lampa.Listener.follow("full", /*#__PURE__*/function () {
-      var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
-        var getMAL, response, dubbers, subbers, shikimoriRates;
-        return _regeneratorRuntime().wrap(function _callee$(_context) {
-          while (1) switch (_context.prev = _context.next) {
-            case 0:
-              if (!(e.type === "complite")) {
-                _context.next = 21;
-                break;
-              }
-              _context.prev = 1;
-              _context.next = 4;
-              return $.ajax({
-                url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
-                method: "GET",
-                timeout: 0
-              });
-            case 4:
-              getMAL = _context.sent;
-              if (getMAL.length) {
-                _context.next = 8;
-                break;
-              }
-              console.warn("Данные для предоставленного ID не найдены.");
-              return _context.abrupt("return");
-            case 8:
-              _context.next = 10;
-              return $.ajax({
-                url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
-                method: "GET",
-                timeout: 0
-              });
-            case 10:
-              response = _context.sent;
-              dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
-              subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
-              e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
-              shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
-              e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+    Lampa.Listener.follow("full", _asyncToGenerator(_regeneratorRuntime().mark(function _callee(e) {
+      var getMAL, response, dubbers, subbers, shikimoriRates;
+      return _regeneratorRuntime().wrap(function _callee$(_context) {
+        while (1) switch (_context.prev = _context.next) {
+          case 0:
+            if (!(e.type === "complite")) {
               _context.next = 21;
               break;
-            case 18:
-              _context.prev = 18;
-              _context.t0 = _context["catch"](1);
-              console.error("Ошибка при получении данных:", _context.t0);
-            case 21:
-            case "end":
-              return _context.stop();
-          }
-        }, _callee, null, [[1, 18]]);
-      }));
-      return function (_x) {
-        return _ref.apply(this, arguments);
-      };
-    }());
+            }
+            _context.prev = 1;
+            _context.next = 4;
+            return $.ajax({
+              url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
+              method: "GET",
+              timeout: 0
+            });
+          case 4:
+            getMAL = _context.sent;
+            if (getMAL.length) {
+              _context.next = 8;
+              break;
+            }
+            console.warn("Данные для предоставленного ID не найдены.");
+            return _context.abrupt("return");
+          case 8:
+            _context.next = 10;
+            return $.ajax({
+              url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
+              method: "GET",
+              timeout: 0
+            });
+          case 10:
+            response = _context.sent;
+            if (!(!response || !response.fandubbers || !response.fansubbers)) {
+              _context.next = 13;
+              break;
+            }
+            console.warn("Некорректный ответ от Shikimori:", response);
+            return _context.abrupt("return");
+          case 13:
+            dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
+            subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
+            e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
+            shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
+            e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+            _context.next = 21;
+            break;
+          case 18:
+            _context.prev = 18;
+            _context.t0 = _context["catch"](1);
+            console.error("Ошибка при получении данных:", _context.t0);
+          case 21:
+          case "end":
+            return _context.stop();
+        }
+      }, _callee, null, [[1, 18]]);
+    })));
   }
 
   function add() {
@@ -1350,7 +1361,15 @@
     }
   }
 
+  function ensureLampa(callback) {
+    if (window.Lampa && window.Lampa.Storage) {
+      callback();
+    } else {
+      setTimeout(() => ensureLampa(callback), 100);
+    }
+  }
+
   if (!window.plugin_shikimori_ready) {
-    startPlugin();
+    ensureLampa(startPlugin);
   }
 })();
