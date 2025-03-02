@@ -509,7 +509,7 @@
     }
 
     var query = cleanName(animeData.name || animeData.japanese);
-    var searchUrl = `https://search.htv-services.com/hanime/search?q=${encodeURIComponent(query)}`;
+    var searchUrl = `https://hanime.tv/api/v8/hentai_videos?search_text=${encodeURIComponent(query)}`;
 
     $.ajax({
         url: searchUrl,
@@ -517,7 +517,7 @@
         headers: {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'Accept': 'application/json',
-            'Referer': 'https://hanime.tv/' // Добавляем заголовок Referer
+            'Referer': 'https://hanime.tv/'
         },
         success: function(response) {
             if (response.hits && response.hits.length > 0) {
