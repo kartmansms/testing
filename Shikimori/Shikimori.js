@@ -1039,66 +1039,83 @@
     }
 
     // Компонент для расширения информации в карточке
-    function Component() {
-        Lampa.Listener.follow("full", /*#__PURE__*/function () {
-            var _ref = _asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
-                var getMAL, response, dubbers, subbers, shikimoriRates;
-                return _regeneratorRuntime().wrap(function _callee$(_context) {
-                    while (1) switch (_context.prev = _context.next) {
-                        case 0:
-                            if (!(e.type === "complite")) {
-                                _context.next = 23;
-                                break;
-                            }
-                            _context.prev = 1;
-                            _context.next = 4;
-                            return $.ajax({
-                                url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
-                                method: "GET",
-                                timeout: 0
-                            });
-                        case 4:
-                            getMAL = _context.sent;
-                            console.log('Запрос MAL по TMDB ID:', e.object.id, 'Результат:', getMAL);
-                            if (getMAL.length) {
-                                _context.next = 9;
-                                break;
-                            }
-                            console.warn("Данные для TMDB ID не найдены:", e.object.id);
-                            return _context.abrupt("return");
-                        case 9:
-                            _context.next = 11;
-                            return $.ajax({
-                                url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
-                                method: "GET",
-                                timeout: 0
-                            });
-                        case 11:
-                            response = _context.sent;
-                            console.log('Данные Shikimori для MAL ID:', getMAL[0].myanimelist, 'Результат:', response);
-                            dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
-                            subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
-                            e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
-                            shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
-                            e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
-                            _context.next = 23;
-                            break;
-                        case 20:
-                            _context.prev = 20;
-                            _context.t0 = _context["catch"](1);
-                            console.error("Ошибка при получении данных для TMDB ID:", e.object.id, _context.t0);
-                            Lampa.Noty.show('Ошибка при загрузке дополнительных данных');
-                        case 23:
-                        case "end":
-                            return _context.stop();
+   function Component() {
+    Lampa.Listener.follow("full", /*#__PURE__*/_asyncToGenerator( /*#__PURE__*/_regeneratorRuntime().mark(function _callee(e) {
+        var getMAL, response, dubbers, subbers, shikimoriRates;
+        return _regeneratorRuntime().wrap(function _callee$(_context) {
+            while (1) switch (_context.prev = _context.next) {
+                case 0:
+                    if (!(e.type === "complite")) {
+                        _context.next = 25;
+                        break;
                     }
-                }, _callee, null, [[1, 20]]);
-            }));
-            return function (_x) {
-                return _ref.apply(this, arguments);
-            };
-        }());
-    }
+                    _context.prev = 1;
+                    _context.next = 4;
+                    return $.ajax({
+                        url: "https://arm.haglund.dev/api/v2/themoviedb?id=".concat(e.object.id),
+                        method: "GET",
+                        timeout: 5000 // Увеличенный тайм-аут
+                    });
+                case 4:
+                    getMAL = _context.sent;
+                    console.log('Запрос MAL по TMDB ID:', e.object.id, 'Результат:', getMAL);
+
+                    // Проверка на пустой результат
+                    if (!getMAL || getMAL.length === 0 || !getMAL[0]?.myanimelist) {
+                        console.warn("Данные для TMDB ID не найдены или MAL ID отсутствует:", e.object.id);
+                        return _context.abrupt("return");
+                    }
+
+                    _context.next = 9;
+                    return $.ajax({
+                        url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist),
+                        method: "GET",
+                        timeout: 5000
+                    });
+                case 9:
+                    response = _context.sent;
+                    console.log('Данные Shikimori для MAL ID:', getMAL[0].myanimelist, 'Результат:', response);
+
+                    // Проверка корректности ответа от Shikimori
+                    if (!response || typeof response !== 'object') {
+                        console.error("Неверный формат ответа от Shikimori:", response);
+                        Lampa.Noty.show('Ошибка при загрузке данных Shikimori');
+                        return _context.abrupt("return");
+                    }
+
+                    // Обработка fandubbers и fansubbers с проверкой
+                    dubbers = response.fandubbers && Array.isArray(response.fandubbers) && response.fandubbers.length
+                        ? "<div class=\"full-descr__info\"><div class=\"full-descr__info-name\">Фандабберы</div><div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div></div>")
+                        : "";
+                    subbers = response.fansubbers && Array.isArray(response.fansubbers) && response.fansubbers.length
+                        ? "<div class=\"full-descr__info\"><div class=\"full-descr__info-name\">Фансабберы</div><div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div></div>")
+                        : "";
+
+                    // Добавление данных в карточку
+                    if (dubbers || subbers) {
+                        e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
+                    }
+
+                    // Проверка и добавление рейтинга
+                    if (response.score) {
+                        shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
+                        e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+                    }
+                    _context.next = 25;
+                    break;
+
+                case 20:
+                    _context.prev = 20;
+                    _context.t0 = _context["catch"](1);
+                    console.error("Ошибка при получении данных для TMDB ID:", e.object.id, _context.t0);
+                    Lampa.Noty.show('Ошибка при загрузке дополнительных данных: ' + (_context.t0.message || 'Неизвестная ошибка'));
+                case 25:
+                case "end":
+                    return _context.stop();
+            }
+        }, _callee, null, [[1, 20]]);
+    })));
+}
 
 
 	// Добавление кнопки в меню
