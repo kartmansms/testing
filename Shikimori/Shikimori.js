@@ -550,57 +550,60 @@
   };
 
   // Класс для создания карточки аниме
-  function Card(data, userLang) {
+function Card(data, userLang) {
     var typeTranslations = {
-      'tv': 'ТВ',
-      'movie': 'Фильм',
-      'ova': 'OVA',
-      'ona': 'ONA',
-      'special': 'Спешл',
-      'tv_special': 'ТВ Спешл',
-      'music': 'Музыка',
-      'pv': 'PV',
-      'cm': 'CM'
+        'tv': 'ТВ',
+        'movie': 'Фильм',
+        'ova': 'OVA',
+        'ona': 'ONA',
+        'special': 'Спешл',
+        'tv_special': 'ТВ Спешл',
+        'music': 'Музыка',
+        'pv': 'PV',
+        'cm': 'CM'
     };
 
     var statusTranslations = {
-      'anons': 'Анонс',
-      'ongoing': 'Онгоинг',
-      'released': 'Вышло'
+        'anons': 'Анонс',
+        'ongoing': 'Онгоинг',
+        'released': 'Вышло'
     };
 
     var formattedSeason = data.season ? data.season.replace(/_/g, ' ')
-      .replace(/^\w/, function (c) { return c.toUpperCase(); })
-      .replace(/(winter|spring|summer|fall)/gi, function (match) {
-        return {
-          'winter': 'Зима',
-          'spring': 'Весна',
-          'summer': 'Лето',
-          'fall': 'Осень'
-        }[match.toLowerCase()];
-      }) : '';
+        .replace(/^\w/, function (c) { return c.toUpperCase(); })
+        .replace(/(winter|spring|summer|fall)/gi, function (match) {
+            return {
+                'winter': 'Зима',
+                'spring': 'Весна',
+                'summer': 'Лето',
+                'fall': 'Осень'
+            }[match.toLowerCase()];
+        }) : '';
 
     function capitalizeFirstLetter(string) {
-      if (!string) return string;
-      return string.charAt(0).toUpperCase() + string.slice(1);
+        if (!string) return string;
+        return string.charAt(0).toUpperCase() + string.slice(1);
     }
 
+    // Используем licenseNameRu как приоритетное название, если оно есть
+    var title = data.licenseNameRu || (userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese);
+
     var item = Lampa.Template.get("Shikimori-Card", {
-      img: data.poster.originalUrl,
-      type: typeTranslations[data.kind] || data.kind.toUpperCase(),
-      status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
-      rate: data.score,
-      title: userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese,
-      season: data.season !== null ? formattedSeason : data.airedOn.year
+        img: data.poster.originalUrl,
+        type: typeTranslations[data.kind] || data.kind.toUpperCase(),
+        status: statusTranslations[data.status] || capitalizeFirstLetter(data.status),
+        rate: data.score,
+        title: title,
+        season: data.season !== null ? formattedSeason : data.airedOn.year
     });
 
     this.render = function () {
-      return item;
+        return item;
     };
     this.destroy = function () {
-      item.remove();
+        item.remove();
     };
-  }
+}
 
   // Основной компонент для отображения каталога
   function Component$1(object) {
