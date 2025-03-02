@@ -500,13 +500,11 @@
             Lampa.Noty.show('Результатов в TMDB не найдено, пробую японское название');
             searchTmdb(fallbackQuery, handleFallbackResponse);
         } else {
-            Lampa.Noty.show('Найдены результаты в TMDB, обрабатываю');
             processResults(tmdbResponse);
         }
     }
 
     function handleFallbackResponse(fallbackResponse) {
-        Lampa.Noty.show('Обработка результатов по японскому названию');
         processResults(fallbackResponse);
     }
 
@@ -550,7 +548,6 @@
                 });
             }
         } else {
-            Lampa.Noty.show('Получены данные по ID, открываю карточку');
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
