@@ -497,7 +497,6 @@
                 Lampa.Noty.show('TMDB: Контент с ID ' + id + ' не найден (' + response.status_message + ')');
                 console.error('TMDB ошибка:', response.status_message);
             } else {
-                Lampa.Noty.show('Данные с TMDB успешно получены для ID ' + id);
                 callback(response);
             }
         }).fail(function (jqXHR) {
