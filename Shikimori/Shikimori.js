@@ -526,7 +526,6 @@
             if (response.total_results === 0) {
                 Lampa.Noty.show('Не смог найти ничего подходящего');
             } else if (response.total_results === 1) {
-                Lampa.Noty.show('Найден 1 результат, открываю карточку');
                 Lampa.Activity.push({
                     url: '',
                     component: 'full',
