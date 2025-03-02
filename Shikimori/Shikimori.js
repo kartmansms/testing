@@ -444,13 +444,11 @@
 
     $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
         if (response === null) {
-            Lampa.Noty.show('Шаг #1: Данные по MAL ID не найдены, ищу по названию в TMDB');
             console.log('Мы здесь шаг#1');
             searchTmdb(animeData.name, function (tmdbResponse) {
                 handleTmdbResponse(tmdbResponse, animeData.japanese);
             });
         } else if (response.themoviedb === null) {
-            Lampa.Noty.show('Шаг #2: TMDB ID отсутствует, ищу по названию в TMDB');
             console.log('Мы здесь шаг#2');
             searchTmdb(animeData.name, function (tmdbResponse) {
                 handleTmdbResponse(tmdbResponse, animeData.japanese);
@@ -461,7 +459,6 @@
         }
     }).fail(function (jqXHR) {
         if (jqXHR.status === 404) {
-            Lampa.Noty.show('Ошибка 404: ID не найден, ищу по названию в TMDB');
             searchTmdb(animeData.name, function (tmdbResponse) {
                 handleTmdbResponse(tmdbResponse, animeData.japanese);
             });
