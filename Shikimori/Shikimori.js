@@ -509,7 +509,7 @@
     }
 
     var query = cleanName(animeData.name || animeData.japanese);
-    var searchUrl = `https://hanime.tv/api/v8/hentai_videos?search_text=${encodeURIComponent(query)}`;
+    var searchUrl = `https://search.htv-services.com/v2/search?q=${encodeURIComponent(query)}`;
 
     $.ajax({
         url: searchUrl,
