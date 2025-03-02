@@ -502,35 +502,38 @@
   // Новая функция для поиска на hanime.tv
   function searchHanime(animeData, callback) {
     function cleanName(name) {
-      var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-      var cleanedName = name.replace(regex, '').trim();
-      cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
-      return cleanedName;
+        var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
+        var cleanedName = name.replace(regex, '').trim();
+        cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
+        return cleanedName;
     }
 
     var query = cleanName(animeData.name || animeData.japanese);
-    // Примерный endpoint, нужно заменить на реальный или парсить HTML
     var searchUrl = `https://search.htv-services.com/hanime/search?q=${encodeURIComponent(query)}`;
 
     $.ajax({
-      url: searchUrl,
-      method: 'GET',
-      success: function(response) {
-        if (response.hits && response.hits.length > 0) {
-          var videoSlug = response.hits[0].slug;
-          var videoUrl = `https://hanime.tv/videos/hentai/${videoSlug}`;
-          callback({ url: videoUrl, title: response.hits[0].name });
-        } else {
-          callback(null);
+        url: searchUrl,
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'application/json'
+        },
+        success: function(response) {
+            if (response.hits && response.hits.length > 0) {
+                var videoSlug = response.hits[0].slug;
+                var videoUrl = `https://hanime.tv/videos/hentai/${videoSlug}`;
+                callback({ url: videoUrl, title: response.hits[0].name });
+            } else {
+                callback(null);
+            }
+        },
+        error: function(jqXHR) {
+            console.error('Ошибка при поиске на hanime.tv:', jqXHR.status, jqXHR.responseText);
+            Lampa.Noty.show('Ошибка поиска на hanime.tv: ' + jqXHR.status);
+            callback(null);
         }
-      },
-      error: function(jqXHR) {
-        console.error('Ошибка при поиске на hanime.tv:', jqXHR.status, jqXHR.responseText);
-        Lampa.Noty.show('Ошибка поиска на hanime.tv: ' + jqXHR.status);
-        callback(null);
-      }
     });
-  }
+}
 
   var API = {
     main: main,
