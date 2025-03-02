@@ -401,7 +401,6 @@
   function main(params, oncomplite, onerror) {
     $(document).ready(function () {
       var query = "\n	query Animes {\n	animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n	");
-
       if (params.kind) {
         query += ", kind: \"".concat(params.kind, "\"");
       }
@@ -414,7 +413,6 @@
       if (params.seasons) {
         query += ", season: \"".concat(params.seasons, "\"");
       }
-
       query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
 	  
       $.ajax({
@@ -428,7 +426,7 @@
           oncomplite(response.data.animes);
         },
         error: function error(_error) {
-          console.error('Ошибка:', _error);
+          console.error('Ошибка при выполнении запроса к Shikimori API:', _error);
           onerror(_error);
         }
       });
@@ -473,7 +471,9 @@
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "search/multi?api_key=".concat(apiKey, "&language=").concat(Lampa.Storage.field('language'), "&include_adult=true&query=").concat(cleanName(query));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback).fail(function (jqXHR) {
+        console.error('Ошибка при поиске в TMDB:', jqXHR.status);
+      });
     }
 	
     function getTmdb(id) {
@@ -483,7 +483,9 @@
       var apiUrlTMDB = 'https://api.themoviedb.org/3/';
       var apiUrlProxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
       var request = "".concat(type, "/").concat(id, "?api_key=").concat(apiKey, "&language=").concat(Lampa.Storage.field('language'));
-      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback);
+      $.get(Lampa.Storage.field('proxy_tmdb') ? Lampa.Utils.protocol() + apiUrlProxy + request : apiUrlTMDB + request, callback).fail(function (jqXHR) {
+        console.error('Ошибка при получении данных с TMDB:', jqXHR.status);
+      });
     }
 	
     function handleTmdbResponse(tmdbResponse, fallbackQuery) {
@@ -712,6 +714,8 @@ function Card(data, userLang) {
           title: 'Жанр',
           items: filteredResponse
         };
+      }).fail(function (jqXHR) {
+        console.error('Ошибка при получении жанров с Shikimori API:', jqXHR.status);
       });
       filters.AnimeKindEnum = {
         title: 'Тип',
@@ -1053,6 +1057,7 @@ function Card(data, userLang) {
       };
     }());
   }
+
 
 	// Добавление кнопки в меню
   function add() {
