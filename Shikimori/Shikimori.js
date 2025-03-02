@@ -456,7 +456,6 @@
                 handleTmdbResponse(tmdbResponse, animeData.japanese);
             });
         } else {
-            Lampa.Noty.show('Шаг #3: Найден TMDB ID ' + response.themoviedb + ', получаю данные');
             console.log('Мы здесь шаг#3', animeData.kind, 'TMDB ID:', response.themoviedb);
             getTmdb(response.themoviedb, animeData.kind, processResults);
         }
@@ -562,7 +561,6 @@
                 });
             }
         } else {
-            Lampa.Noty.show('Получены данные по ID, открываю карточку');
             Lampa.Activity.push({
                 url: '',
                 component: 'full',
