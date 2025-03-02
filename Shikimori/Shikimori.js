@@ -510,7 +510,6 @@
             Lampa.Noty.show('Результатов в TMDB не найдено, пробую японское название');
             searchTmdb(fallbackQuery, handleFallbackResponse);
         } else {
-            Lampa.Noty.show('Найдены результаты в TMDB, обрабатываю (' + tmdbResponse.total_results + ')');
             processResults(tmdbResponse);
         }
     }
