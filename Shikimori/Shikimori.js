@@ -827,27 +827,40 @@
           code: "ranked_shiki"
         }]
       };
-      function getCurrentSeason(date) {
-        var month = date.getMonth();
-        var year = date.getFullYear();
-        var seasons = ['winter', 'spring', 'summer', 'fall'];
-        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
-        var seasonIndex = Math.floor((month + 1) / 3) % 4;
-        return {
-          code: `${seasons[seasonIndex]}_${year}`,
-          title: `${seasonTitles[seasonIndex]} ${year}`
-        };
-      }
-      function generateDynamicSeasons() {
-        var now = new Date();
-        var seasons = [];
-        for (var i = 1; i >= -3; i--) {
-          var nextDate = new Date(now);
-          nextDate.setMonth(now.getMonth() + 3 * i);
-          seasons.push(getCurrentSeason(nextDate));
-        }
-        return seasons;
-      }
+    function getCurrentSeason(date) {
+  var month = date.getMonth(); // 0 - январь, 11 - декабрь
+  var year = date.getFullYear();
+  var seasons = ['winter', 'spring', 'summer', 'fall'];
+  var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
+  var seasonIndex = Math.floor(month / 3); // Делим год на 4 сезона
+  // Корректируем год для зимы (декабрь относится к следующему году)
+  if (seasonIndex === 0 && month === 11) {
+    year += 1; // Декабрь — это зима следующего года
+  } else if (seasonIndex === 0) {
+    // Январь и февраль — зима текущего года
+    year -= 1; // Корректировка для зимы предыдущего года
+    seasonIndex = 0;
+  } else {
+    seasonIndex = Math.min(seasonIndex, 3); // Ограничиваем индекс
+  }
+  return {
+    code: `${seasons[seasonIndex]}_${year}`,
+    title: `${seasonTitles[seasonIndex]} ${year}`
+  };
+}
+
+// Генерация динамических сезонов
+function generateDynamicSeasons() {
+  var now = new Date(2025, 2, 21); // Устанавливаем 21 марта 2025 для теста
+  var seasons = [];
+  // Генерируем сезоны: текущий + 1 вперед и 3 назад
+  for (var i = 1; i >= -3; i--) {
+    var nextDate = new Date(now);
+    nextDate.setMonth(now.getMonth() + 3 * i);
+    seasons.push(getCurrentSeason(nextDate));
+  }
+  return seasons;
+}
 function generateYearRanges() {
   var currentYear = new Date().getFullYear();
   var ranges = [];
