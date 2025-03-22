@@ -827,38 +827,54 @@
           code: "ranked_shiki"
         }]
       };
-  function getCurrentSeason() {
-        var now = new Date();
-        var month = now.getMonth();
-        var year = now.getFullYear();
+   function getCurrentSeason(date) {
+        var month = date.getMonth();
+        var year = date.getFullYear();
         var seasons = ['winter', 'spring', 'summer', 'fall'];
-		var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
-        var seasonIndex = (month + 1) % 12 === 0 ? 0 : Math.floor((month + 1) / 3);
-        return "".concat(seasons[seasonIndex], "_").concat(month === 11 ? year + 1 : year);
+        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
+        var seasonIndex = Math.floor((month + 1) / 3) % 4;
+        return {
+          code: `${seasons[seasonIndex]}_${year}`,
+          title: `${seasonTitles[seasonIndex]} ${year}`
+        };
       }
       function generateDynamicSeasons() {
         var now = new Date();
-        var seasons = new Set([getCurrentSeason()]);
-
-        for (var i = 1; i <= 3; i++) {
+        var seasons = [];
+        for (var i = 1; i >= -3; i--) {
           var nextDate = new Date(now);
           nextDate.setMonth(now.getMonth() + 3 * i);
-          seasons.add(getCurrentSeason());
+          seasons.push(getCurrentSeason(nextDate));
         }
-        return Array.from(seasons);
+        return seasons;
       }
       function generateYearRanges() {
-        var currentYear = new Date().getFullYear();
-        var ranges = [];
+  var currentYear = new Date().getFullYear();
+  var ranges = [];
 
-        for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
-          var endYear = Math.max(startYear - 9, 2000);
-          ranges.push("".concat(endYear, "_").concat(startYear));
-        }
+	// Добавляем текущий год и предыдущие 3 года
+  for (var year = currentYear; year >= currentYear - 3; year--) {
+    ranges.push({
+      code: `${year}`,
+      title: `${year} год`
+    });
+  }
 
-        ranges.push("199x", "198x", "ancient");
-        return ranges;
-      }
+	// Генерируем диапазоны по 5 лет, начиная с текущего года
+  for (var startYear = currentYear; startYear >= currentYear-20; startYear -= 5) {
+    var endYear = startYear - 5;
+    // Проверка на корректность диапазона
+    if (endYear <= startYear) {
+      ranges.push({
+        code: `${endYear}_${startYear}`,
+        title: `${startYear}–${endYear} год`
+      });
+    }
+    // Прерываем цикл, если достигли currentYear-20
+    if (endYear === currentYear-20) break;
+  }
+  return ranges;
+}
       function generateSeasonJSON() {
         var dynamicSeasons = generateDynamicSeasons();
         var yearRanges = generateYearRanges();
