@@ -832,7 +832,8 @@
         var month = now.getMonth();
         var year = now.getFullYear();
         var seasons = ['winter', 'spring', 'summer', 'fall'];
-        var seasonIndex = (month + 1) % 12 === 0 ? 0 : Math.floor((month + 1) / 3); // Визначення індексу сезону
+		var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
+        var seasonIndex = (month + 1) % 12 === 0 ? 0 : Math.floor((month + 1) / 3);
         return "".concat(seasons[seasonIndex], "_").concat(month === 11 ? year + 1 : year);
       }
       function generateDynamicSeasons() {
