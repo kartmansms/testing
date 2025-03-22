@@ -827,33 +827,9 @@
           code: "ranked_shiki"
         }]
       };
-   function getCurrentSeason(date) {
-        var month = date.getMonth();
-        var year = date.getFullYear();
-        var seasons = ['winter', 'spring', 'summer', 'fall'];
-        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
-        var seasonIndex = Math.floor((month + 1) / 3) % 4;
-        return {
-          code: `${seasons[seasonIndex]}_${year}`,
-          title: `${seasonTitles[seasonIndex]} ${year}`
-        };
-      }
-      function generateDynamicSeasons() {
-        var now = new Date();
-        var seasons = [];
-        for (var i = 1; i >= -3; i--) {
-          var nextDate = new Date(now);
-          nextDate.setMonth(now.getMonth() + 3 * i);
-          seasons.push(getCurrentSeason(nextDate));
-        }
-        return seasons;
-      }
-      function generateYearRanges() {
-  var currentYear = new Date().getFullYear();
-  var ranges = [];
 
-	// Добавляем текущий год и предыдущие 3 года
-  for (var year = currentYear; year >= currentYear - 3; year--) {
+	// Добавляем текущий год и предыдущие 4 года
+  for (var year = currentYear; year >= currentYear - 4; year--) {
     ranges.push({
       code: `${year}`,
       title: `${year} год`
