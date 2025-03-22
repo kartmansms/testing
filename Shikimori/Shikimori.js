@@ -853,16 +853,43 @@
             };
 
             function generateDynamicSeasons() {
-                var seasons = [];
-                var seasonsOrder = ['winter', 'spring', 'summer', 'fall'];
-                seasonsOrder.forEach(function (season) {
-                    seasons.push({
-                        code: season + '_' + currentYear,
-                        title: season.charAt(0).toUpperCase() + season.slice(1) + ' ' + currentYear
-                    });
-                });
-                return seasons;
-            }
+    // Массив для хранения результата (будет содержать только один сезон)
+    var seasons = [];
+    
+    // Определяем текущую дату
+    var currentDate = new Date();
+    var currentYear = currentDate.getFullYear();
+    var currentMonth = currentDate.getMonth(); // 0-11 (январь - декабрь)
+
+    // Определяем текущий сезон на основе месяца
+    var season;
+    if (currentMonth >= 0 && currentMonth <= 1 || currentMonth === 11) {
+        // Зима: декабрь (11), январь (0), февраль (1)
+        season = 'winter';
+    } else if (currentMonth >= 2 && currentMonth <= 4) {
+        // Весна: март (2), апрель (3), май (4)
+        season = 'spring';
+    } else if (currentMonth >= 5 && currentMonth <= 7) {
+        // Лето: июнь (5), июль (6), август (7)
+        season = 'summer';
+    } else if (currentMonth >= 8 && currentMonth <= 10) {
+        // Осень: сентябрь (8), октябрь (9), ноябрь (10)
+        season = 'fall';
+    }
+
+    // Формируем объект только для текущего сезона
+    seasons.push({
+        code: season + '_' + currentYear,
+        title: season.charAt(0).toUpperCase() + season.slice(1) + ' ' + currentYear
+    });
+
+    // Возвращаем массив с одним элементом - текущим сезоном
+    return seasons;
+}
+
+// Пример использования и проверки результата
+var result = generateDynamicSeasons();
+console.log(result);
 
             function generateYearRanges() {
                 var ranges = [];
