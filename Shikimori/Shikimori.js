@@ -827,34 +827,37 @@
           code: "ranked_shiki"
         }]
       };
-      function getCurrentSeason(date) {
-        var month = date.getMonth();
-        var year = date.getFullYear();
+  function getCurrentSeason() {
+        var now = new Date();
+        var month = now.getMonth();
+        var year = now.getFullYear();
         var seasons = ['winter', 'spring', 'summer', 'fall'];
-        var seasonTitles = ['Зима', 'Весна', 'Лето', 'Осень'];
-        var seasonIndex = Math.floor((month + 1) / 3) % 4;
-        return {
-          code: `${seasons[seasonIndex]}_${year}`,
-          title: `${seasonTitles[seasonIndex]} ${year}`
-        };
+        var seasonIndex = (month + 1) % 12 === 0 ? 0 : Math.floor((month + 1) / 3); // Визначення індексу сезону
+        return "".concat(seasons[seasonIndex], "_").concat(month === 11 ? year + 1 : year);
       }
-function generateYearRanges() {
-  var currentYear = new Date().getFullYear();
-  var ranges = [];
+      function generateDynamicSeasons() {
+        var now = new Date();
+        var seasons = new Set([getCurrentSeason()]);
 
-  // Текущий год и предыдущие 3 года
-  for (var year = currentYear; year >= currentYear - 3; year--) {
-    ranges.push({ code: `${year}`, title: `${year} год` });
-  }
+        for (var i = 1; i <= 3; i++) {
+          var nextDate = new Date(now);
+          nextDate.setMonth(now.getMonth() + 3 * i);
+          seasons.add(getCurrentSeason());
+        }
+        return Array.from(seasons);
+      }
+      function generateYearRanges() {
+        var currentYear = new Date().getFullYear();
+        var ranges = [];
 
-  // Диапазоны по 5 лет
-  for (var startYear = currentYear - 4; startYear >= currentYear - 20; startYear -= 5) {
-    var endYear = startYear - 4;
-    ranges.push({ code: `${endYear}_${startYear}`, title: `${startYear}–${endYear} год` });
-  }
+        for (var startYear = currentYear; startYear >= 2000; startYear -= 10) {
+          var endYear = Math.max(startYear - 9, 2000);
+          ranges.push("".concat(endYear, "_").concat(startYear));
+        }
 
-  return ranges;
-}
+        ranges.push("199x", "198x", "ancient");
+        return ranges;
+      }
       function generateSeasonJSON() {
         var dynamicSeasons = generateDynamicSeasons();
         var yearRanges = generateYearRanges();
