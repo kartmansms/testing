@@ -2,6 +2,14 @@
     'use strict';
     Lampa.Platform.tv();
 
+    // Черный список доменов из лога
+    const BLACKLISTED_DOMAINS = [
+        'lampa.line.pm', 'xabb.ru/h.js', 'ebu.land', 'abu.land', 'lampa32.github.io/torrserverjs',
+        'abmsx.tech/torrserver.js', 'cxlampa.github.io/cub_off.js', 'lampatv.fun', 'xiaomishka.github.io',
+        'uspeh.sbs/app.js', 'andreyrul54.github.io', 'lpp.xyz', 'llpp.xyz', 'scabrum.github.io',
+        'bylampa.github.io', 'tinyurl.com', 't.me', '4pd.a', 'teletype.in', 'youtube.com'
+    ];
+
     // Объект для управления данными в localStorage
     const FavoriteStorage = {
         key: 'favorite',
@@ -9,7 +17,7 @@
             try {
                 return JSON.parse(localStorage.getItem(this.key) || '{}');
             } catch (e) {
-                console.error('Ошибка при загрузке данных из localStorage:', e);
+                console.error('[MyBookmarks] Ошибка при загрузке данных из localStorage:', e);
                 return {};
             }
         },
@@ -17,8 +25,9 @@
             try {
                 localStorage.setItem(this.key, JSON.stringify(data));
                 Lampa.Favorite.init();
+                console.log('[MyBookmarks] Данные успешно сохранены в localStorage');
             } catch (e) {
-                console.error('Ошибка при сохранении данных в localStorage:', e);
+                console.error('[MyBookmarks] Ошибка при сохранении данных в localStorage:', e);
             }
         },
         addItem(category, id, cardData) {
@@ -26,6 +35,7 @@
             data.registerItems = data.registerItems || [];
             if (!data.registerItems.includes(category)) {
                 data.registerItems.unshift(category);
+                console.log(`[MyBookmarks] Добавлена новая категория: ${category}`);
             }
             data.counters = data.counters || {};
             data.counters[category] = (data.counters[category] || 0) + 1;
@@ -33,12 +43,14 @@
                 data.card = data.card || [];
                 if (!data.card.some(card => card.id === cardData.id)) {
                     data.card.push(cardData);
+                    console.log(`[MyBookmarks] Добавлена карточка с ID: ${cardData.id}`);
                 }
             }
             if (id) {
                 data[category] = data[category] || [];
                 if (!data[category].includes(id)) {
                     data[category].unshift(id);
+                    console.log(`[MyBookmarks] Добавлен ID ${id} в категорию ${category}`);
                 }
             }
             this.set(data);
@@ -47,6 +59,7 @@
             const data = this.get();
             if (data.registerItems) {
                 data.registerItems = data.registerItems.filter(item => item !== category);
+                console.log(`[MyBookmarks] Удалена категория: ${category}`);
             }
             if (data.checkedItems && data.checkedItems[category]) {
                 delete data.checkedItems[category];
@@ -57,6 +70,7 @@
             }
             if (id && data[category]) {
                 data[category] = data[category].filter(itemId => itemId !== id);
+                console.log(`[MyBookmarks] Удален ID ${id} из категории ${category}`);
             }
             this.set(data);
         },
@@ -66,8 +80,26 @@
             data.checkedItems[category] = data.checkedItems[category] || {};
             data.checkedItems[category][id] = isChecked;
             this.set(data);
+        },
+        clearCache() {
+            localStorage.removeItem(this.key);
+            console.log('[MyBookmarks] Кэш плагина очищен');
         }
     };
+
+    // Проверка URL на черный список
+    function isBlacklisted(url) {
+        return BLACKLISTED_DOMAINS.some(domain => url.includes(domain));
+    }
+
+    // Проверка URL плагина
+    const PLUGIN_URL = 'https://kartmansms.github.io/testing/my_bookmarks.js';
+    if (isBlacklisted(PLUGIN_URL)) {
+        console.error('[MyBookmarks] Плагин загружается из черного списка доменов. Загрузка отменена.');
+        return;
+    } else {
+        console.log('[MyBookmarks] Плагин успешно прошел проверку черного списка');
+    }
 
     // Кэшированные селекторы
     const $cards = $('.card');
@@ -76,6 +108,7 @@
 
     // Инициализация плагина
     function initializePlugin() {
+        console.log('[MyBookmarks] Инициализация плагина...');
         setupEventListeners();
         if (window.appready) {
             loadFavorites();
@@ -86,12 +119,24 @@
         }
     }
 
-    // Настройка слушателей событий
+    // Настройка слушателей событий с проверкой на конфликты
     function setupEventListeners() {
+        const events = ['toggle', 'line', 'full'];
+        events.forEach(event => {
+            if (Lampa.Listener._events[event]?.length > 0) {
+                console.warn(`[MyBookmarks] Обнаружены существующие обработчики для события ${event}. Возможны конфликты.`);
+            }
+        });
+
         Lampa.Listener.follow('toggle', handleToggleEvent);
         Lampa.Listener.follow('line', handleLineEvent);
         Lampa.Listener.follow('full', handleFullEvent);
         Lampa.Storage.listener.follow('change', handleStorageChange);
+
+        // Добавление команды очистки кэша
+        Lampa.Listener.follow('clear', () => {
+            FavoriteStorage.clearCache();
+        });
     }
 
     // Проверка активной категории
@@ -103,17 +148,17 @@
     // Обработка события toggle
     function handleToggleEvent(e) {
         if (!isActiveCategory('category_full')) return;
-        console.log('Начинаем обработку события toggle с типом select');
-        $cards.on('hover:long', function () {
+        console.log('[MyBookmarks] Начинаем обработку события toggle с типом select');
+        $cards.off('hover:long').on('hover:long', function () {
             const $card = $(this);
             const index = $cards.index($card);
             const id = $cards[index].card_data.id;
             const cardData = $cards[index].card_data;
-            console.log('Долгое нажатие на элемент, id:', id, 'и данные карты:', cardData);
+            console.log(`[MyBookmarks] Долгое нажатие на элемент, id: ${id}, данные карты:`, cardData);
             if ($('.selectbox__title').text() === 'Действие') {
                 showFavoriteOptions(id, cardData, index);
             } else {
-                console.log('Заголовок селектора не совпадает с "Действие"');
+                console.log('[MyBookmarks] Заголовок селектора не совпадает с "Действие"');
             }
         });
     }
@@ -121,7 +166,8 @@
     // Обработка события line
     function handleLineEvent(e) {
         if (!e.items) return;
-        $cards.on('hover:long', function () {
+        console.log('[MyBookmarks] Обработка события line');
+        $cards.off('hover:long').on('hover:long', function () {
             const $card = $(this);
             const index = $cards.index($card);
             const id = $cards[index].card_data.id;
@@ -135,7 +181,8 @@
     // Обработка события full
     function handleFullEvent(e) {
         if (e.type !== 'complite') return;
-        $('.button--book').on('hover:enter', function () {
+        console.log('[MyBookmarks] Обработка события full');
+        $('.button--book').off('hover:enter').on('hover:enter', function () {
             const title = $('.selectbox__title').text();
             if (title === 'Действие' || title === 'Избранное') {
                 const cardJson = localStorage.getItem('activity');
@@ -150,6 +197,7 @@
     // Обработка изменения Storage
     function handleStorageChange(e) {
         if (e.name !== 'activity' || !isActiveCategory('bookmarks')) return;
+        console.log('[MyBookmarks] Обнаружено изменение в Storage, обновляем избранное');
         loadFavorites();
         Lampa.Controller.toggle('content');
     }
@@ -158,13 +206,13 @@
     function showFavoriteOptions(id, cardData, cardIndex = null) {
         const data = FavoriteStorage.get();
         const items = data.registerItems || [];
-        console.log('Избранные элементы:', items);
+        console.log('[MyBookmarks] Избранные элементы:', items);
 
         const $bookmarkItem = $selectbox.find('.selectbox-item__title').filter((_, el) => $(el).text() === 'Закладки');
         items.forEach(category => {
             const $existingItem = $selectbox.find('.selectbox-item__title').filter((_, el) => $(el).text() === category);
             if ($existingItem.length === 0) {
-                console.log('Элемент не существует, создаем новый:', category);
+                console.log(`[MyBookmarks] Элемент не существует, создаем новый: ${category}`);
                 const $newItem = $(`
                     <div class="selectbox-item selector">
                         <div class="selectbox-item__title">${category}</div>
@@ -175,7 +223,7 @@
                 $newItem.on('hover:enter', () => toggleFavoriteItem(category, id, cardData, $newItem));
                 checkIfPreviouslySelected(category, id, $newItem);
             } else {
-                console.log('Элемент уже существует:', category);
+                console.log(`[MyBookmarks] Элемент уже существует: ${category}`);
             }
         });
 
@@ -186,7 +234,7 @@
             if ($selectors.length > 0) {
                 Lampa.Controller.focus($selectors.get(0));
                 Navigator.focus($selectors.get(0));
-                console.log('Фокус установлен на первый элемент в селекторе');
+                console.log('[MyBookmarks] Фокус установлен на первый элемент в селекторе');
             }
         }, 10);
     }
@@ -197,7 +245,7 @@
         const checkedItems = data.checkedItems || {};
         if (checkedItems[category] && checkedItems[category][id]) {
             $item.addClass('selectbox-item--checked');
-            console.log('Элемент был отмечен ранее:', category);
+            console.log(`[MyBookmarks] Элемент был отмечен ранее: ${category}`);
         }
     }
 
@@ -213,11 +261,12 @@
             FavoriteStorage.toggleChecked(category, id, false);
             FavoriteStorage.removeItem(category, id);
         }
-        console.log('Нажат пункт:', category);
+        console.log(`[MyBookmarks] Нажат пункт: ${category}`);
     }
 
     // Загрузка избранного
     function loadFavorites() {
+        console.log('[MyBookmarks] Загрузка избранного...');
         const data = FavoriteStorage.get();
         const items = data.registerItems || [];
         items.forEach(item => renderFavoriteItem(item, data.counters?.[item] || 0));
@@ -236,12 +285,14 @@
 
     // Создание нового элемента избранного
     function createNewFavorite() {
+        console.log('[MyBookmarks] Создание новой категории...');
         Lampa.Input.edit({ title: 'Укажите название', value: '', free: true }, (newName) => {
-            if (newName && $(`.(register__name:contains("${newName}")`).length === 0) {
+            if (newName && $(`.register__name:contains("${newName}")`).length === 0) {
                 renderFavoriteItem(newName, 0);
                 FavoriteStorage.addItem(newName);
                 const $newItem = $(`.register__name:contains("${newName}")`).closest('.register');
                 $newItem.find('.register__counter').text('0');
+                console.log(`[MyBookmarks] Создана новая категория: ${newName}`);
             }
             Lampa.Controller.toggle('content');
         });
@@ -260,11 +311,21 @@
             $item.remove();
             FavoriteStorage.removeItem(name);
             Lampa.Controller.toggle('content');
+            console.log(`[MyBookmarks] Удалена категория: ${name}`);
         });
         $item.on('hover:enter', () => {
             Lampa.Activity.push({ url: '', title: name, component: 'favorite', type: name, page: 1 });
+            console.log(`[MyBookmarks] Открыта категория: ${name}`);
         });
     }
+
+    // Поддержка модификации плагина
+    Lampa.Listener.follow('modify', (e) => {
+        if (e.url === PLUGIN_URL) {
+            console.log('[MyBookmarks] Плагин модифицирован:', e);
+            e.status = 1; // Устанавливаем статус модификации
+        }
+    });
 
     // Инициализация
     initializePlugin();
