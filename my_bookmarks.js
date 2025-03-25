@@ -2,20 +2,30 @@
     'use strict';
     Lampa.Platform.tv();
 
-    // Черный список доменов
-    const BLACKLISTED_DOMAINS = [
+    // Версия плагина
+    const PLUGIN_VERSION = '1.0.1';
+    console.log(`[MyBookmarks] Загрузка плагина версии ${PLUGIN_VERSION}`);
+
+    // Черный список доменов (преобразуем в Set для оптимизации поиска)
+    const BLACKLISTED_DOMAINS = new Set([
         'lampa.line.pm', 'xabb.ru/h.js', 'ebu.land', 'abu.land', 'lampa32.github.io/torrserverjs',
         'abmsx.tech/torrserver.js', 'cxlampa.github.io/cub_off.js', 'lampatv.fun', 'xiaomishka.github.io',
         'uspeh.sbs/app.js', 'andreyrul54.github.io', 'lpp.xyz', 'llpp.xyz', 'scabrum.github.io',
         'bylampa.github.io', 'tinyurl.com', 't.me', '4pd.a', 'teletype.in', 'youtube.com'
-    ];
+    ]);
 
     // Объект для управления данными в localStorage
     const FavoriteStorage = {
         key: 'favorite',
         get() {
             try {
-                return JSON.parse(localStorage.getItem(this.key) || '{}');
+                const data = JSON.parse(localStorage.getItem(this.key) || '{}');
+                // Валидация данных
+                if (!data || typeof data !== 'object') {
+                    console.warn('[MyBookmarks] Данные в localStorage некорректны, возвращаем пустой объект');
+                    return {};
+                }
+                return data;
             } catch (e) {
                 console.error('[MyBookmarks] Ошибка при загрузке данных из localStorage:', e);
                 return {};
@@ -23,6 +33,11 @@
         },
         set(data) {
             try {
+                // Валидация перед сохранением
+                if (!data || typeof data !== 'object') {
+                    console.error('[MyBookmarks] Попытка сохранить некорректные данные в localStorage:', data);
+                    return;
+                }
                 localStorage.setItem(this.key, JSON.stringify(data));
                 Lampa.Favorite.init();
                 console.log('[MyBookmarks] Данные успешно сохранены в localStorage');
@@ -89,7 +104,7 @@
 
     // Проверка URL на черный список
     function isBlacklisted(url) {
-        return BLACKLISTED_DOMAINS.some(domain => url.includes(domain));
+        return BLACKLISTED_DOMAINS.has(new URL(url).hostname);
     }
 
     // Проверка URL плагина
@@ -120,13 +135,12 @@
                     callback();
                 }
             }, 100);
-            // Таймаут на случай, если Lampa так и не загрузится
             setTimeout(() => {
                 if (!Lampa?.Listener) {
                     clearInterval(interval);
                     console.error('[MyBookmarks] Lampa.Listener так и не стал доступен. Плагин не может быть инициализирован.');
                 }
-            }, 10000); // 10 секунд ожидания
+            }, 10000);
         }
     }
 
@@ -163,15 +177,18 @@
             Lampa.Listener.follow('line', handleLineEvent);
             Lampa.Listener.follow('full', handleFullEvent);
             Lampa.Storage.listener.follow('change', handleStorageChange);
-            // Добавление команды очистки кэша
             Lampa.Listener.follow('clear', () => {
                 FavoriteStorage.clearCache();
             });
-            // Поддержка модификации плагина
             Lampa.Listener.follow('modify', (e) => {
                 if (e.url === PLUGIN_URL) {
-                    console.log('[MyBookmarks] Плагин модифицирован:', e);
-                    e.status = 1; // Устанавливаем статус модификации
+                    if (e.status === 1) {
+                        console.log('[MyBookmarks] Плагин успешно модифицирован:', e);
+                    } else {
+                        console.warn('[MyBookmarks] Не удалось модифицировать плагин, статус:', e.status);
+                        // Механизм отката (можно расширить)
+                        console.log('[MyBookmarks] Откат к предыдущей версии не реализован');
+                    }
                 }
             });
             console.log('[MyBookmarks] Слушатели событий успешно установлены');
