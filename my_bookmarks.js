@@ -2,7 +2,7 @@
     'use strict';
     Lampa.Platform.tv();
 
-    // Черный список доменов из лога
+    // Черный список доменов
     const BLACKLISTED_DOMAINS = [
         'lampa.line.pm', 'xabb.ru/h.js', 'ebu.land', 'abu.land', 'lampa32.github.io/torrserverjs',
         'abmsx.tech/torrserver.js', 'cxlampa.github.io/cub_off.js', 'lampatv.fun', 'xiaomishka.github.io',
@@ -106,37 +106,78 @@
     const $selectbox = $('body > .selectbox');
     const $registerContainer = $('.register:first');
 
+    // Проверка доступности Lampa.Listener
+    function waitForLampaListener(callback) {
+        if (typeof Lampa !== 'undefined' && Lampa.Listener) {
+            console.log('[MyBookmarks] Lampa.Listener доступен, продолжаем инициализацию');
+            callback();
+        } else {
+            console.warn('[MyBookmarks] Lampa.Listener недоступен, ждем инициализации...');
+            const interval = setInterval(() => {
+                if (typeof Lampa !== 'undefined' && Lampa.Listener) {
+                    clearInterval(interval);
+                    console.log('[MyBookmarks] Lampa.Listener стал доступен, продолжаем инициализацию');
+                    callback();
+                }
+            }, 100);
+            // Таймаут на случай, если Lampa так и не загрузится
+            setTimeout(() => {
+                if (!Lampa?.Listener) {
+                    clearInterval(interval);
+                    console.error('[MyBookmarks] Lampa.Listener так и не стал доступен. Плагин не может быть инициализирован.');
+                }
+            }, 10000); // 10 секунд ожидания
+        }
+    }
+
     // Инициализация плагина
     function initializePlugin() {
         console.log('[MyBookmarks] Инициализация плагина...');
-        setupEventListeners();
-        if (window.appready) {
-            loadFavorites();
-        } else {
-            Lampa.Listener.follow('app', e => {
-                if (e.type === 'ready') loadFavorites();
-            });
-        }
+        waitForLampaListener(() => {
+            try {
+                setupEventListeners();
+                if (window.appready) {
+                    loadFavorites();
+                } else {
+                    Lampa.Listener.follow('app', e => {
+                        if (e.type === 'ready') loadFavorites();
+                    });
+                }
+            } catch (e) {
+                console.error('[MyBookmarks] Ошибка при инициализации плагина:', e);
+            }
+        });
     }
 
     // Настройка слушателей событий с проверкой на конфликты
     function setupEventListeners() {
-        const events = ['toggle', 'line', 'full'];
+        const events = ['toggle', 'line', 'full', 'app', 'modify', 'clear'];
         events.forEach(event => {
-            if (Lampa.Listener._events[event]?.length > 0) {
+            if (Lampa.Listener._events?.[event]?.length > 0) {
                 console.warn(`[MyBookmarks] Обнаружены существующие обработчики для события ${event}. Возможны конфликты.`);
             }
         });
 
-        Lampa.Listener.follow('toggle', handleToggleEvent);
-        Lampa.Listener.follow('line', handleLineEvent);
-        Lampa.Listener.follow('full', handleFullEvent);
-        Lampa.Storage.listener.follow('change', handleStorageChange);
-
-        // Добавление команды очистки кэша
-        Lampa.Listener.follow('clear', () => {
-            FavoriteStorage.clearCache();
-        });
+        try {
+            Lampa.Listener.follow('toggle', handleToggleEvent);
+            Lampa.Listener.follow('line', handleLineEvent);
+            Lampa.Listener.follow('full', handleFullEvent);
+            Lampa.Storage.listener.follow('change', handleStorageChange);
+            // Добавление команды очистки кэша
+            Lampa.Listener.follow('clear', () => {
+                FavoriteStorage.clearCache();
+            });
+            // Поддержка модификации плагина
+            Lampa.Listener.follow('modify', (e) => {
+                if (e.url === PLUGIN_URL) {
+                    console.log('[MyBookmarks] Плагин модифицирован:', e);
+                    e.status = 1; // Устанавливаем статус модификации
+                }
+            });
+            console.log('[MyBookmarks] Слушатели событий успешно установлены');
+        } catch (e) {
+            console.error('[MyBookmarks] Ошибка при установке слушателей событий:', e);
+        }
     }
 
     // Проверка активной категории
@@ -318,14 +359,6 @@
             console.log(`[MyBookmarks] Открыта категория: ${name}`);
         });
     }
-
-    // Поддержка модификации плагина
-    Lampa.Listener.follow('modify', (e) => {
-        if (e.url === PLUGIN_URL) {
-            console.log('[MyBookmarks] Плагин модифицирован:', e);
-            e.status = 1; // Устанавливаем статус модификации
-        }
-    });
 
     // Инициализация
     initializePlugin();
