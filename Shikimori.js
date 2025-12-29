@@ -1082,42 +1082,30 @@
         };
 
         this.start = function () {
-    if (Lampa.Activity.active().activity !== this.activity) return;
-    
-    // Сначала активируем навигацию по карточкам
-    if (items.length > 0 && items[0].render) {
-        Lampa.Controller.collectionSet(scroll.render());
-        Lampa.Controller.collectionFocus(items[0].render()[0], scroll.render());
-    }
-    
-    Lampa.Controller.add("content", {
-        toggle: function toggle() {
-            Lampa.Controller.collectionSet(scroll.render());
-            if (items.length > 0) {
-                var focusElement = last || (items[0] && items[0].render()[0]);
-                Lampa.Controller.collectionFocus(focusElement, scroll.render());
-            }
-        },
-        left: function left() {
-            if (Navigator.canmove("left")) Navigator.move("left");
-            else Lampa.Controller.toggle("menu");
-        },
-        right: function right() {
-            Navigator.move("right");
-        },
-        up: function up() {
-            if (Navigator.canmove("up")) Navigator.move("up");
-            else Lampa.Controller.toggle("head");
-        },
-        down: function down() {
-            if (Navigator.canmove("down")) Navigator.move("down");
-            else if (scroll.onEnd) scroll.onEnd();
-        },
-        back: this.back
-    });
-    
-    Lampa.Controller.toggle("content");
-};
+            if (Lampa.Activity.active().activity !== this.activity) return;
+            Lampa.Controller.add("content", {
+                toggle: function toggle() {
+                    Lampa.Controller.collectionSet(scroll.render());
+                    Lampa.Controller.collectionFocus(last || false, scroll.render());
+                },
+                left: function left() {
+                    if (Navigator.canmove("left")) Navigator.move("left");
+                    else Lampa.Controller.toggle("menu");
+                },
+                right: function right() {
+                    Navigator.move("right");
+                },
+                up: function up() {
+                    if (Navigator.canmove("up")) Navigator.move("up");
+                    else Lampa.Controller.toggle("head");
+                },
+                down: function down() {
+                    if (Navigator.canmove("down")) Navigator.move("down");
+                },
+                back: this.back
+            });
+            Lampa.Controller.toggle("content");
+        };
 
         this.pause = function () {};
         this.stop = function () {};
