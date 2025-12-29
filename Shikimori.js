@@ -876,7 +876,8 @@
     var currentSeasonIndex;
     var currentSeasonYear = currentYear;
     
-    if (currentMonth >= 0 && currentMonth <= 1 || currentMonth === 11) {
+    // Определение текущего сезона
+    if (currentMonth === 11 || currentMonth <= 1) {
         // Зима: декабрь (11), январь (0), февраль (1)
         currentSeasonIndex = 0; // winter
         if (currentMonth === 11) {
@@ -888,47 +889,46 @@
     } else if (currentMonth >= 5 && currentMonth <= 7) {
         // Лето: июнь (5), июль (6), август (7)
         currentSeasonIndex = 2; // summer
-    } else if (currentMonth >= 8 && currentMonth <= 10) {
+    } else {
         // Осень: сентябрь (8), октябрь (9), ноябрь (10)
         currentSeasonIndex = 3; // fall
     }
 
-    // Собираем текущий и три предыдущих сезона
+    // Генерируем текущий и три предыдущих сезона
     for (var i = 0; i < 4; i++) {
-        // Вычисляем индекс сезона (идем от текущего к более старым)
-        var seasonIndex = (currentSeasonIndex - i + 4) % 4;
+        // Вычисляем смещение от текущего сезона
+        var offset = i; // 0 = текущий, 1 = предыдущий, 2 = позапрошлый, 3 = предпозапрошлый
+        
+        // Вычисляем индекс сезона с учетом смещения
+        var seasonIndex = (currentSeasonIndex - offset + 4) % 4;
         
         // Вычисляем год для сезона
         var seasonYear = currentSeasonYear;
         
-        // Определяем, нужно ли уменьшать год
-        // Уменьшаем год, если текущий сезон имеет меньший индекс, чем сезон, для которого вычисляем год
-        // И при этом разница в индексах требует перехода через границу года
-        if (i > 0) {
-            // Количество переходов через границу года от текущего сезона к целевому
-            var yearDiff = Math.floor((currentSeasonIndex - seasonIndex + 4) / 4);
+        // Корректировка года в зависимости от смещения и текущего сезона
+        if (offset > 0) {
+            // Определяем, сколько раз мы пересекаем границу года при движении назад
+            var yearAdjustment = 0;
             
-            // Для зимы (декабрь) требуется особая логика
-            if (currentMonth === 11 && currentSeasonIndex === 0) {
-                // Если текущий месяц - декабрь, то currentSeasonYear уже увеличен на 1
-                // Для предыдущих сезонов нужно уменьшать год по другому алгоритму
-                if (seasonIndex > currentSeasonIndex) {
-                    seasonYear = currentSeasonYear - 1;
+            // Простой алгоритм: если при движении назад мы переходим от меньшего индекса к большему,
+            // значит мы пересекли границу года
+            for (var j = 0; j < offset; j++) {
+                var tempIndex = (currentSeasonIndex - j + 4) % 4;
+                var nextIndex = (currentSeasonIndex - j - 1 + 4) % 4;
+                
+                if (nextIndex > tempIndex) {
+                    yearAdjustment++;
                 }
-                // Для сезонов того же года (после зимы)
-                else if (seasonIndex < currentSeasonIndex) {
-                    // Оставляем тот же год для весны, лета, осени текущего года
-                    seasonYear = currentSeasonYear;
-                }
-            } else {
-                // Для остальных месяцев
-                if (seasonIndex > currentSeasonIndex) {
-                    seasonYear = currentSeasonYear - 1;
-                }
-                // Для января/февраля (зима) и предыдущих сезонов
-                else if (currentSeasonIndex === 0 && currentMonth !== 11) {
-                    // Если текущий сезон - зима (январь/февраль), то для осени, лета, весны берем предыдущий год
-                    seasonYear = currentSeasonYear - 1;
+            }
+            
+            seasonYear = currentSeasonYear - yearAdjustment;
+            
+            // Особый случай: если текущий месяц - декабрь, и мы рассматриваем сезоны того же календарного года
+            if (currentMonth === 11 && currentSeasonYear === currentYear + 1) {
+                // Для декабря текущийSeasonYear = currentYear + 1
+                // Но для осени, лета, весны этого же календарного года нужно использовать currentYear
+                if (seasonYear === currentSeasonYear && seasonIndex > 0) {
+                    seasonYear = currentYear;
                 }
             }
         }
@@ -940,7 +940,6 @@
         });
     }
 
-    // Возвращаем массив с текущим и тремя предыдущими сезонами
     return seasons;
 }
 
