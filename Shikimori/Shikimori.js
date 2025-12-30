@@ -1,6 +1,26 @@
 (function () {
     'use strict';
 
+	function isSamsungTV() {
+    return /samsung|smart-tv|smarttv/i.test(navigator.userAgent) || 
+           /webos|tizen/i.test(navigator.userAgent);
+}
+
+// Затем используйте разные обработчики для разных устройств
+if (isSamsungTV()) {
+    // Для Samsung TV используем более простые события
+    cardElement.on("focus", function() {
+        // обработка фокуса
+    }).on("click keydown", function(e) {
+        if (e.type === 'click' || e.key === 'Enter') {
+            API.search(anime);
+        }
+    });
+} else {
+    // Оригинальные обработчики для других устройств
+    cardElement.on("hover:focus hover:enter", ...);
+}
+
     // Вспомогательная функция для получения всех ключей объекта, включая символьные
     function ownKeys(e, r) {
         var t = Object.keys(e);
