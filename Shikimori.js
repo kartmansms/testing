@@ -852,96 +852,56 @@
                 }]
             };
 
-          function generateDynamicSeasons() {
-    // Массив для хранения сезонов
-    var seasons = [];
-    
-    // Определяем текущую дату
-    var currentDate = new Date();
-    var currentYear = currentDate.getFullYear();
-    var currentMonth = currentDate.getMonth(); // 0-11 (январь - декабрь)
-
-    // Список сезонов в порядке их следования
-    var seasonsOrder = ['winter', 'spring', 'summer', 'fall'];
-    
-    // Соответствие английских названий русским
-    var seasonTranslations = {
-        'winter': 'Зима',
-        'spring': 'Весна',
-        'summer': 'Лето',
-        'fall': 'Осень'
-    };
-
-    // Определяем текущий сезон и год
-    var currentSeasonIndex;
-    var currentSeasonYear = currentYear;
-    
-    // Определение текущего сезона
-    if (currentMonth === 11 || currentMonth <= 1) {
-        // Зима: декабрь (11), январь (0), февраль (1)
-        currentSeasonIndex = 0; // winter
-        if (currentMonth === 11) {
-            currentSeasonYear = currentYear + 1; // Декабрь относится к зиме следующего года
-        }
-    } else if (currentMonth >= 2 && currentMonth <= 4) {
-        // Весна: март (2), апрель (3), май (4)
-        currentSeasonIndex = 1; // spring
-    } else if (currentMonth >= 5 && currentMonth <= 7) {
-        // Лето: июнь (5), июль (6), август (7)
-        currentSeasonIndex = 2; // summer
-    } else {
-        // Осень: сентябрь (8), октябрь (9), ноябрь (10)
-        currentSeasonIndex = 3; // fall
-    }
-
-    // Генерируем текущий и три предыдущих сезона
-    for (var i = 0; i < 4; i++) {
-        // Вычисляем смещение от текущего сезона
-        var offset = i; // 0 = текущий, 1 = предыдущий, 2 = позапрошлый, 3 = предпозапрошлый
-        
-        // Вычисляем индекс сезона с учетом смещения
-        var seasonIndex = (currentSeasonIndex - offset + 4) % 4;
-        
-        // Вычисляем год для сезона
-        var seasonYear = currentSeasonYear;
-        
-        // Корректировка года в зависимости от смещения и текущего сезона
-        if (offset > 0) {
-            // Определяем, сколько раз мы пересекаем границу года при движении назад
-            var yearAdjustment = 0;
-            
-            // Простой алгоритм: если при движении назад мы переходим от меньшего индекса к большему,
-            // значит мы пересекли границу года
-            for (var j = 0; j < offset; j++) {
-                var tempIndex = (currentSeasonIndex - j + 4) % 4;
-                var nextIndex = (currentSeasonIndex - j - 1 + 4) % 4;
+            function generateDynamicSeasons() {
+                var seasons = [];
                 
-                if (nextIndex > tempIndex) {
-                    yearAdjustment++;
-                }
-            }
-            
-            seasonYear = currentSeasonYear - yearAdjustment;
-            
-            // Особый случай: если текущий месяц - декабрь, и мы рассматриваем сезоны того же календарного года
-            if (currentMonth === 11 && currentSeasonYear === currentYear + 1) {
-                // Для декабря текущийSeasonYear = currentYear + 1
-                // Но для осени, лета, весны этого же календарного года нужно использовать currentYear
-                if (seasonYear === currentSeasonYear && seasonIndex > 0) {
-                    seasonYear = currentYear;
-                }
-            }
-        }
+                var currentDate = new Date();
+                var currentYear = currentDate.getFullYear();
+                var currentMonth = currentDate.getMonth();
 
-        var season = seasonsOrder[seasonIndex];
-        seasons.push({
-            code: season + '_' + seasonYear,
-            title: seasonTranslations[season] + ' ' + seasonYear
-        });
-    }
+                var seasonsOrder = ['winter', 'spring', 'summer', 'fall'];
+                
+                var seasonTranslations = {
+                    'winter': 'Зима',
+                    'spring': 'Весна',
+                    'summer': 'Лето',
+                    'fall': 'Осень'
+                };
 
-    return seasons;
-}
+                var currentSeasonIndex;
+                var currentSeasonYear = currentYear;
+
+                if (currentMonth >= 0 && currentMonth <= 1 || currentMonth === 11) {
+                    currentSeasonIndex = 0;
+                    if (currentMonth === 11) currentSeasonYear = currentYear + 1;
+                } else if (currentMonth >= 2 && currentMonth <= 4) {
+                    currentSeasonIndex = 1;
+                } else if (currentMonth >= 5 && currentMonth <= 7) {
+                    currentSeasonIndex = 2;
+                } else if (currentMonth >= 8 && currentMonth <= 10) {
+                    currentSeasonIndex = 3;
+                }
+
+                var seasonIndex = currentSeasonIndex;
+                var year = currentSeasonYear;
+
+                // Генерируем текущий сезон и 3 предыдущих (всего 4 сезона)
+                for (var i = 0; i < 4; i++) {
+                    seasons.push({
+                        code: seasonsOrder[seasonIndex] + '_' + year,
+                        title: seasonTranslations[seasonsOrder[seasonIndex]] + ' ' + year
+                    });
+
+                    // Переход к предыдущему сезону
+                    seasonIndex--;
+                    if (seasonIndex < 0) {
+                        seasonIndex = 3;
+                        year--;
+                    }
+                }
+
+                return seasons;
+            }
 
             function generateYearRanges() {
                 var ranges = [];
