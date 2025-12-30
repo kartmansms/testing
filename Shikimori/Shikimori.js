@@ -1,26 +1,6 @@
 (function () {
     'use strict';
 
-	function isSamsungTV() {
-    return /samsung|smart-tv|smarttv/i.test(navigator.userAgent) || 
-           /webos|tizen/i.test(navigator.userAgent);
-}
-
-// Затем используйте разные обработчики для разных устройств
-if (isSamsungTV()) {
-    // Для Samsung TV используем более простые события
-    cardElement.on("focus", function() {
-        // обработка фокуса
-    }).on("click keydown", function(e) {
-        if (e.type === 'click' || e.key === 'Enter') {
-            API.search(anime);
-        }
-    });
-} else {
-    // Оригинальные обработчики для других устройств
-    cardElement.on("hover:focus hover:enter", ...);
-}
-
     // Вспомогательная функция для получения всех ключей объекта, включая символьные
     function ownKeys(e, r) {
         var t = Object.keys(e);
@@ -1104,68 +1084,53 @@ if (isSamsungTV()) {
         };
 
         this.body = function (data) {
-    data.forEach(function (anime) {
-        var item = new Card(anime, userLang);
-        var cardElement = item.render(true);
-        
-        // Явно делаем элемент фокусируемым
-        cardElement.attr('tabindex', '0');
-        
-        cardElement.on("hover:focus", function () {
-            last = cardElement[0];
-            active = items.indexOf(item);
-            scroll.update(items[active].render(true), true);
-            
-            // Явно устанавливаем фокус
-            $(this).focus();
-        }).on("hover:enter", function() {
-            API.search(anime);
-        }).on("click", function() {  // Добавляем обработчик клика для совместимости
-            API.search(anime);
-        });
-        
-        body.append(cardElement);
-        items.push(item);
-    });
-};
+            data.forEach(function (anime) {
+                var item = new Card(anime, userLang);
+                item.render(true).on("hover:focus", function () {
+                    last = item.render()[0];
+                    active = items.indexOf(item);
+                    scroll.update(items[active].render(true), true);
+                }).on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
+                    return _regeneratorRuntime().wrap(function _callee$(_context) {
+                        while (1) switch (_context.prev = _context.next) {
+                            case 0:
+                                API.search(anime);
+                            case 1:
+                            case "end":
+                                return _context.stop();
+                        }
+                    }, _callee);
+                })));
+                body.append(item.render(true));
+                items.push(item);
+            });
+        };
 
         this.start = function () {
-    if (Lampa.Activity.active().activity !== this.activity) return;
-    
-    // Сначала активируем навигацию по карточкам
-    if (items.length > 0 && items[0].render) {
-        Lampa.Controller.collectionSet(scroll.render());
-        Lampa.Controller.collectionFocus(items[0].render()[0], scroll.render());
-    }
-    
-    Lampa.Controller.add("content", {
-        toggle: function toggle() {
-            Lampa.Controller.collectionSet(scroll.render());
-            if (items.length > 0) {
-                var focusElement = last || (items[0] && items[0].render()[0]);
-                Lampa.Controller.collectionFocus(focusElement, scroll.render());
-            }
-        },
-        left: function left() {
-            if (Navigator.canmove("left")) Navigator.move("left");
-            else Lampa.Controller.toggle("menu");
-        },
-        right: function right() {
-            Navigator.move("right");
-        },
-        up: function up() {
-            if (Navigator.canmove("up")) Navigator.move("up");
-            else Lampa.Controller.toggle("head");
-        },
-        down: function down() {
-            if (Navigator.canmove("down")) Navigator.move("down");
-            else if (scroll.onEnd) scroll.onEnd();
-        },
-        back: this.back
-    });
-    
-    Lampa.Controller.toggle("content");
-};
+            if (Lampa.Activity.active().activity !== this.activity) return;
+            Lampa.Controller.add("content", {
+                toggle: function toggle() {
+                    Lampa.Controller.collectionSet(scroll.render());
+                    Lampa.Controller.collectionFocus(last || false, scroll.render());
+                },
+                left: function left() {
+                    if (Navigator.canmove("left")) Navigator.move("left");
+                    else Lampa.Controller.toggle("menu");
+                },
+                right: function right() {
+                    Navigator.move("right");
+                },
+                up: function up() {
+                    if (Navigator.canmove("up")) Navigator.move("up");
+                    else Lampa.Controller.toggle("head");
+                },
+                down: function down() {
+                    if (Navigator.canmove("down")) Navigator.move("down");
+                },
+                back: this.back
+            });
+            Lampa.Controller.toggle("content");
+        };
 
         this.pause = function () {};
         this.stop = function () {};
