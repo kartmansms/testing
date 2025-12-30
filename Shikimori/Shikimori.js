@@ -1084,27 +1084,30 @@
         };
 
         this.body = function (data) {
-            data.forEach(function (anime) {
-                var item = new Card(anime, userLang);
-                item.render(true).on("hover:focus", function () {
-                    last = item.render()[0];
-                    active = items.indexOf(item);
-                    scroll.update(items[active].render(true), true);
-                }).on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
-                    return _regeneratorRuntime().wrap(function _callee$(_context) {
-                        while (1) switch (_context.prev = _context.next) {
-                            case 0:
-                                API.search(anime);
-                            case 1:
-                            case "end":
-                                return _context.stop();
-                        }
-                    }, _callee);
-                })));
-                body.append(item.render(true));
-                items.push(item);
-            });
-        };
+    data.forEach(function (anime) {
+        var item = new Card(anime, userLang);
+        var cardElement = item.render(true);
+        
+        // Явно делаем элемент фокусируемым
+        cardElement.attr('tabindex', '0');
+        
+        cardElement.on("hover:focus", function () {
+            last = cardElement[0];
+            active = items.indexOf(item);
+            scroll.update(items[active].render(true), true);
+            
+            // Явно устанавливаем фокус
+            $(this).focus();
+        }).on("hover:enter", function() {
+            API.search(anime);
+        }).on("click", function() {  // Добавляем обработчик клика для совместимости
+            API.search(anime);
+        });
+        
+        body.append(cardElement);
+        items.push(item);
+    });
+};
 
         this.start = function () {
             if (Lampa.Activity.active().activity !== this.activity) return;
