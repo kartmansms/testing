@@ -852,96 +852,71 @@
                 }]
             };
 
-            function generateDynamicSeasons() {
-                var seasons = [];
-                
-                var currentDate = new Date();
-                var currentYear = currentDate.getFullYear();
-                var currentMonth = currentDate.getMonth();
+           function generateDynamicSeasons() {
+    // Массив для хранения сезонов (будет содержать текущий и предыдущий)
+    var seasons = [];
+    
+    // Определяем текущую дату
+    var currentDate = new Date();
+    var currentYear = currentDate.getFullYear();
+    var currentMonth = currentDate.getMonth(); // 0-11 (январь - декабрь)
 
-                var seasonsOrder = ['winter', 'spring', 'summer', 'fall'];
-                
-                var seasonTranslations = {
-                    'winter': 'Зима',
-                    'spring': 'Весна',
-                    'summer': 'Лето',
-                    'fall': 'Осень'
-                };
+    // Список сезонов в порядке их следования (для code)
+    var seasonsOrder = ['winter', 'spring', 'summer', 'fall'];
+    
+    // Соответствие английских названий русским для title
+    var seasonTranslations = {
+        'winter': 'Зима',
+        'spring': 'Весна',
+        'summer': 'Лето',
+        'fall': 'Осень'
+    };
 
-                var currentSeasonIndex;
-                var currentSeasonYear = currentYear;
+    // Определяем текущий сезон на основе месяца
+    var currentSeasonIndex;
+    var currentSeasonYear = currentYear;
+    if (currentMonth >= 0 && currentMonth <= 1 || currentMonth === 11) {
+        // Зима: декабрь (11), январь (0), февраль (1)
+        currentSeasonIndex = 0; // winter
+        if (currentMonth === 11) currentSeasonYear = currentYear + 1; // Декабрь относится к зиме следующего года
+    } else if (currentMonth >= 2 && currentMonth <= 4) {
+        // Весна: март (2), апрель (3), май (4)
+        currentSeasonIndex = 1; // spring
+    } else if (currentMonth >= 5 && currentMonth <= 7) {
+        // Лето: июнь (5), июль (6), август (7)
+        currentSeasonIndex = 2; // summer
+    } else if (currentMonth >= 8 && currentMonth <= 10) {
+        // Осень: сентябрь (8), октябрь (9), ноябрь (10)
+        currentSeasonIndex = 3; // fall
+    }
 
-                if (currentMonth >= 0 && currentMonth <= 1 || currentMonth === 11) {
-                    currentSeasonIndex = 0;
-                    if (currentMonth === 11) currentSeasonYear = currentYear + 1;
-                } else if (currentMonth >= 2 && currentMonth <= 4) {
-                    currentSeasonIndex = 1;
-                } else if (currentMonth >= 5 && currentMonth <= 7) {
-                    currentSeasonIndex = 2;
-                } else if (currentMonth >= 8 && currentMonth <= 10) {
-                    currentSeasonIndex = 3;
-                }
+    // Добавляем текущий сезон
+    var currentSeason = seasonsOrder[currentSeasonIndex];
+    seasons.push({
+        code: currentSeason + '_' + currentSeasonYear,
+        title: seasonTranslations[currentSeason] + ' ' + currentSeasonYear
+    });
 
-                var seasonIndex = currentSeasonIndex;
-                var year = currentSeasonYear;
+    // Определяем предыдущий сезон
+    var prevSeasonIndex = (currentSeasonIndex - 1 + 4) % 4; // +4 для корректной обработки перехода через год
+    var prevSeasonYear = currentYear;
+    if (currentSeasonIndex === 0 && currentMonth !== 11) {
+        // Если текущий сезон - зима (январь/февраль), предыдущий - осень прошлого года
+        prevSeasonYear = currentYear - 1;
+    } else if (currentSeasonIndex === 0 && currentMonth === 11) {
+        // Если текущий сезон - зима (декабрь), предыдущий - осень текущего года
+        prevSeasonYear = currentYear;
+    }
 
-                // Добавляем текущий сезон
-                seasons.push({
-                    code: seasonsOrder[seasonIndex] + '_' + year,
-                    title: seasonTranslations[seasonsOrder[seasonIndex]] + ' ' + year
-                });
+    var prevSeason = seasonsOrder[prevSeasonIndex];
+    seasons.push({
+        code: prevSeason + '_' + prevSeasonYear,
+        title: seasonTranslations[prevSeason] + ' ' + prevSeasonYear
+    });
 
-                // Определяем предыдущий сезон
-                var prevSeasonIndex = (seasonIndex - 1 + 4) % 4;
-                var prevYear = year;
-
-                // Если текущий сезон - весна (1), то предыдущий - зима (0) того же года
-                // Если текущий сезон - лето (2), то предыдущий - весна (1) того же года  
-                // Если текущий сезон - осень (3), то предыдущий - лето (2) того же года
-                // Если текущий сезон - зима (0), то предыдущий - осень (3) предыдущего года
-                if (seasonIndex === 0) {
-                    // Если текущий сезон - зима, предыдущий - осень предыдущего года
-                    prevYear = year - 1;
-                }
-
-                // Добавляем предыдущий сезон
-                seasons.push({
-                    code: seasonsOrder[prevSeasonIndex] + '_' + prevYear,
-                    title: seasonTranslations[seasonsOrder[prevSeasonIndex]] + ' ' + prevYear
-                });
-
-                // Определяем сезон за два шага назад
-                var prevPrevSeasonIndex = (prevSeasonIndex - 1 + 4) % 4;
-                var prevPrevYear = prevYear;
-
-                if (prevSeasonIndex === 0) {
-                    // Если предыдущий сезон - зима, то сезон за два шага - осень предыдущего года
-                    prevPrevYear = prevYear - 1;
-                }
-
-                // Добавляем сезон за два шага назад
-                seasons.push({
-                    code: seasonsOrder[prevPrevSeasonIndex] + '_' + prevPrevYear,
-                    title: seasonTranslations[seasonsOrder[prevPrevSeasonIndex]] + ' ' + prevPrevYear
-                });
-
-                // Определяем сезон за три шага назад
-                var prevPrevPrevSeasonIndex = (prevPrevSeasonIndex - 1 + 4) % 4;
-                var prevPrevPrevYear = prevPrevYear;
-
-                if (prevPrevSeasonIndex === 0) {
-                    // Если сезон за два шага - зима, то сезон за три шага - осень предыдущего года
-                    prevPrevPrevYear = prevPrevYear - 1;
-                }
-
-                // Добавляем сезон за три шага назад
-                seasons.push({
-                    code: seasonsOrder[prevPrevPrevSeasonIndex] + '_' + prevPrevPrevYear,
-                    title: seasonTranslations[seasonsOrder[prevPrevPrevSeasonIndex]] + ' ' + prevPrevPrevYear
-                });
-
-                return seasons;
-            }
+    // Возвращаем массив с текущим и предыдущим сезонами
+    return seasons;
+}
 
             function generateYearRanges() {
                 var ranges = [];
