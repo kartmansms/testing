@@ -660,48 +660,97 @@
     }
 
     // Основной компонент для отображения каталога
-    function Component$1(object) {
-        var userLang = Lampa.Storage.field('language');
-        var network = new Lampa.Reguest();
-        var scroll = new Lampa.Scroll({
-            mask: true,
-            over: true,
-            step: 250
+function Component$1(object) {
+    var userLang = Lampa.Storage.field('language');
+    var network = new Lampa.Reguest();
+    var scroll = new Lampa.Scroll({
+        mask: true,
+        over: true,
+        step: 250
+    });
+    var items = [];
+    var html = $("<div class='Shikimori-module'></div>");
+    var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
+    var body = $('<div class="Shikimori-catalog--list category-full"></div>');
+    var active, last;
+
+    // Инициализация элементов интерфейса
+    this.create = function () {
+        API.main(object, this.build.bind(this), this.empty.bind(this));
+    };
+
+    // Построение списка карточек
+    this.build = function (result) {
+        var _this = this;
+        scroll.minus();
+        scroll.onWheel = function (step) {
+            if (!Lampa.Controller.own(_this)) _this.start();
+            if (step > 0) Navigator.move('down');
+            else Navigator.move('up');
+        };
+        scroll.onEnd = function () {
+            object.page++;
+            API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
+        };
+
+        // Обработка фильтров
+        this.headeraction();
+        this.body(result);
+        scroll.append(head);
+        scroll.append(body);
+        html.append(scroll.render(true));
+        this.activity.loader(false);
+        this.activity.toggle();
+    };
+
+    // ... остальной код остается без изменений ...
+
+    this.start = function () {
+        if (Lampa.Activity.active().activity !== this.activity) return;
+        
+        // Определяем метод back для выхода из компонента
+        var self = this;
+        
+        Lampa.Controller.add("content", {
+            toggle: function () {
+                Lampa.Controller.collectionSet(scroll.render());
+                Lampa.Controller.collectionFocus(last || false, scroll.render());
+            },
+            left: function () {
+                if (Navigator.canmove("left")) Navigator.move("left");
+                else Lampa.Controller.toggle("menu");
+            },
+            right: function () {
+                Navigator.move("right");
+            },
+            up: function () {
+                if (Navigator.canmove("up")) Navigator.move("up");
+                else Lampa.Controller.toggle("head");
+            },
+            down: function () {
+                if (Navigator.canmove("down")) Navigator.move("down");
+            },
+            back: function () {
+                // Выход из компонента Shikimori
+                Lampa.Activity.backward();
+            }
         });
-        var items = [];
-        var html = $("<div class='Shikimori-module'></div>");
-        var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
-        var body = $('<div class="Shikimori-catalog--list category-full"></div>');
-        var active, last;
+        Lampa.Controller.toggle("content");
+    };
 
-        // Инициализация элементов интерфейса
-        this.create = function () {
-            API.main(object, this.build.bind(this), this.empty.bind(this));
-        };
+    // ... остальной код остается без изменений ...
 
-        // Построение списка карточек
-        this.build = function (result) {
-            var _this = this;
-            scroll.minus();
-            scroll.onWheel = function (step) {
-                if (!Lampa.Controller.own(_this)) _this.start();
-                if (step > 0) Navigator.move('down');
-                else Navigator.move('up');
-            };
-            scroll.onEnd = function () {
-                object.page++;
-                API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
-            };
-
-            // Обработка фильтров
-            this.headeraction();
-            this.body(result);
-            scroll.append(head);
-            scroll.append(body);
-            html.append(scroll.render(true));
-            this.activity.loader(false);
-            this.activity.toggle();
-        };
+    this.destroy = function () {
+        network.clear();
+        Lampa.Arrays.destroy(items);
+        scroll.destroy();
+        html.remove();
+        items = null;
+        network = null;
+        // Удаляем контроллер при уничтожении компонента
+        Lampa.Controller.remove("content");
+    };
+}
 
         this.headeraction = function () {
             var settings = {
@@ -1089,30 +1138,37 @@
         };
 
         this.start = function () {
-            if (Lampa.Activity.active().activity !== this.activity) return;
-            Lampa.Controller.add("content", {
-                toggle: function toggle() {
-                    Lampa.Controller.collectionSet(scroll.render());
-                    Lampa.Controller.collectionFocus(last || false, scroll.render());
-                },
-                left: function left() {
-                    if (Navigator.canmove("left")) Navigator.move("left");
-                    else Lampa.Controller.toggle("menu");
-                },
-                right: function right() {
-                    Navigator.move("right");
-                },
-                up: function up() {
-                    if (Navigator.canmove("up")) Navigator.move("up");
-                    else Lampa.Controller.toggle("head");
-                },
-                down: function down() {
-                    if (Navigator.canmove("down")) Navigator.move("down");
-                },
-                back: this.back
-            });
-            Lampa.Controller.toggle("content");
-        };
+        if (Lampa.Activity.active().activity !== this.activity) return;
+        
+        // Определяем метод back для выхода из компонента
+        var self = this;
+        
+        Lampa.Controller.add("content", {
+            toggle: function () {
+                Lampa.Controller.collectionSet(scroll.render());
+                Lampa.Controller.collectionFocus(last || false, scroll.render());
+            },
+            left: function () {
+                if (Navigator.canmove("left")) Navigator.move("left");
+                else Lampa.Controller.toggle("menu");
+            },
+            right: function () {
+                Navigator.move("right");
+            },
+            up: function () {
+                if (Navigator.canmove("up")) Navigator.move("up");
+                else Lampa.Controller.toggle("head");
+            },
+            down: function () {
+                if (Navigator.canmove("down")) Navigator.move("down");
+            },
+            back: function () {
+                // Выход из компонента Shikimori
+                Lampa.Activity.backward();
+            }
+        });
+        Lampa.Controller.toggle("content");
+    };
 
         this.pause = function () {};
         this.stop = function () {};
@@ -1121,15 +1177,17 @@
             return js ? html : $(html);
         };
 
-        this.destroy = function () {
-            network.clear();
-            Lampa.Arrays.destroy(items);
-            scroll.destroy();
-            html.remove();
-            items = null;
-            network = null;
-        };
-    }
+         this.destroy = function () {
+        network.clear();
+        Lampa.Arrays.destroy(items);
+        scroll.destroy();
+        html.remove();
+        items = null;
+        network = null;
+        // Удаляем контроллер при уничтожении компонента
+        Lampa.Controller.remove("content");
+    };
+}
 
     // Компонент для расширения информации в карточке
     function Component() {
