@@ -407,7 +407,6 @@
         var rendered = false;
         var loading = false;
         var ended = false;
-        var scrollTop = 0;
 
         params.page = parseInt(params.page, 10) || 1;
         if (!params.sort) params.sort = readSettings().default_sort;
@@ -416,7 +415,7 @@
             if (!rendered) {
                 rendered = true;
                 html.append(head).append(quick).append(active).append(scroll.render());
-                scroll.render().append(body);
+                scroll.append(body);
                 bindScrollFallback();
                 buildHeader();
                 load(false);
@@ -495,15 +494,11 @@
             var target = scroll.render();
 
             target.addClass('scroll--wheel');
-            target.css({
-                overflow: 'hidden',
-                position: 'relative'
-            });
 
             html.on('wheel.shikimoriScroll mousewheel.shikimoriScroll DOMMouseScroll.shikimoriScroll', function (e) {
                 var original = e.originalEvent || e;
                 var delta = original.deltaY || -original.wheelDelta || original.detail * 40 || 0;
-                scrollBy(delta);
+                if (scroll && scroll.wheel) scroll.wheel(delta);
                 e.preventDefault();
                 return false;
             });
@@ -523,40 +518,17 @@
                     moveFocus('right');
                     e.preventDefault();
                 } else if (code === 33) {
-                    scrollBy(-420);
+                    if (scroll && scroll.wheel) scroll.wheel(-420);
                     e.preventDefault();
                 } else if (code === 34) {
-                    scrollBy(420);
+                    if (scroll && scroll.wheel) scroll.wheel(420);
                     e.preventDefault();
                 }
             });
         }
 
         function scrollBy(delta) {
-            setScroll(scrollTop + delta);
-        }
-
-        function setScroll(top) {
-            var viewport = scroll.render();
-            var content = viewport.find('.scroll__content').first();
-            var bodyScroll = viewport.find('.scroll__body').first();
-            var max = 0;
-
-            if (!bodyScroll.length) return;
-
-            max = bodyScroll.outerHeight(true) - viewport.height();
-            if (max < 0) max = 0;
-            if (top < 0) top = 0;
-            if (top > max) top = max;
-            scrollTop = top;
-
-            bodyScroll.css({
-                transform: 'translate3d(0,' + (-scrollTop) + 'px,0)',
-                '-webkit-transform': 'translate3d(0,' + (-scrollTop) + 'px,0)',
-                marginTop: 0
-            });
-
-            if (content.length) content.css('height', viewport.height() + scrollTop);
+            if (scroll && scroll.wheel) scroll.wheel(delta);
         }
 
         function moveFocus(direction) {
@@ -568,14 +540,7 @@
 
         function keepFocusVisible(direction, before) {
             var focused = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
-            var viewport = scroll.render();
-            var bodyScroll = viewport.find('.scroll__body').first();
-            var top;
-            var bottom;
-            var viewTop;
-            var viewBottom;
-
-            if (!focused || !focused.length || !bodyScroll.length) {
+            if (!focused || !focused.length || !focused.get(0)) {
                 if (direction === 'down') scrollBy(260);
                 else if (direction === 'up') scrollBy(-260);
                 return;
@@ -587,13 +552,7 @@
                 return;
             }
 
-            top = focused.position().top;
-            bottom = top + focused.outerHeight(true);
-            viewTop = scrollTop;
-            viewBottom = viewTop + viewport.height();
-
-            if (bottom > viewBottom - 80) setScroll(bottom - viewport.height() + 80);
-            else if (top < viewTop + 80) setScroll(top - 80);
+            if (scroll && scroll.update) scroll.update(focused);
         }
 
         function addHeadButton(title, action) {
@@ -858,7 +817,6 @@
                     Lampa.Controller.collectionSet(scroll.render());
                     Lampa.Controller.collectionFocus(last || body.find('.selector').first(), scroll.render());
                 }
-                setScroll(scrollTop);
             }, function () {
                 loading = false;
                 body.find('.Shikimori-loader').remove();
@@ -986,8 +944,8 @@
         $('body').append('<style id="shikimori-style">' +
             '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff}' +
             '.Shikimori-module>.scroll{height:calc(100vh - 11em);overflow:hidden;position:relative}' +
-            '.Shikimori-module>.scroll>.scroll__content{width:100%;overflow:hidden}' +
-            '.Shikimori-module .scroll__body{width:100%;will-change:transform}' +
+            '.Shikimori-module>.scroll>.scroll__content{width:100%}' +
+            '.Shikimori-module .scroll__body{width:100%}' +
             '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
             '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
             '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus,.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
