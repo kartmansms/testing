@@ -9,6 +9,7 @@
     var AUTH_KEY = 'shikimori_auth_v1';
     var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
+    var PAGE_LIMIT = 48;
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
@@ -195,7 +196,7 @@
 
     function requestAnime(params, oncomplete, onerror) {
         var page = parseInt(params.page, 10) || 1;
-        var parts = ['limit: 24', 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
+        var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
         if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
         if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
         if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
@@ -407,6 +408,7 @@
         var rendered = false;
         var loading = false;
         var ended = false;
+        var autoLoading = false;
 
         params.page = parseInt(params.page, 10) || 1;
         if (!params.sort) params.sort = readSettings().default_sort;
@@ -417,6 +419,7 @@
                 html.append(head).append(quick).append(active).append(scroll.render());
                 scroll.append(body);
                 bindScrollFallback();
+                bindAutoLoad();
                 buildHeader();
                 load(false);
             }
@@ -525,6 +528,12 @@
                     e.preventDefault();
                 }
             });
+        }
+
+        function bindAutoLoad() {
+            scroll.onEnd = function () {
+                loadNextPage(true);
+            };
         }
 
         function scrollBy(delta) {
@@ -798,7 +807,7 @@
             loading = true;
             body.find('.Shikimori-more').remove();
             if (!append) body.empty();
-            body.append('<div class="Shikimori-loader">Загрузка...</div>');
+            body.append('<div class="Shikimori-loader' + (append ? ' Shikimori-loader--more' : '') + '">Загрузка...</div>');
             requestAnime(params, function (data) {
                 var i;
                 loading = false;
@@ -810,7 +819,8 @@
                     body.append('<div class="Shikimori-empty">Ничего не найдено</div>');
                     return;
                 }
-                if (data.length < 24) ended = true;
+                autoLoading = false;
+                if (data.length < PAGE_LIMIT) ended = true;
                 for (i = 0; i < data.length; i++) appendCard(data[i]);
                 if (!ended) addMoreButton();
                 if (window.Lampa && Lampa.Controller) {
@@ -818,9 +828,11 @@
                     Lampa.Controller.collectionFocus(last || body.find('.selector').first(), scroll.render());
                 }
             }, function () {
+                autoLoading = false;
                 loading = false;
                 body.find('.Shikimori-loader').remove();
-                body.append('<div class="Shikimori-empty">Ошибка загрузки</div>');
+                if (append) addMoreButton();
+                else body.append('<div class="Shikimori-empty">Ошибка загрузки</div>');
             });
         }
 
@@ -835,11 +847,17 @@
         function addMoreButton() {
             var more = $('<div class="simple-button selector Shikimori-more">Еще</div>');
             bindPress(more, function () {
-                last = body.find('.Shikimori.card').last();
-                params.page = (parseInt(params.page, 10) || 1) + 1;
-                load(true);
+                loadNextPage(false);
             });
             body.append(more);
+        }
+
+        function loadNextPage(auto) {
+            if (loading || ended || autoLoading) return;
+            autoLoading = !!auto;
+            last = body.find('.Shikimori.card').last();
+            params.page = (parseInt(params.page, 10) || 1) + 1;
+            load(true);
         }
 
         function enterFocused() {
@@ -965,6 +983,7 @@
             '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
             '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
             '.Shikimori-loader,.Shikimori-empty{font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+            '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
             '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
             '.shikimori-full-extra{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin:1em 0;color:#fff}' +
             '.shikimori-full-extra__item{margin:0 1.3em .8em 0;min-width:8em}' +
