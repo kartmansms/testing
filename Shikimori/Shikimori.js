@@ -276,13 +276,15 @@
         params.page = parseInt(params.page, 10) || 1;
         if (!params.sort) params.sort = readSettings().default_sort;
 
-        this.create = function () {
+        this.render = function () {
             html.append(head).append(quick).append(active).append(scroll.render());
             scroll.render().append(body);
             buildHeader();
             load();
             return html;
         };
+
+        this.create = this.render;
 
         this.start = function () {
             Lampa.Controller.add('content', {
