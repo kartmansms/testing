@@ -540,8 +540,6 @@
             top = (node.scrollTop || 0) + delta;
             if (top < 0) top = 0;
             node.scrollTop = top;
-
-            if (scroll && scroll.update) scroll.update();
         }
 
         function moveFocus(direction) {
