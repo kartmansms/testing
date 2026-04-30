@@ -431,8 +431,9 @@
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
-                    Lampa.Controller.collectionSet(scroll.render());
-                    Lampa.Controller.collectionFocus(last || false, scroll.render());
+                    // ИСПРАВЛЕНИЕ: контейнер коллекции — весь html, чтобы пульт видел и кнопки, и карточки
+                    Lampa.Controller.collectionSet(html);
+                    Lampa.Controller.collectionFocus(last || false, html);
                 },
                 left: function () { moveFocus('left'); },
                 right: function () { moveFocus('right'); },
@@ -824,8 +825,9 @@
                 for (i = 0; i < data.length; i++) appendCard(data[i]);
                 if (!ended) addMoreButton();
                 if (window.Lampa && Lampa.Controller) {
-                    Lampa.Controller.collectionSet(scroll.render());
-                    Lampa.Controller.collectionFocus(last || body.find('.selector').first(), scroll.render());
+                    // ИСПРАВЛЕНИЕ: контейнер коллекции — html для полной навигации
+                    Lampa.Controller.collectionSet(html);
+                    Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
                 }
             }, function () {
                 autoLoading = false;
