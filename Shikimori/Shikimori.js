@@ -161,18 +161,25 @@
     // Основная функция для выполнения GraphQL-запроса к Shikimori API
     function main(params, oncomplete, onerror) {
         $(document).ready(function () {
-            var query = "\n    query Animes {\n    animes(limit: 36, order: ".concat(params.sort || 'aired_on', ", page: ").concat(params.page, "\n    ");
-            if (params.kind) query += ", kind: \"".concat(params.kind, "\"");
-            if (params.status) query += ", status: \"".concat(params.status, "\"");
-            if (params.genre) query += ", genre: \"".concat(params.genre, "\"");
-            if (params.seasons) query += ", season: \"".concat(params.seasons, "\"");
+            function safeValue(value) { return String(value || '').replace(/["\\]/g, ''); }
+            var query = "\n    query Animes {\n    animes(limit: 36, order: ".concat(safeValue(params.sort) || 'aired_on', ", page: ").concat(parseInt(params.page, 10) || 1, "\n    ");
+            if (params.kind) query += ", kind: \"".concat(safeValue(params.kind), "\"");
+            if (params.status) query += ", status: \"".concat(safeValue(params.status), "\"");
+            if (params.genre) query += ", genre: \"".concat(safeValue(params.genre), "\"");
+            if (params.seasons) query += ", season: \"".concat(safeValue(params.seasons), "\"");
             query += ") {\n                    id\n                    name\n                    russian\n                    licenseNameRu\n                    english\n                    japanese\n                    kind\n                    score\n                    status\n                    season\n                    airedOn { year }\n                    poster {\n                        originalUrl\n                    }\n                }\n            }\n        ";
             $.ajax({
                 url: 'https://shikimori.one/api/graphql',
                 method: 'POST',
                 contentType: 'application/json',
                 data: JSON.stringify({ query: query }),
-                success: function (response) { oncomplete(response.data.animes); },
+                success: function (response) {
+                    if (response && response.data && response.data.animes) oncomplete(response.data.animes);
+                    else {
+                        console.error('Некорректный ответ Shikimori:', response);
+                        onerror(response);
+                    }
+                },
                 error: function (error) { console.error('Ошибка:', error); onerror(error); }
             });
         });
@@ -182,24 +189,34 @@
     function search(animeData) {
         function cleanName(name) {
             var regex = /\b(Season|Part)\s*\d*\.?\d*\b/gi;
-            var cleanedName = name.replace(regex, '').trim();
+            var cleanedName = String(name || '').replace(regex, '').trim();
             cleanedName = cleanedName.replace(/\s{2,}/g, ' ');
             return cleanedName;
         }
 
+        function tmdbType(kind) { return kind === 'movie' ? 'movie' : 'tv'; }
+
+        function findByName() {
+            searchTmdb(animeData.name || animeData.russian || animeData.japanese, function (tmdbResponse) {
+                handleTmdbResponse(tmdbResponse, animeData.japanese || animeData.russian || animeData.name);
+            });
+        }
+
         $.get("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=".concat(animeData.id), function (response) {
-            if (response === null) {
-                searchTmdb(animeData.name, function (tmdbResponse) { handleTmdbResponse(tmdbResponse, animeData.japanese); });
-            } else if (response.themoviedb === null) {
-                searchTmdb(animeData.name, function (tmdbResponse) { handleTmdbResponse(tmdbResponse, animeData.japanese); });
+            if (response === null || response.themoviedb === null || response.themoviedb === undefined) {
+                findByName();
             } else {
-                getTmdb(response.themoviedb, animeData.kind, processResults);
+                getTmdb(response.themoviedb, tmdbType(animeData.kind), function (tmdbResponse) {
+                    if (tmdbResponse) processResults(tmdbResponse);
+                    else findByName();
+                });
             }
         }).fail(function (jqXHR) {
             if (jqXHR.status === 404) {
-                searchTmdb(animeData.name, function (tmdbResponse) { handleTmdbResponse(tmdbResponse, animeData.japanese); });
+                findByName();
             } else {
                 console.error('Ошибка при получении данных с animeapi:', jqXHR.status);
+                findByName();
             }
         });
 
@@ -223,7 +240,7 @@
         }
 
         function handleTmdbResponse(tmdbResponse, fallbackQuery) {
-            if (tmdbResponse.total_results === 0) {
+            if (!tmdbResponse || tmdbResponse.total_results === 0) {
                 searchTmdb(fallbackQuery, handleFallbackResponse);
             } else {
                 processResults(tmdbResponse);
@@ -236,20 +253,21 @@
             var menu = [];
             if (!response) return;
             if (response.total_results !== undefined) {
-                if (response.total_results === 0) {
+                var results = (response.results || []).filter(function (item) { return item && (item.media_type === 'movie' || item.media_type === 'tv'); });
+                if (!results.length) {
                     Lampa.Noty.show('Не удалось найти данные');
-                } else if (response.total_results === 1) {
+                } else if (results.length === 1) {
                     Lampa.Activity.push({
                         url: '',
                         component: 'full',
-                        id: response.results[0].id,
-                        method: response.results[0].media_type,
-                        card: response.results[0]
+                        id: results[0].id,
+                        method: results[0].media_type,
+                        card: results[0]
                     });
                 } else {
-                    response.results.forEach(function (animeItem) {
+                    results.forEach(function (animeItem) {
                         menu.push({
-                            title: "[".concat(animeItem.media_type.toUpperCase(), "] ").concat(animeItem.name ? animeItem.name : animeItem.title),
+                            title: "[".concat(String(animeItem.media_type || '').toUpperCase(), "] ").concat(animeItem.name ? animeItem.name : animeItem.title),
                             card: animeItem
                         });
                     });
@@ -282,6 +300,15 @@
 
     var API = { main: main, search: search };
 
+    function escapeHtml(value) {
+        return String(value === undefined || value === null ? '' : value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
     // Класс для создания карточки аниме
     function Card(data, userLang) {
         var typeTranslations = {
@@ -301,17 +328,23 @@
         }
 
         // ВАЖНО: добавлен tabindex="0" и role="button", чтобы карточка была доступна для фокуса с пульта
+        var kind = data.kind || '';
+        var poster = data.poster && data.poster.originalUrl ? data.poster.originalUrl : './img/img_broken.svg';
+        var title = userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese || data.russian;
         var item = $('<div class="Shikimori card selector layer--visible layer--render" tabindex="0" role="button">' +
             '<div class="Shikimori card__view">' +
-            '<img src="' + data.poster.originalUrl + '" class="Shikimori card__img" />' +
-            '<div class="Shikimori card__type">' + (typeTranslations[data.kind] || data.kind.toUpperCase()) + '</div>' +
-            '<div class="Shikimori card__vote">' + data.score + '</div>' +
-            '<div class="Shikimori card__season">' + formattedSeason + '</div>' +
-            '<div class="Shikimori card__status">' + (statusTranslations[data.status] || capitalizeFirstLetter(data.status)) + '</div>' +
+            '<img src="' + escapeHtml(poster) + '" class="Shikimori card__img" />' +
+            '<div class="Shikimori card__type">' + escapeHtml(typeTranslations[kind] || kind.toUpperCase()) + '</div>' +
+            '<div class="Shikimori card__vote">' + escapeHtml(data.score || '0') + '</div>' +
+            '<div class="Shikimori card__season">' + escapeHtml(formattedSeason) + '</div>' +
+            '<div class="Shikimori card__status">' + escapeHtml(statusTranslations[data.status] || capitalizeFirstLetter(data.status)) + '</div>' +
             '</div>' +
-            '<div class="Shikimori card__title">' + (userLang === 'ru' ? data.russian || data.name || data.japanese : data.name || data.japanese) + '</div>' +
+            '<div class="Shikimori card__title">' + escapeHtml(title || 'Без названия') + '</div>' +
             '</div>');
 
+        this.data = data;
+        this.element = item;
+        this.open = function () { API.search(data); };
         this.render = function () { return item; };
         this.destroy = function () { item.remove(); };
     }
@@ -327,11 +360,37 @@
         var head = $("<div class='Shikimori-head torrent-filter'><div class='Shikimori__home simple-button simple-button--filter selector'>Главная</div><div class='Shikimori__search simple-button simple-button--filter selector'>Фильтр</div></div>");
         var body = $('<div class="Shikimori-catalog--list category-full"></div>');
         var active, last;
+        var enterLocked = false;
+        var loadingNext = false;
+        var noMore = false;
+        var headerReady = false;
 
-        this.create = function () { API.main(object, this.build.bind(this), this.empty.bind(this)); };
+        function openAnime(item, event) {
+            if (!item || enterLocked) return false;
+            enterLocked = true;
+            if (event) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            item.open();
+            setTimeout(function () { enterLocked = false; }, 600);
+            return false;
+        }
+
+        this.create = function () {
+            loadingNext = true;
+            API.main(object, this.build.bind(this), this.empty.bind(this));
+        };
 
         this.build = function (result) {
             var _this = this;
+            loadingNext = false;
+            if (!result || !result.length) {
+                noMore = true;
+                if (!items.length) return this.empty();
+                return;
+            }
+            if (result.length < 36) noMore = true;
             scroll.minus();
             scroll.onWheel = function (step) {
                 if (!Lampa.Controller.own(_this)) _this.start();
@@ -339,11 +398,16 @@
                 else Navigator.move('up');
             };
             scroll.onEnd = function () {
+                if (loadingNext || noMore) return;
+                loadingNext = true;
                 object.page++;
-                API.main(object, _this.build.bind(_this), _this.empty.bind(_this));
+                API.main(object, _this.build.bind(_this), function () { loadingNext = false; });
             };
 
-            this.headeraction();
+            if (!headerReady) {
+                this.headeraction();
+                headerReady = true;
+            }
             this.body(result);
             scroll.append(head);
             scroll.append(body);
@@ -356,6 +420,7 @@
             var settings = { "url": "https://shikimori.one/api/genres", "method": "GET", "timeout": 0 };
             var filters = {};
             var currentYear = new Date().getFullYear();
+            filters.kind = { title: 'Жанр', items: [{ title: 'Жанры загружаются...', disabled: true }] };
 
             $.ajax(settings).done(function (response) {
                 var genreTranslations = {
@@ -376,7 +441,10 @@
                     return _objectSpread2(_objectSpread2({}, item), {}, { title: genreTranslations[item.name] || item.name, name: undefined });
                 });
                 filters.kind = { title: 'Жанр', items: filteredResponse };
-            }).fail(function (error) { console.error('Ошибка загрузки жанров:', error); });
+            }).fail(function (error) {
+                console.error('Ошибка загрузки жанров:', error);
+                filters.kind = { title: 'Жанр', items: [{ title: 'Жанры недоступны', disabled: true }] };
+            });
 
             filters.AnimeKindEnum = {
                 title: 'Тип',
@@ -449,21 +517,27 @@
                 var query = {};
                 filters.AnimeKindEnum.items.forEach(function (a) { if (a.selected) query.kind = a.code; });
                 filters.status.items.forEach(function (a) { if (a.selected) query.status = a.code; });
-                filters.kind.items.forEach(function (a) { if (a.selected) query.genre = a.id; });
+                if (filters.kind && filters.kind.items) filters.kind.items.forEach(function (a) { if (a.selected && !a.disabled) query.genre = a.id; });
                 filters.sort.items.forEach(function (a) { if (a.selected) query.sort = a.code; });
                 filters.seasons.items.forEach(function (a) { if (a.selected) query.seasons = a.code; });
                 return query;
             }
 
             function selected(where) {
+                if (!where || !where.items) return;
                 var title = [];
                 where.items.forEach(function (a) { if (a.selected || a.checked) title.push(a.title); });
                 where.subtitle = title.length ? title.join(', ') : Lampa.Lang.translate('nochoice');
             }
 
-            function select(where, a) { where.forEach(function (element) { element.selected = false; }); a.selected = true; }
+            function select(where, a) {
+                if (a.disabled) return;
+                where.forEach(function (element) { element.selected = false; });
+                a.selected = true;
+            }
 
             function submenu(item, main) {
+                if (!item || !item.items) return;
                 Lampa.Select.show({
                     title: item.title,
                     items: item.items,
@@ -520,20 +594,14 @@
                     scroll.update(cardElement, true);
                 });
                 // Обработчик активации (Enter на пульте)
-                cardElement.on("hover:enter", _asyncToGenerator(_regeneratorRuntime().mark(function _callee() {
-                    return _regeneratorRuntime().wrap(function _callee$(_context) {
-                        while (1) switch (_context.prev = _context.next) {
-                            case 0: API.search(anime);
-                            case 1:
-                            case "end": return _context.stop();
-                        }
-                    }, _callee);
-                })));
-                // Дополнительный keydown для надёжности на Tizen (Enter/Space)
-                cardElement.on('keydown', function (e) {
-                    if (e.key === 'Enter' || e.key === ' ' || e.keyCode === 13 || e.keyCode === 32) {
-                        e.preventDefault();
-                        API.search(anime);
+                cardElement.on("hover:enter click tap mouseup", function (e) {
+                    return openAnime(item, e);
+                });
+                // На части Samsung/Tizen Enter приходит как keyup и не превращается в hover:enter.
+                cardElement.on('keydown keyup', function (e) {
+                    var code = e.keyCode || e.which;
+                    if (e.key === 'Enter' || e.key === ' ' || code === 13 || code === 32) {
+                        return openAnime(item, e);
                     }
                 });
                 body.append(cardElement);
@@ -557,6 +625,10 @@
                 toggle: function toggle() {
                     Lampa.Controller.collectionSet(scroll.render());
                     Lampa.Controller.collectionFocus(last || false, scroll.render());
+                },
+                enter: function enter() {
+                    if (active > -1 && items[active]) return openAnime(items[active]);
+                    if (last) return openAnime(items.filter(function (item) { return item.element && item.element[0] === last; })[0]);
                 },
                 left: function left() { if (Navigator.canmove("left")) Navigator.move("left"); else Lampa.Controller.toggle("menu"); },
                 right: function right() { Navigator.move("right"); },
@@ -603,11 +675,11 @@
                         return $.ajax({ url: "https://shikimori.one/api/animes/".concat(getMAL[0].myanimelist), method: "GET", timeout: 0 });
                     case 10:
                         response = _context.sent;
-                        dubbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fandubbers.join(', '), "</div>\n                    </div>");
-                        subbers = "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(response.fansubbers.join(', '), "</div>\n                    </div>");
+                        dubbers = response.fandubbers && response.fandubbers.length ? "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фандабберы</div>\n                        <div class=\"full-descr__text\">".concat(escapeHtml(response.fandubbers.join(', ')), "</div>\n                    </div>") : '';
+                        subbers = response.fansubbers && response.fansubbers.length ? "\n                    <div class=\"full-descr__info\">\n                        <div class=\"full-descr__info-name\">Фансабберы</div>\n                        <div class=\"full-descr__text\">".concat(escapeHtml(response.fansubbers.join(', ')), "</div>\n                    </div>") : '';
                         e.object.activity.render().find(".full-descr__right").append(dubbers, subbers);
-                        shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(response.score, "</div><div>Shikimori</div></div>");
-                        e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
+                        shikimoriRates = "<div class=\"full-start__rate rate--shikimori\"><div>".concat(escapeHtml(response.score || '0'), "</div><div>Shikimori</div></div>");
+                        if (!e.object.activity.render().find(".rate--shikimori").length) e.object.activity.render().find(".full-start-new__rate-line").prepend(shikimoriRates);
                         _context.next = 21;
                         break;
                     case 18:
