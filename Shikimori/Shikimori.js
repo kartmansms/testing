@@ -416,6 +416,7 @@
                 rendered = true;
                 html.append(head).append(quick).append(active).append(scroll.render());
                 scroll.render().append(body);
+                bindScrollFallback();
                 buildHeader();
                 load(false);
             }
@@ -430,10 +431,10 @@
                     Lampa.Controller.collectionSet(scroll.render());
                     Lampa.Controller.collectionFocus(last || false, scroll.render());
                 },
-                left: function () { Navigator.move('left'); },
-                right: function () { Navigator.move('right'); },
-                up: function () { Navigator.move('up'); },
-                down: function () { Navigator.move('down'); },
+                left: function () { moveFocus('left'); },
+                right: function () { moveFocus('right'); },
+                up: function () { moveFocus('up'); },
+                down: function () { moveFocus('down'); },
                 back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
                 enter: function () { enterFocused(); }
             });
@@ -443,6 +444,8 @@
         this.stop = function () {};
         this.pause = function () {};
         this.destroy = function () {
+            html.off('.shikimoriScroll');
+            scroll.render().off('.shikimoriScroll');
             scroll.destroy();
             html.remove();
         };
@@ -485,6 +488,98 @@
                     return false;
                 }
             });
+        }
+
+        function bindScrollFallback() {
+            var target = scroll.render();
+
+            target.css({
+                overflow: 'hidden',
+                position: 'relative'
+            });
+
+            html.on('wheel.shikimoriScroll mousewheel.shikimoriScroll DOMMouseScroll.shikimoriScroll', function (e) {
+                var original = e.originalEvent || e;
+                var delta = original.deltaY || -original.wheelDelta || original.detail * 40 || 0;
+                scrollBy(delta);
+                e.preventDefault();
+                return false;
+            });
+
+            html.on('keydown.shikimoriScroll', function (e) {
+                var code = e.keyCode || e.which;
+                if (code === 38) {
+                    moveFocus('up');
+                    e.preventDefault();
+                } else if (code === 40) {
+                    moveFocus('down');
+                    e.preventDefault();
+                } else if (code === 37) {
+                    moveFocus('left');
+                    e.preventDefault();
+                } else if (code === 39) {
+                    moveFocus('right');
+                    e.preventDefault();
+                } else if (code === 33) {
+                    scrollBy(-420);
+                    e.preventDefault();
+                } else if (code === 34) {
+                    scrollBy(420);
+                    e.preventDefault();
+                }
+            });
+        }
+
+        function scrollBy(delta) {
+            var target = scroll.render();
+            var node = target.get(0);
+            var top;
+
+            if (!node) return;
+
+            top = (node.scrollTop || 0) + delta;
+            if (top < 0) top = 0;
+            node.scrollTop = top;
+
+            if (scroll && scroll.update) scroll.update();
+        }
+
+        function moveFocus(direction) {
+            var before = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
+
+            Navigator.move(direction);
+            keepFocusVisible(direction, before);
+        }
+
+        function keepFocusVisible(direction, before) {
+            var focused = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
+            var viewport = scroll.render();
+            var node = viewport.get(0);
+            var top;
+            var bottom;
+            var viewTop;
+            var viewBottom;
+
+            if (!focused || !focused.length || !node) {
+                if (direction === 'down') scrollBy(260);
+                else if (direction === 'up') scrollBy(-260);
+                return;
+            }
+
+            if (before && before.length && before.get(0) === focused.get(0)) {
+                if (direction === 'down') scrollBy(260);
+                else if (direction === 'up') scrollBy(-260);
+                return;
+            }
+
+            top = focused.position().top + node.scrollTop;
+            bottom = top + focused.outerHeight(true);
+            viewTop = node.scrollTop;
+            viewBottom = viewTop + viewport.height();
+
+            if (bottom > viewBottom - 80) node.scrollTop = bottom - viewport.height() + 80;
+            else if (top < viewTop + 80) node.scrollTop = top - 80;
+            if (node.scrollTop < 0) node.scrollTop = 0;
         }
 
         function addHeadButton(title, action) {
@@ -875,6 +970,7 @@
         if ($('#shikimori-style').length) return;
         $('body').append('<style id="shikimori-style">' +
             '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff}' +
+            '.Shikimori-module>.scroll{height:calc(100vh - 11em);overflow:hidden;position:relative}' +
             '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
             '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
             '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus,.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
