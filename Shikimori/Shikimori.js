@@ -407,6 +407,7 @@
         var rendered = false;
         var loading = false;
         var ended = false;
+        var scrollTop = 0;
 
         params.page = parseInt(params.page, 10) || 1;
         if (!params.sort) params.sort = readSettings().default_sort;
@@ -493,6 +494,7 @@
         function bindScrollFallback() {
             var target = scroll.render();
 
+            target.addClass('scroll--wheel');
             target.css({
                 overflow: 'hidden',
                 position: 'relative'
@@ -531,15 +533,30 @@
         }
 
         function scrollBy(delta) {
-            var target = scroll.render();
-            var node = target.get(0);
-            var top;
+            setScroll(scrollTop + delta);
+        }
 
-            if (!node) return;
+        function setScroll(top) {
+            var viewport = scroll.render();
+            var content = viewport.find('.scroll__content').first();
+            var bodyScroll = viewport.find('.scroll__body').first();
+            var max = 0;
 
-            top = (node.scrollTop || 0) + delta;
+            if (!bodyScroll.length) return;
+
+            max = bodyScroll.outerHeight(true) - viewport.height();
+            if (max < 0) max = 0;
             if (top < 0) top = 0;
-            node.scrollTop = top;
+            if (top > max) top = max;
+            scrollTop = top;
+
+            bodyScroll.css({
+                transform: 'translate3d(0,' + (-scrollTop) + 'px,0)',
+                '-webkit-transform': 'translate3d(0,' + (-scrollTop) + 'px,0)',
+                marginTop: 0
+            });
+
+            if (content.length) content.css('height', viewport.height() + scrollTop);
         }
 
         function moveFocus(direction) {
@@ -552,13 +569,13 @@
         function keepFocusVisible(direction, before) {
             var focused = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
             var viewport = scroll.render();
-            var node = viewport.get(0);
+            var bodyScroll = viewport.find('.scroll__body').first();
             var top;
             var bottom;
             var viewTop;
             var viewBottom;
 
-            if (!focused || !focused.length || !node) {
+            if (!focused || !focused.length || !bodyScroll.length) {
                 if (direction === 'down') scrollBy(260);
                 else if (direction === 'up') scrollBy(-260);
                 return;
@@ -570,14 +587,13 @@
                 return;
             }
 
-            top = focused.position().top + node.scrollTop;
+            top = focused.position().top;
             bottom = top + focused.outerHeight(true);
-            viewTop = node.scrollTop;
+            viewTop = scrollTop;
             viewBottom = viewTop + viewport.height();
 
-            if (bottom > viewBottom - 80) node.scrollTop = bottom - viewport.height() + 80;
-            else if (top < viewTop + 80) node.scrollTop = top - 80;
-            if (node.scrollTop < 0) node.scrollTop = 0;
+            if (bottom > viewBottom - 80) setScroll(bottom - viewport.height() + 80);
+            else if (top < viewTop + 80) setScroll(top - 80);
         }
 
         function addHeadButton(title, action) {
@@ -842,6 +858,7 @@
                     Lampa.Controller.collectionSet(scroll.render());
                     Lampa.Controller.collectionFocus(last || body.find('.selector').first(), scroll.render());
                 }
+                setScroll(scrollTop);
             }, function () {
                 loading = false;
                 body.find('.Shikimori-loader').remove();
@@ -969,6 +986,8 @@
         $('body').append('<style id="shikimori-style">' +
             '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff}' +
             '.Shikimori-module>.scroll{height:calc(100vh - 11em);overflow:hidden;position:relative}' +
+            '.Shikimori-module>.scroll>.scroll__content{width:100%;overflow:hidden}' +
+            '.Shikimori-module .scroll__body{width:100%;will-change:transform}' +
             '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
             '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
             '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus,.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
