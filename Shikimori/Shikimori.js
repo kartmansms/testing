@@ -422,6 +422,8 @@
             return html;
         };
 
+        this.create = this.render;
+
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
