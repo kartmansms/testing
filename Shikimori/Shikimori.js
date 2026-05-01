@@ -217,7 +217,7 @@
             var headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            // Запрашиваем оценку пользователя, только если отправляем токен
+            // Запрашиваем оценку пользователя, только если отправляем токен (чтобы избежать ошибок GraphQL)
             var userRateQuery = token ? ' userRate { score }' : '';
 
             $.ajax({
@@ -545,20 +545,17 @@
         var year = data && data.airedOn ? data.airedOn.year : '';
         var season = seasonName(data.season);
         var compact = settings.card_size === 'compact' ? ' Shikimori--compact' : '';
-        
-        // ДОБАВЛЕНО: иконка звезды к общему рейтингу
-        var score = data.score && data.score !== '0.0' ? '★ ' + data.score : '—';
-        
+        var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
         
         if (season) meta.push(season);
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
         
-        // ДОБАВЛЕНО: Блок оценки пользователя с галочкой (только цифра)
+        // Формируем блок оценки пользователя (только цифра)
         var userRateHTML = '';
         if (data.userRate && data.userRate.score && data.userRate.score > 0) {
-            userRateHTML = '<div class="Shikimori-card__user-rate">✔ ' + data.userRate.score + '</div>';
+            userRateHTML = '<div class="Shikimori-card__user-rate">' + data.userRate.score + '</div>';
         }
 
         this.data = data;
@@ -1224,34 +1221,31 @@
             '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
             '.Shikimori-module .scroll__body{width:100%}' +
             '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
-            '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:2em;padding:0.4em 1em;transition:background 0.2s, transform 0.2s;}' +
-            '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#e95a68;transform:scale(1.05);}' +
+            '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
+            '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus,.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
             '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
             '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
             '.Shikimori-active span{color:#e95a68;font-weight:600}' +
             '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
             '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
             '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
-            /* Плавная анимация карточки */
-            '.Shikimori.card .card__view{background:#1b1d24;border-radius:.5em;overflow:hidden;position:relative;padding-bottom:145%;transition:transform 0.2s ease, box-shadow 0.2s ease;}' +
-            /* Градиент для читаемости текста на светлых постерах */
-            '.Shikimori.card .card__view::after{content:"";position:absolute;top:0;left:0;right:0;height:40%;background:linear-gradient(to bottom, rgba(0,0,0,0.8) 0%, transparent 100%);pointer-events:none;z-index:1;}' +
-            '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#22252d;z-index:0;}' +
-            /* Увеличение при фокусе (магия для ТВ) */
-            '.Shikimori.card.focus .card__view{transform:scale(1.07);box-shadow:0 10px 25px rgba(0,0,0,0.6), 0 0 0 3px #c83a4b;z-index:10;}' +
-            '.Shikimori-card__rating,.Shikimori-card__badge,.Shikimori-card__user-rate{position:absolute;padding:.25em .45em;border-radius:.3em;background:rgba(20,20,20,.85);font-size:.85em;font-weight:bold;line-height:1;color:#fff;z-index:2;backdrop-filter:blur(2px);}' +
-            '.Shikimori-card__rating{top:.5em;left:.5em;color:#ffd166}' +
-            '.Shikimori-card__badge{top:.5em;right:.5em;background:rgba(200,58,75,.9)}' +
-            '.Shikimori-card__user-rate{top:2.2em;left:.5em;color:#2ecc71;}' +
-            '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.6em;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
-            '.Shikimori-card__meta{font-size:.85em;line-height:1.25;color:rgba(255,255,255,.5);height:1.25em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2em}' +
-            '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.5);padding:3em 0}' +
-            '.shikimori-full-extra{display:flex;flex-wrap:wrap;margin:1em 0;background:rgba(255,255,255,0.05);padding:1em;border-radius:0.5em;}' +
-            '.shikimori-full-extra__item{margin:0 1.5em .8em 0;}' +
-            '.shikimori-full-extra__item span{display:block;color:rgba(255,255,255,.48);font-size:.85em;margin-bottom:.3em;text-transform:uppercase;letter-spacing:1px;}' +
-            '.shikimori-full-extra__item b{font-weight:600;color:#fff;font-size:1.1em;}' +
-            '.shikimori-full-extra__link{margin-top:auto;margin-bottom:auto;background:rgba(200,58,75,.2);color:#ff7686;border:1px solid rgba(200,58,75,.5);transition:all 0.2s;}' +
-            '.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#c83a4b;transform:scale(1.05);}' +
+            '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
+            '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#22252d}' +
+            '.Shikimori.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(200,58,75,.45)}' +
+            '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
+            '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
+            '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
+            '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+            '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
+            '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
+            '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+            '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
+            '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
+            '.shikimori-full-extra{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin:1em 0;color:#fff}' +
+            '.shikimori-full-extra__item{margin:0 1.3em .8em 0;min-width:8em}' +
+            '.shikimori-full-extra__item span{display:block;color:rgba(255,255,255,.48);font-size:.88em;margin-bottom:.2em}' +
+            '.shikimori-full-extra__item b{font-weight:500;color:#fff}' +
+            '.shikimori-full-extra__link{margin:.1em 0 .8em 0}' +
         '</style>');
     }
 
