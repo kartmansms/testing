@@ -227,26 +227,27 @@
         });
     }
 
+    // Измененная функция с резервным TMDB-поиском
     function openAnime(data) {
         var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
         
         if (window.Lampa && Lampa.Reguest) {
             var network = new Lampa.Reguest();
-            network.timeout(12000);
+            network.timeout(8000);
             network.silent(url, function (answer) {
                 if (answer && answer.themoviedb) {
                     openTmdb(answer, data);
                 } else {
-                    fallbackSearch(data);
+                    fallbackSearch(data); // Переход к поиску по названию
                 }
             }, function () {
-                fallbackSearch(data);
+                fallbackSearch(data); // Если ТВ заблокировал по SSL
             });
         } else {
             $.ajax({
                 url: url,
                 dataType: 'json',
-                timeout: 12000,
+                timeout: 8000,
                 success: function (answer) {
                     if (answer && answer.themoviedb) openTmdb(answer, data);
                     else fallbackSearch(data);
@@ -258,9 +259,63 @@
         }
     }
 
+    // Резервный поиск напрямую в TMDB API
     function fallbackSearch(data) {
-        var query = titleOf(data);
-        notify('ТВ блокирует SSL ID-сервера. Ищем по названию...');
+        var name = data.name || data.english || data.russian || '';
+        // Очистка от сезонов и лишних символов для лучшего поиска
+        var cleanName = name.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '').replace(/\s{2,}/g, ' ').trim();
+        if (!cleanName) cleanName = titleOf(data);
+
+        var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+        var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
+        var useProxy = window.Lampa && Lampa.Storage && Lampa.Storage.field('proxy_tmdb');
+        
+        var baseUrl = 'https://api.themoviedb.org/3/';
+        if (useProxy) {
+            var proxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+            baseUrl = Lampa.Utils.protocol() + proxy;
+        }
+        
+        var url = baseUrl + 'search/multi?api_key=' + apiKey + '&language=' + lang + '&query=' + encodeURIComponent(cleanName);
+
+        if (window.Lampa && Lampa.Reguest) {
+            var network = new Lampa.Reguest();
+            network.timeout(8000);
+            network.silent(url, function(res) {
+                handleTmdbSearch(res, data);
+            }, function() {
+                openLampaSearch(data);
+            });
+        } else {
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                timeout: 8000,
+                success: function(res) { handleTmdbSearch(res, data); },
+                error: function() { openLampaSearch(data); }
+            });
+        }
+    }
+
+    function handleTmdbSearch(res, shiki) {
+        if (res && res.results && res.results.length > 0) {
+            var item = res.results[0];
+            // Ищем первый попавшийся фильм или сериал
+            for (var i = 0; i < res.results.length; i++) {
+                if (res.results[i].media_type === 'tv' || res.results[i].media_type === 'movie') {
+                    item = res.results[i];
+                    break;
+                }
+            }
+            openTmdb(item, shiki);
+        } else {
+            openLampaSearch(shiki);
+        }
+    }
+
+    function openLampaSearch(shiki) {
+        notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
+        var query = titleOf(shiki);
         if (window.Lampa && Lampa.Activity) {
             Lampa.Activity.push({
                 url: '',
@@ -285,7 +340,7 @@
             shikimori: shiki
         };
         if (!movie.id) {
-            fallbackSearch(shiki);
+            openLampaSearch(shiki);
             return;
         }
         Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type === 'movie' ? 'movie' : 'tv', card: movie, source: 'tmdb' });
@@ -868,7 +923,6 @@
             var render = card.render();
             render.data('card', card);
             
-            // Ключевой фикс фокуса и авто-скролла для TV и Android!
             render.on('hover:focus nav_focus', function () {
                 last = render[0];
                 scroll.update(render, true);
