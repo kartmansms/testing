@@ -552,10 +552,10 @@
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
         
-        // Формируем блок оценки пользователя
+        // Формируем блок оценки пользователя (только цифра)
         var userRateHTML = '';
         if (data.userRate && data.userRate.score && data.userRate.score > 0) {
-            userRateHTML = '<div class="Shikimori-card__user-rate">Ваша оценка <b>' + data.userRate.score + '</b></div>';
+            userRateHTML = '<div class="Shikimori-card__user-rate">' + data.userRate.score + '</div>';
         }
 
         this.data = data;
