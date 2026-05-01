@@ -965,8 +965,8 @@
             '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
             '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
             '.Shikimori-active span{color:#e95a68;font-weight:600}' +
-            '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start}' +
-            '.Shikimori.card{width:13.8em;margin:0 1.1em 1.55em 0;position:relative}' +
+            '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:center;padding:.5em}' +
+            '.Shikimori.card{width:13.8em;margin:.9em;position:relative}' +
             '.Shikimori.card.Shikimori--compact{width:11.4em}' +
             '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative}' +
             '.Shikimori.card .card__img{display:block;width:100%;min-height:17em;object-fit:cover;background:#22252d}' +
@@ -977,7 +977,7 @@
             '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
             '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
             '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
-            '.Shikimori-loader,.Shikimori-empty{font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+            '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
             '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
             '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
             '.shikimori-full-extra{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin:1em 0;color:#fff}' +
