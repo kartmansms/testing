@@ -120,11 +120,9 @@
         if (!code) return '';
         parts = String(code).split('_');
         
-        // Форматирование диапазонов годов (например, 2023_2024 -> 2023-2024)
         if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
             return parts[0] + '-' + parts[1];
         }
-        // Форматирование одного года (например, 2026 -> 2026 год)
         if (parts.length === 1 && !isNaN(parts[0])) {
             return parts[0] + ' год';
         }
@@ -230,21 +228,48 @@
     }
 
     function openAnime(data) {
-        $.ajax({
-            url: ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist',
-            dataType: 'json',
-            timeout: 12000,
-            success: function (answer) {
+        var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
+        
+        if (window.Lampa && Lampa.Reguest) {
+            var network = new Lampa.Reguest();
+            network.timeout(12000);
+            network.silent(url, function (answer) {
                 if (answer && answer.themoviedb) {
                     openTmdb(answer, data);
-                    return;
+                } else {
+                    fallbackSearch(data);
                 }
-                notify('TMDB-сопоставление не найдено. Shikimori: ' + SHIKI_HOST + '/animes/' + data.id);
-            },
-            error: function () {
-                notify('Не удалось найти TMDB. Shikimori: ' + SHIKI_HOST + '/animes/' + data.id);
-            }
-        });
+            }, function () {
+                fallbackSearch(data);
+            });
+        } else {
+            // Для совместимости, если Lampa.Reguest почему-то недоступен
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                timeout: 12000,
+                success: function (answer) {
+                    if (answer && answer.themoviedb) openTmdb(answer, data);
+                    else fallbackSearch(data);
+                },
+                error: function () {
+                    fallbackSearch(data);
+                }
+            });
+        }
+    }
+
+    function fallbackSearch(data) {
+        var query = titleOf(data);
+        notify('ТВ блокирует SSL ID-сервера. Ищем по названию...');
+        if (window.Lampa && Lampa.Activity) {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Поиск: ' + query,
+                component: 'search',
+                query: query
+            });
+        }
     }
 
     function openTmdb(item, shiki) {
@@ -261,7 +286,7 @@
             shikimori: shiki
         };
         if (!movie.id) {
-            notify('TMDB ID не найден. Shikimori: ' + SHIKI_HOST + '/animes/' + shiki.id);
+            fallbackSearch(shiki);
             return;
         }
         Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type === 'movie' ? 'movie' : 'tv', card: movie, source: 'tmdb' });
@@ -429,8 +454,8 @@
                 html.append(head).append(quick).append(active).append(scroll.render());
                 scroll.append(body);
                 
-                // Стандартное отслеживание фокуса Lampa
-                html.on('mouseenter focus nav_focus', '.selector', function () {
+                // Фикс скроллинга для TV (добавлено hover:focus и nav_focus)
+                html.on('hover:focus nav_focus', '.selector', function () {
                     last = $(this);
                     if (scroll && scroll.update) scroll.update(last);
                 });
@@ -530,7 +555,6 @@
             var target = scroll.render();
             target.addClass('scroll--wheel');
 
-            // Оставляем только прокрутку колесиком мыши
             html.on('wheel mousewheel DOMMouseScroll', function (e) {
                 var original = e.originalEvent || e;
                 var delta = original.deltaY || -original.wheelDelta || original.detail * 40 || 0;
@@ -539,7 +563,6 @@
                 return false;
             });
             
-            // Обработка клавиш перелистывания страниц на клавиатуре
             html.on('keydown', function(e) {
                 var code = e.keyCode || e.which;
                 if (code === 33) {
@@ -678,7 +701,6 @@
             else if (month >= 6 && month <= 8) currentIdx = 2;
             else if (month >= 9 && month <= 11) currentIdx = 3;
 
-            // Высчитываем индексы и годы относительно текущей даты
             var nextIdx = (currentIdx + 1) % 4;
             var nextYear = currentYear + (currentIdx === 3 ? 1 : 0);
             
@@ -828,7 +850,7 @@
             body.find('.Shikimori-more').remove();
             if (!append) {
                 body.empty();
-                last = null; // Очищаем память последнего фокуса, так как объекты удалены
+                last = null;
             }
             body.append('<div class="Shikimori-loader' + (append ? ' Shikimori-loader--more' : '') + '">Загрузка...</div>');
             requestAnime(params, function (data) {
@@ -898,11 +920,12 @@
                 return;
             }
             if (!card.id) return;
-            $.ajax({
-                url: ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(card.id),
-                dataType: 'json',
-                timeout: 12000,
-                success: function (answer) {
+            
+            var url = ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(card.id);
+            if (window.Lampa && Lampa.Reguest) {
+                var network = new Lampa.Reguest();
+                network.timeout(12000);
+                network.silent(url, function (answer) {
                     var mal = extractMalId(answer);
                     if (!mal) return;
                     $.ajax({
@@ -911,8 +934,24 @@
                         timeout: 12000,
                         success: function (anime) { appendFull(event.object.activity, anime); }
                     });
-                }
-            });
+                });
+            } else {
+                $.ajax({
+                    url: url,
+                    dataType: 'json',
+                    timeout: 12000,
+                    success: function (answer) {
+                        var mal = extractMalId(answer);
+                        if (!mal) return;
+                        $.ajax({
+                            url: SHIKI_HOST + '/api/animes/' + encodeURIComponent(mal),
+                            dataType: 'json',
+                            timeout: 12000,
+                            success: function (anime) { appendFull(event.object.activity, anime); }
+                        });
+                    }
+                });
+            }
         });
     }
 
@@ -974,9 +1013,8 @@
     function addStyles() {
         if ($('#shikimori-style').length) return;
         $('body').append('<style id="shikimori-style">' +
-            '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff}' +
-            '.Shikimori-module>.scroll{height:calc(100vh - 11em);overflow:hidden;position:relative}' +
-            '.Shikimori-module>.scroll>.scroll__content{width:100%}' +
+            '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
+            '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
             '.Shikimori-module .scroll__body{width:100%}' +
             '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
             '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
