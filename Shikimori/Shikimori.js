@@ -490,7 +490,6 @@
             addQuick('Онгоинги', { status: 'ongoing', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '' });
             addQuick('Анонсы', { status: 'anons', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '' });
             addQuick('Фильмы', { kind: 'movie', sort: 'popularity', status: '', season: '', genre: '', genre_title: '', search: '' });
-            addQuick('Текущий сезон', { season: currentSeasonCode(), sort: 'popularity', status: '', kind: '', genre: '', genre_title: '', search: '' });
             if (hasActiveFilters()) addQuick('Сброс', { page: 1, sort: readSettings().default_sort, search: '', status: '', kind: '', season: '', genre: '', genre_title: '' }, true);
             renderActive();
         }
@@ -657,15 +656,32 @@
         }
 
         function openSeasons() {
-            var year = new Date().getFullYear();
+            var current = currentSeasonCode();
+            var parts = current.split('_');
+            var seasonMap = { winter: 0, spring: 1, summer: 2, fall: 3 };
+            var seasonsList = ['winter', 'spring', 'summer', 'fall'];
+            var seasonsNames = { winter: 'Зима', spring: 'Весна', summer: 'Лето', fall: 'Осень' };
+            
+            var loopIdx = seasonMap[parts[0]];
+            var loopYear = parseInt(parts[1], 10);
+            
             var items = [
-                { title: 'Текущий сезон', value: currentSeasonCode() },
-                { title: 'Зима ' + year, value: 'winter_' + year },
-                { title: 'Весна ' + year, value: 'spring_' + year },
-                { title: 'Лето ' + year, value: 'summer_' + year },
-                { title: 'Осень ' + year, value: 'fall_' + year },
-                { title: 'Прошлый год', value: String(year - 1) }
+                { title: 'Текущий сезон', value: current }
             ];
+
+            // Добавляем 4 предыдущих сезона
+            for (var i = 0; i < 4; i++) {
+                loopIdx--;
+                if (loopIdx < 0) {
+                    loopIdx = 3;
+                    loopYear--;
+                }
+                items.push({ 
+                    title: seasonsNames[seasonsList[loopIdx]] + ' ' + loopYear, 
+                    value: seasonsList[loopIdx] + '_' + loopYear 
+                });
+            }
+
             showSelect('Сезоны', items, function (item) { openWith({ season: item.value }); });
         }
 
