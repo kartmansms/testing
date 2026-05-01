@@ -418,6 +418,13 @@
                 rendered = true;
                 html.append(head).append(quick).append(active).append(scroll.render());
                 scroll.append(body);
+                
+                // Стандартное отслеживание фокуса Lampa
+                html.on('mouseenter focus nav_focus', '.selector', function () {
+                    last = $(this);
+                    if (scroll && scroll.update) scroll.update(last);
+                });
+
                 bindScrollFallback();
                 bindAutoLoad();
                 buildHeader();
@@ -431,16 +438,32 @@
         this.start = function () {
             Lampa.Controller.add('content', {
                 toggle: function () {
-                    // ИСПРАВЛЕНИЕ: контейнер коллекции — весь html, чтобы пульт видел и кнопки, и карточки
                     Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || false, html);
+                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
                 },
-                left: function () { moveFocus('left'); },
-                right: function () { moveFocus('right'); },
-                up: function () { moveFocus('up'); },
-                down: function () { moveFocus('down'); },
-                back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
-                enter: function () { enterFocused(); }
+                left: function () { 
+                    if (Navigator.canmove('left')) Navigator.move('left'); 
+                    else Lampa.Controller.toggle('menu'); 
+                },
+                right: function () { 
+                    Navigator.move('right'); 
+                },
+                up: function () { 
+                    Navigator.move('up'); 
+                },
+                down: function () { 
+                    Navigator.move('down'); 
+                },
+                back: function () { 
+                    if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); 
+                },
+                enter: function () { 
+                    var focused = html.find('.selector.focus');
+                    if (focused.length) {
+                        var action = focused.data('action');
+                        if (action) action();
+                    }
+                }
             });
             Lampa.Controller.toggle('content');
         };
@@ -448,8 +471,8 @@
         this.stop = function () {};
         this.pause = function () {};
         this.destroy = function () {
-            html.off('.shikimoriScroll');
-            scroll.render().off('.shikimoriScroll');
+            html.off(); // Очищаем все привязанные события (в т.ч. фокус)
+            scroll.render().off();
             scroll.destroy();
             html.remove();
         };
@@ -496,32 +519,21 @@
 
         function bindScrollFallback() {
             var target = scroll.render();
-
             target.addClass('scroll--wheel');
 
-            html.on('wheel.shikimoriScroll mousewheel.shikimoriScroll DOMMouseScroll.shikimoriScroll', function (e) {
+            // Оставляем только прокрутку колесиком мыши
+            html.on('wheel mousewheel DOMMouseScroll', function (e) {
                 var original = e.originalEvent || e;
                 var delta = original.deltaY || -original.wheelDelta || original.detail * 40 || 0;
                 if (scroll && scroll.wheel) scroll.wheel(delta);
                 e.preventDefault();
                 return false;
             });
-
-            html.on('keydown.shikimoriScroll', function (e) {
+            
+            // Обработка клавиш перелистывания страниц на клавиатуре
+            html.on('keydown', function(e) {
                 var code = e.keyCode || e.which;
-                if (code === 38) {
-                    moveFocus('up');
-                    e.preventDefault();
-                } else if (code === 40) {
-                    moveFocus('down');
-                    e.preventDefault();
-                } else if (code === 37) {
-                    moveFocus('left');
-                    e.preventDefault();
-                } else if (code === 39) {
-                    moveFocus('right');
-                    e.preventDefault();
-                } else if (code === 33) {
+                if (code === 33) {
                     if (scroll && scroll.wheel) scroll.wheel(-420);
                     e.preventDefault();
                 } else if (code === 34) {
@@ -535,34 +547,6 @@
             scroll.onEnd = function () {
                 loadNextPage(true);
             };
-        }
-
-        function scrollBy(delta) {
-            if (scroll && scroll.wheel) scroll.wheel(delta);
-        }
-
-        function moveFocus(direction) {
-            var before = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
-
-            Navigator.move(direction);
-            keepFocusVisible(direction, before);
-        }
-
-        function keepFocusVisible(direction, before) {
-            var focused = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
-            if (!focused || !focused.length || !focused.get(0)) {
-                if (direction === 'down') scrollBy(260);
-                else if (direction === 'up') scrollBy(-260);
-                return;
-            }
-
-            if (before && before.length && before.get(0) === focused.get(0)) {
-                if (direction === 'down') scrollBy(260);
-                else if (direction === 'up') scrollBy(-260);
-                return;
-            }
-
-            if (scroll && scroll.update) scroll.update(focused);
         }
 
         function addHeadButton(title, action) {
@@ -807,7 +791,10 @@
             if (loading || ended && append) return;
             loading = true;
             body.find('.Shikimori-more').remove();
-            if (!append) body.empty();
+            if (!append) {
+                body.empty();
+                last = null; // Очищаем память последнего фокуса, так как объекты удалены
+            }
             body.append('<div class="Shikimori-loader' + (append ? ' Shikimori-loader--more' : '') + '">Загрузка...</div>');
             requestAnime(params, function (data) {
                 var i;
@@ -825,7 +812,6 @@
                 for (i = 0; i < data.length; i++) appendCard(data[i]);
                 if (!ended) addMoreButton();
                 if (window.Lampa && Lampa.Controller) {
-                    // ИСПРАВЛЕНИЕ: контейнер коллекции — html для полной навигации
                     Lampa.Controller.collectionSet(html);
                     Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
                 }
@@ -860,15 +846,6 @@
             last = body.find('.Shikimori.card').last();
             params.page = (parseInt(params.page, 10) || 1) + 1;
             load(true);
-        }
-
-        function enterFocused() {
-            var focused = Navigator.getFocusedElement ? Navigator.getFocusedElement() : $('.selector.focus');
-            var action;
-            if (!focused || !focused.length) return;
-            last = focused;
-            action = focused.data('action');
-            if (action) action();
         }
     }
 
