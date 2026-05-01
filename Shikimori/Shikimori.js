@@ -1131,7 +1131,7 @@
             '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
             '.Shikimori-active span{color:#e95a68;font-weight:600}' +
             '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
-            '.Shikimori.card{flex:0 0 12.5%;max-width:12.5%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+            '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
             '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
             '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
             '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#22252d}' +
