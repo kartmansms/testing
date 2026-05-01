@@ -227,7 +227,6 @@
         });
     }
 
-    // Измененная функция с резервным TMDB-поиском
     function openAnime(data) {
         var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
         
@@ -238,10 +237,10 @@
                 if (answer && answer.themoviedb) {
                     openTmdb(answer, data);
                 } else {
-                    fallbackSearch(data); // Переход к поиску по названию
+                    fallbackSearch(data);
                 }
             }, function () {
-                fallbackSearch(data); // Если ТВ заблокировал по SSL
+                fallbackSearch(data);
             });
         } else {
             $.ajax({
@@ -259,59 +258,122 @@
         }
     }
 
-    // Резервный поиск напрямую в TMDB API
+    // --- НАЧАЛО: Умный каскадный поиск для обхода блокировки SSL ТВ Samsung ---
     function fallbackSearch(data) {
-        var name = data.name || data.english || data.russian || '';
-        // Очистка от сезонов и лишних символов для лучшего поиска
-        var cleanName = name.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '').replace(/\s{2,}/g, ' ').trim();
-        if (!cleanName) cleanName = titleOf(data);
-
-        var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
-        var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
-        var useProxy = window.Lampa && Lampa.Storage && Lampa.Storage.field('proxy_tmdb');
+        var queries = [];
         
-        var baseUrl = 'https://api.themoviedb.org/3/';
-        if (useProxy) {
-            var proxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
-            baseUrl = Lampa.Utils.protocol() + proxy;
+        // Функция очистки названия от мусора
+        function clean(str) {
+            if (!str) return '';
+            var s = str.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '');
+            s = s.replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '');
+            s = s.replace(/\(TV\)/gi, '');
+            s = s.replace(/[^\w\sа-яА-ЯёЁ]/gi, ' ');
+            s = s.replace(/\s{2,}/g, ' ');
+            return s.trim();
         }
-        
-        var url = baseUrl + 'search/multi?api_key=' + apiKey + '&language=' + lang + '&query=' + encodeURIComponent(cleanName);
 
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.timeout(8000);
-            network.silent(url, function(res) {
-                handleTmdbSearch(res, data);
-            }, function() {
-                openLampaSearch(data);
-            });
-        } else {
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                timeout: 8000,
-                success: function(res) { handleTmdbSearch(res, data); },
-                error: function() { openLampaSearch(data); }
-            });
-        }
-    }
+        var cleanEng = clean(data.english);
+        var cleanRomaji = clean(data.name);
+        var cleanRus = clean(data.russian);
 
-    function handleTmdbSearch(res, shiki) {
-        if (res && res.results && res.results.length > 0) {
-            var item = res.results[0];
-            // Ищем первый попавшийся фильм или сериал
-            for (var i = 0; i < res.results.length; i++) {
-                if (res.results[i].media_type === 'tv' || res.results[i].media_type === 'movie') {
-                    item = res.results[i];
-                    break;
-                }
+        // Приоритет запросов: от самых точных (Англ) до запасных (Рус)
+        if (cleanEng) queries.push(cleanEng);
+        if (data.english) queries.push(data.english);
+        if (cleanRomaji) queries.push(cleanRomaji);
+        if (data.name) queries.push(data.name);
+        if (cleanRus) queries.push(cleanRus);
+        if (data.russian) queries.push(data.russian);
+
+        // Убираем дубликаты
+        var uniqueQueries = [];
+        for(var i = 0; i < queries.length; i++) {
+            if (uniqueQueries.indexOf(queries[i]) === -1 && queries[i].length > 1) {
+                uniqueQueries.push(queries[i]);
             }
-            openTmdb(item, shiki);
-        } else {
-            openLampaSearch(shiki);
         }
+
+        if (uniqueQueries.length === 0) {
+            openLampaSearch(data);
+            return;
+        }
+
+        var currentIndex = 0;
+        var shikiYear = data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
+
+        function tryNextQuery() {
+            if (currentIndex >= uniqueQueries.length) {
+                openLampaSearch(data); // Если перебрали все варианты и ничего не нашли
+                return;
+            }
+
+            var currentQuery = uniqueQueries[currentIndex];
+            currentIndex++;
+
+            var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+            var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
+            var useProxy = window.Lampa && Lampa.Storage && Lampa.Storage.field('proxy_tmdb');
+            
+            var baseUrl = 'https://api.themoviedb.org/3/';
+            if (useProxy) {
+                var proxy = 'apitmdb.' + (Lampa.Manifest && Lampa.Manifest.cub_domain ? Lampa.Manifest.cub_domain : 'cub.red') + '/3/';
+                baseUrl = Lampa.Utils.protocol() + proxy;
+            }
+            
+            var url = baseUrl + 'search/multi?api_key=' + apiKey + '&language=' + lang + '&query=' + encodeURIComponent(currentQuery);
+
+            var handleSuccess = function(res) {
+                if (res && res.results && res.results.length > 0) {
+                    var bestItem = null;
+                    for (var j = 0; j < res.results.length; j++) {
+                        var item = res.results[j];
+                        if (item.media_type === 'tv' || item.media_type === 'movie') {
+                            if (!bestItem) bestItem = item; // Запоминаем первый подходящий по типу
+                            
+                            // Проверяем год для точного совпадения
+                            if (shikiYear) {
+                                var itemYear = null;
+                                if (item.first_air_date) itemYear = parseInt(item.first_air_date.substring(0, 4), 10);
+                                else if (item.release_date) itemYear = parseInt(item.release_date.substring(0, 4), 10);
+                                
+                                if (itemYear && Math.abs(itemYear - shikiYear) <= 1) {
+                                    bestItem = item; // Идеальное совпадение по году
+                                    break;
+                                }
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if (bestItem) {
+                        openTmdb(bestItem, data);
+                    } else {
+                        tryNextQuery();
+                    }
+                } else {
+                    tryNextQuery();
+                }
+            };
+
+            if (window.Lampa && Lampa.Reguest) {
+                var network = new Lampa.Reguest();
+                network.timeout(6000);
+                network.silent(url, handleSuccess, tryNextQuery);
+            } else {
+                $.ajax({
+                    url: url,
+                    dataType: 'json',
+                    timeout: 6000,
+                    success: handleSuccess,
+                    error: tryNextQuery
+                });
+            }
+        }
+
+        notify('ТВ блокирует ID. Умный поиск TMDB...');
+        tryNextQuery();
     }
+    // --- КОНЕЦ: Умный каскадный поиск ---
 
     function openLampaSearch(shiki) {
         notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
