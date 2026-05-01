@@ -119,6 +119,16 @@
         var parts;
         if (!code) return '';
         parts = String(code).split('_');
+        
+        // Форматирование диапазонов годов (например, 2023_2024 -> 2023-2024)
+        if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+            return parts[0] + '-' + parts[1];
+        }
+        // Форматирование одного года (например, 2026 -> 2026 год)
+        if (parts.length === 1 && !isNaN(parts[0])) {
+            return parts[0] + ' год';
+        }
+
         return (map[parts[0]] || parts[0] || '') + (parts[1] ? ' ' + parts[1] : '');
     }
 
@@ -656,31 +666,40 @@
         }
 
         function openSeasons() {
-            var current = currentSeasonCode();
-            var parts = current.split('_');
-            var seasonMap = { winter: 0, spring: 1, summer: 2, fall: 3 };
+            var now = new Date();
+            var month = now.getMonth() + 1;
+            var currentYear = now.getFullYear();
+            
             var seasonsList = ['winter', 'spring', 'summer', 'fall'];
-            var seasonsNames = { winter: 'Зима', spring: 'Весна', summer: 'Лето', fall: 'Осень' };
+            var seasonsNames = ['Зима', 'Весна', 'Лето', 'Осень'];
             
-            var loopIdx = seasonMap[parts[0]];
-            var loopYear = parseInt(parts[1], 10);
-            
-            var items = [
-                { title: 'Текущий сезон', value: current }
-            ];
+            var currentIdx = 0;
+            if (month >= 3 && month <= 5) currentIdx = 1;
+            else if (month >= 6 && month <= 8) currentIdx = 2;
+            else if (month >= 9 && month <= 11) currentIdx = 3;
 
-            // Добавляем 4 предыдущих сезона
-            for (var i = 0; i < 4; i++) {
-                loopIdx--;
-                if (loopIdx < 0) {
-                    loopIdx = 3;
-                    loopYear--;
-                }
-                items.push({ 
-                    title: seasonsNames[seasonsList[loopIdx]] + ' ' + loopYear, 
-                    value: seasonsList[loopIdx] + '_' + loopYear 
-                });
-            }
+            // Высчитываем индексы и годы относительно текущей даты
+            var nextIdx = (currentIdx + 1) % 4;
+            var nextYear = currentYear + (currentIdx === 3 ? 1 : 0);
+            
+            var prev1Idx = (currentIdx + 3) % 4;
+            var prev1Year = currentYear - (currentIdx === 0 ? 1 : 0);
+            
+            var prev2Idx = (prev1Idx + 3) % 4;
+            var prev2Year = prev1Year - (prev1Idx === 0 ? 1 : 0);
+
+            var items = [
+                { title: seasonsNames[nextIdx] + ' ' + nextYear, value: seasonsList[nextIdx] + '_' + nextYear },
+                { title: seasonsNames[currentIdx] + ' ' + currentYear, value: seasonsList[currentIdx] + '_' + currentYear },
+                { title: seasonsNames[prev1Idx] + ' ' + prev1Year, value: seasonsList[prev1Idx] + '_' + prev1Year },
+                { title: seasonsNames[prev2Idx] + ' ' + prev2Year, value: seasonsList[prev2Idx] + '_' + prev2Year },
+                { title: currentYear + ' год', value: String(currentYear) },
+                { title: (currentYear - 1) + ' год', value: String(currentYear - 1) },
+                { title: (currentYear - 3) + '-' + (currentYear - 2), value: (currentYear - 3) + '_' + (currentYear - 2) },
+                { title: (currentYear - 8) + '-' + (currentYear - 4), value: (currentYear - 8) + '_' + (currentYear - 4) },
+                { title: '2010-' + (currentYear - 9), value: '2010_' + (currentYear - 9) },
+                { title: '2000-2010', value: '2000_2010' }
+            ];
 
             showSelect('Сезоны', items, function (item) { openWith({ season: item.value }); });
         }
@@ -965,12 +984,11 @@
             '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
             '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
             '.Shikimori-active span{color:#e95a68;font-weight:600}' +
-            '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:center;padding:.5em}' +
-            '.Shikimori.card{width:13.8em;margin:.9em;position:relative}' +
-            '.Shikimori.card.Shikimori--compact{width:11.4em}' +
-            '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative}' +
-            '.Shikimori.card .card__img{display:block;width:100%;min-height:17em;object-fit:cover;background:#22252d}' +
-            '.Shikimori.card.Shikimori--compact .card__img{min-height:14.5em}' +
+            '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
+            '.Shikimori.card{flex:0 0 12.5%;max-width:12.5%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+            '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
+            '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
+            '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;background:#22252d}' +
             '.Shikimori.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(200,58,75,.45)}' +
             '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
             '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
