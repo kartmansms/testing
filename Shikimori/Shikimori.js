@@ -212,11 +212,13 @@
             if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
             if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
             if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
-            // Параметр mylist в GraphQL Shikimori имеет тип String, поэтому нужны кавычки
             if (params.mylist) parts.push('mylist: "' + gqlValue(params.mylist) + '"');
 
             var headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            // Запрашиваем оценку пользователя, только если отправляем токен (чтобы избежать ошибок GraphQL)
+            var userRateQuery = token ? ' userRate { score }' : '';
 
             $.ajax({
                 url: SHIKI_HOST + '/api/graphql',
@@ -224,7 +226,7 @@
                 headers: headers,
                 dataType: 'json',
                 timeout: 15000,
-                data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl } } }' }),
+                data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl }' + userRateQuery + ' } }' }),
                 success: function (answer) {
                     if (answer && answer.errors) {
                         notify('Shikimori: Ошибка запроса к API');
@@ -545,14 +547,24 @@
         var compact = settings.card_size === 'compact' ? ' Shikimori--compact' : '';
         var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
+        
         if (season) meta.push(season);
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
+        
+        // Формируем блок оценки пользователя
+        var userRateHTML = '';
+        if (data.userRate && data.userRate.score && data.userRate.score > 0) {
+            userRateHTML = '<div class="Shikimori-card__user-rate">Ваша оценка <b>' + data.userRate.score + '</b></div>';
+        }
+
         this.data = data;
         this.render = function () {
             return $('<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                 '<div class="card__view"><img class="card__img" src="' + esc(posterOf(data)) + '" />' +
-                '<div class="Shikimori-card__rating">' + esc(score) + '</div><div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
+                '<div class="Shikimori-card__rating">' + esc(score) + '</div>' + 
+                userRateHTML + 
+                '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
                 '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div></div>');
         };
     }
@@ -1220,6 +1232,7 @@
             '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
             '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
             '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
+            '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
             '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
             '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
             '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
