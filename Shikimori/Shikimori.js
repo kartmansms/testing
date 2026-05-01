@@ -58,7 +58,7 @@
     }
 
     function defaultAuth() {
-        return { client_id: '', client_secret: '', redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', access_token: '', refresh_token: '', expires_at: 0, nickname: '' };
+        return { id: 0, client_id: '', client_secret: '', redirect_uri: 'urn:ietf:wg:oauth:2.0:oob', access_token: '', refresh_token: '', expires_at: 0, nickname: '' };
     }
 
     function readAuth() {
@@ -203,28 +203,44 @@
     }
 
     function requestAnime(params, oncomplete, onerror) {
-        var page = parseInt(params.page, 10) || 1;
-        var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
-        if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
-        if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
-        if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
-        if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
-        if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
-        $.ajax({
-            url: SHIKI_HOST + '/api/graphql',
-            method: 'POST',
-            contentType: 'application/json',
-            dataType: 'json',
-            timeout: 15000,
-            data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl } } }' }),
-            success: function (answer) {
-                oncomplete(answer && answer.data && answer.data.animes ? answer.data.animes : []);
-            },
-            error: function (xhr) {
-                notify('Shikimori: не удалось загрузить каталог');
-                if (onerror) onerror(xhr);
-            }
-        });
+        var doRequest = function (token) {
+            var page = parseInt(params.page, 10) || 1;
+            var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
+            
+            if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
+            if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
+            if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
+            if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
+            if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
+            if (params.mylist) parts.push('mylist: ' + params.mylist); // Enum, без кавычек
+
+            var headers = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            $.ajax({
+                url: SHIKI_HOST + '/api/graphql',
+                method: 'POST',
+                headers: headers,
+                dataType: 'json',
+                timeout: 15000,
+                data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl } } }' }),
+                success: function (answer) {
+                    oncomplete(answer && answer.data && answer.data.animes ? answer.data.animes : []);
+                },
+                error: function (xhr) {
+                    notify('Shikimori: не удалось загрузить каталог');
+                    if (onerror) onerror(xhr);
+                }
+            });
+        };
+
+        if (params.mylist) {
+            withAccessToken(doRequest);
+        } else {
+            var auth = readAuth();
+            if (isAuthorized()) doRequest(auth.access_token);
+            else doRequest('');
+        }
     }
 
     function openAnime(data) {
@@ -258,11 +274,9 @@
         }
     }
 
-    // --- НАЧАЛО: Умный каскадный поиск для обхода блокировки SSL ТВ Samsung ---
     function fallbackSearch(data) {
         var queries = [];
         
-        // Функция очистки названия от мусора
         function clean(str) {
             if (!str) return '';
             var s = str.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '');
@@ -277,7 +291,6 @@
         var cleanRomaji = clean(data.name);
         var cleanRus = clean(data.russian);
 
-        // Приоритет запросов: от самых точных (Англ) до запасных (Рус)
         if (cleanEng) queries.push(cleanEng);
         if (data.english) queries.push(data.english);
         if (cleanRomaji) queries.push(cleanRomaji);
@@ -285,7 +298,6 @@
         if (cleanRus) queries.push(cleanRus);
         if (data.russian) queries.push(data.russian);
 
-        // Убираем дубликаты
         var uniqueQueries = [];
         for(var i = 0; i < queries.length; i++) {
             if (uniqueQueries.indexOf(queries[i]) === -1 && queries[i].length > 1) {
@@ -303,7 +315,7 @@
 
         function tryNextQuery() {
             if (currentIndex >= uniqueQueries.length) {
-                openLampaSearch(data); // Если перебрали все варианты и ничего не нашли
+                openLampaSearch(data); 
                 return;
             }
 
@@ -328,16 +340,15 @@
                     for (var j = 0; j < res.results.length; j++) {
                         var item = res.results[j];
                         if (item.media_type === 'tv' || item.media_type === 'movie') {
-                            if (!bestItem) bestItem = item; // Запоминаем первый подходящий по типу
+                            if (!bestItem) bestItem = item; 
                             
-                            // Проверяем год для точного совпадения
                             if (shikiYear) {
                                 var itemYear = null;
                                 if (item.first_air_date) itemYear = parseInt(item.first_air_date.substring(0, 4), 10);
                                 else if (item.release_date) itemYear = parseInt(item.release_date.substring(0, 4), 10);
                                 
                                 if (itemYear && Math.abs(itemYear - shikiYear) <= 1) {
-                                    bestItem = item; // Идеальное совпадение по году
+                                    bestItem = item;
                                     break;
                                 }
                             } else {
@@ -373,7 +384,6 @@
         notify('ТВ блокирует ID. Умный поиск TMDB...');
         tryNextQuery();
     }
-    // --- КОНЕЦ: Умный каскадный поиск ---
 
     function openLampaSearch(shiki) {
         notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
@@ -509,6 +519,7 @@
                 headers: { Authorization: 'Bearer ' + token },
                 success: function (user) {
                     var auth = readAuth();
+                    auth.id = user && user.id ? user.id : 0;
                     auth.nickname = user && user.nickname ? user.nickname : '';
                     saveAuth(auth);
                     notify(auth.nickname ? 'Shikimori: ' + auth.nickname : 'Shikimori: профиль получен');
@@ -633,16 +644,22 @@
             head.empty();
             quick.empty();
             active.empty();
-            addHeadButton('Главная', function () { openWith({ page: 1, sort: readSettings().default_sort, search: '', status: '', kind: '', season: '', genre: '', genre_title: '' }); });
+            addHeadButton('Главная', function () { openWith({ page: 1, sort: readSettings().default_sort, search: '', status: '', kind: '', season: '', genre: '', genre_title: '', mylist: '' }); });
+            
+            if (isAuthorized()) {
+                addHeadButton('Профиль', openProfile);
+            }
+
             addHeadButton('Поиск', openSearch);
             addHeadButton('Фильтры', openFilters);
             addHeadButton('Сезоны', openSeasons);
             addHeadButton('Настройки', openSettings);
-            addQuick('Популярное', { sort: 'popularity', status: '', kind: '', season: '', genre: '', genre_title: '', search: '' });
-            addQuick('Онгоинги', { status: 'ongoing', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '' });
-            addQuick('Анонсы', { status: 'anons', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '' });
-            addQuick('Фильмы', { kind: 'movie', sort: 'popularity', status: '', season: '', genre: '', genre_title: '', search: '' });
-            if (hasActiveFilters()) addQuick('Сброс', { page: 1, sort: readSettings().default_sort, search: '', status: '', kind: '', season: '', genre: '', genre_title: '' }, true);
+            
+            addQuick('Популярное', { sort: 'popularity', status: '', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
+            addQuick('Онгоинги', { status: 'ongoing', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
+            addQuick('Анонсы', { status: 'anons', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
+            addQuick('Фильмы', { kind: 'movie', sort: 'popularity', status: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
+            if (hasActiveFilters()) addQuick('Сброс', { page: 1, sort: readSettings().default_sort, search: '', status: '', kind: '', season: '', genre: '', genre_title: '', mylist: '' }, true);
             renderActive();
         }
 
@@ -707,17 +724,21 @@
 
         function renderActive() {
             var parts = [];
+            var mylistMap = { planned: 'запланировано', watching: 'смотрю', rewatching: 'пересматриваю', completed: 'просмотрено', on_hold: 'отложено', dropped: 'брошено' };
+
+            if (params.mylist) parts.push('список: ' + mylistMap[params.mylist]);
             if (params.search) parts.push('поиск: ' + params.search);
             if (params.kind) parts.push('тип: ' + kindName(params.kind));
             if (params.status) parts.push('статус: ' + statusName(params.status));
             if (params.season) parts.push('сезон: ' + seasonName(params.season));
             if (params.genre) parts.push('жанр: ' + (params.genre_title || params.genre));
             if (params.sort && params.sort !== readSettings().default_sort) parts.push('сортировка: ' + sortName(params.sort));
+            
             active.html(parts.length ? '<span>Активно:</span> ' + esc(parts.join(' / ')) : '<span>Shikimori</span> быстрый каталог аниме');
         }
 
         function hasActiveFilters() {
-            return !!(params.search || params.kind || params.status || params.season || params.genre || (params.sort && params.sort !== readSettings().default_sort));
+            return !!(params.search || params.kind || params.status || params.season || params.genre || params.mylist || (params.sort && params.sort !== readSettings().default_sort));
         }
 
         function openWith(values) {
@@ -732,7 +753,59 @@
             }
             if (!next.genre) delete next.genre_title;
             if (!next.sort) next.sort = readSettings().default_sort;
-            Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'shikimori', page: next.page, search: next.search || '', kind: next.kind || '', status: next.status || '', season: next.season || '', genre: next.genre || '', genre_title: next.genre_title || '', sort: next.sort || readSettings().default_sort });
+            
+            Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'shikimori', page: next.page, search: next.search || '', kind: next.kind || '', status: next.status || '', season: next.season || '', genre: next.genre || '', genre_title: next.genre_title || '', sort: next.sort || readSettings().default_sort, mylist: next.mylist || '' });
+        }
+
+        function openProfile() {
+            withAccessToken(function (token) {
+                var auth = readAuth();
+                if (!auth.id) {
+                    notify('Обновление данных профиля...');
+                    loadWhoami();
+                    return;
+                }
+
+                $.ajax({
+                    url: SHIKI_HOST + '/api/users/' + auth.id,
+                    method: 'GET',
+                    dataType: 'json',
+                    timeout: 12000,
+                    headers: { Authorization: 'Bearer ' + token },
+                    success: function (user) {
+                        var stats = (user.stats && user.stats.statuses && user.stats.statuses.anime) || [];
+                        var map = {};
+                        for (var i = 0; i < stats.length; i++) {
+                            map[stats[i].name] = stats[i].size;
+                        }
+
+                        var items = [
+                            { title: 'Смотрю (' + (map['watching'] || 0) + ')', value: 'watching' },
+                            { title: 'Запланировано (' + (map['planned'] || 0) + ')', value: 'planned' },
+                            { title: 'Пересматриваю (' + (map['rewatching'] || 0) + ')', value: 'rewatching' },
+                            { title: 'Просмотрено (' + (map['completed'] || 0) + ')', value: 'completed' },
+                            { title: 'Отложено (' + (map['on_hold'] || 0) + ')', value: 'on_hold' },
+                            { title: 'Брошено (' + (map['dropped'] || 0) + ')', value: 'dropped' }
+                        ];
+
+                        showSelect('Профиль: ' + auth.nickname, items, function (item) {
+                            openWith({
+                                mylist: item.value,
+                                page: 1,
+                                search: '',
+                                status: '',
+                                kind: '',
+                                season: '',
+                                genre: '',
+                                genre_title: ''
+                            });
+                        });
+                    },
+                    error: function () {
+                        notify('Shikimori: не удалось загрузить профиль');
+                    }
+                });
+            });
         }
 
         function openSearch() {
@@ -913,6 +986,7 @@
             } else if (name === 'logout') {
                 saveAuth(defaultAuth());
                 notify('Выход из Shikimori выполнен');
+                openWith({ page: 1, sort: readSettings().default_sort, mylist: '' });
             }
         }
 
