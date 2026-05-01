@@ -602,7 +602,10 @@
                 
                 scroll.minus();
                 scroll.onWheel = function (step) {
-                    if (Lampa.Controller.active().name !== 'content') Lampa.Controller.toggle('content');
+                    var enabledController = Lampa.Controller.enabled && Lampa.Controller.enabled();
+                    if (enabledController && enabledController.name !== 'content') {
+                        Lampa.Controller.toggle('content');
+                    }
                     if (step > 0) Navigator.move('down');
                     else Navigator.move('up');
                 };
