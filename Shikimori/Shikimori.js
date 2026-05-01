@@ -212,7 +212,8 @@
             if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
             if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
             if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
-            if (params.mylist) parts.push('mylist: ' + params.mylist); // Enum, без кавычек
+            // Параметр mylist в GraphQL Shikimori имеет тип String, поэтому нужны кавычки
+            if (params.mylist) parts.push('mylist: "' + gqlValue(params.mylist) + '"');
 
             var headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
@@ -225,6 +226,12 @@
                 timeout: 15000,
                 data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl } } }' }),
                 success: function (answer) {
+                    if (answer && answer.errors) {
+                        notify('Shikimori: Ошибка запроса к API');
+                        if (window.console) console.log('GraphQL Errors:', answer.errors);
+                        if (onerror) onerror();
+                        return;
+                    }
                     oncomplete(answer && answer.data && answer.data.animes ? answer.data.animes : []);
                 },
                 error: function (xhr) {
