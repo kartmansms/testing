@@ -226,7 +226,6 @@
                 headers: headers,
                 dataType: 'json',
                 timeout: 15000,
-                // Добавлено получение количества серий (episodes, episodesAired)
                 data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season episodes episodesAired airedOn { year } poster { originalUrl }' + userRateQuery + ' } }' }),
                 success: function (answer) {
                     if (answer && answer.errors) {
@@ -253,7 +252,6 @@
         }
     }
 
-    // Сохранение ID в кэш
     function cacheTmdbId(shikiId, tmdbItem) {
         var cache = storageGet(TMDB_CACHE_KEY, {});
         cache[shikiId] = tmdbItem;
@@ -261,7 +259,6 @@
     }
 
     function openAnime(data) {
-        // Проверяем кэш перед долгим поиском
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
         if (tmdbCache[data.id]) {
             openTmdb(tmdbCache[data.id], data);
@@ -275,7 +272,6 @@
             network.timeout(8000);
             network.silent(url, function (answer) {
                 if (answer && answer.themoviedb) {
-                    // Формируем фейковый item для кэша из ответа ARM API
                     var item = { id: answer.themoviedb, media_type: (data.kind === 'movie' ? 'movie' : 'tv') };
                     cacheTmdbId(data.id, item);
                     openTmdb(item, data);
@@ -318,7 +314,6 @@
             return s.trim();
         }
 
-        // ОПТИМИЗАЦИЯ TMDB: Оставляем только Ромадзи и Английский, они работают в 99% случаев лучше всего
         var cleanRomaji = clean(data.name);
         var cleanEng = clean(data.english);
 
@@ -380,7 +375,7 @@
                         }
                     }
                     if (bestItem) {
-                        cacheTmdbId(data.id, bestItem); // Кэшируем успех
+                        cacheTmdbId(data.id, bestItem);
                         openTmdb(bestItem, data);
                     } else {
                         tryNextQuery();
@@ -561,25 +556,24 @@
         var season = seasonName(data.season);
         var compact = settings.card_size === 'compact' ? ' Shikimori--compact' : '';
         
-        // Звезда для общего рейтинга
-        var score = data.score && data.score !== '0.0' ? '★ ' + data.score : '—';
+        // Звезда = \u2605, Тире = \u2014
+        var score = data.score && data.score !== '0.0' ? '\u2605 ' + data.score : '\u2014';
         var meta = [];
         
-        // Формирование количества серий
         var eps = [];
-        if (data.episodesAired && data.episodes && data.episodesAired !== data.episodes) eps.push(data.episodesAired + ' / ' + data.episodes + ' эп.');
-        else if (data.episodes) eps.push(data.episodes + ' эп.');
-        else if (data.episodesAired) eps.push(data.episodesAired + ' эп.');
+        if (data.episodesAired && data.episodes && data.episodesAired !== data.episodes) eps.push(data.episodesAired + ' / ' + data.episodes + ' \u044D\u043F.');
+        else if (data.episodes) eps.push(data.episodes + ' \u044D\u043F.');
+        else if (data.episodesAired) eps.push(data.episodesAired + ' \u044D\u043F.');
         if (eps.length) meta.push(eps[0]);
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
         
-        // Формируем блок оценки пользователя с Сердечком
         var userRateHTML = '';
         if (data.userRate && data.userRate.score && data.userRate.score > 0) {
-            userRateHTML = '<div class="Shikimori-card__user-rate">♥ ' + data.userRate.score + '</div>';
+            // Сердечко = \u2665
+            userRateHTML = '<div class="Shikimori-card__user-rate">\u2665 ' + data.userRate.score + '</div>';
         }
 
         this.data = data;
@@ -589,7 +583,7 @@
                 '<div class="Shikimori-card__rating">' + esc(score) + '</div>' + 
                 userRateHTML + 
                 '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
-                '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div></div>');
+                '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' \u2022 ')) + '</div></div>');
         };
     }
 
@@ -861,7 +855,6 @@
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
                 Lampa.Input.edit({ title: promptText, value: value, free: true }, function (text) {
                     text = String(text || '').replace(/^\s+|\s+$/g, '');
-                    // Если отправлено пустое поле, поиск сбрасывается
                     openWith({ search: text });
                 });
                 return;
@@ -1132,7 +1125,6 @@
         }
     }
 
-    // Управление списком пользователя на странице фильма
     function manageAnimeList(anime_id, auth) {
         withAccessToken(function (token) {
             notify('Проверка списка...');
@@ -1152,6 +1144,7 @@
     }
 
     function showListSelect(anime_id, auth, token, currentRate) {
+        var i;
         var items = [
             { title: 'Смотрю', value: 'watching' },
             { title: 'В планах', value: 'planned' },
@@ -1163,9 +1156,11 @@
         
         if (currentRate) {
             items.push({ title: 'Удалить из списка', value: 'delete' });
-            items.forEach(function(item) {
-                if (item.value === currentRate.status) item.title = '✓ ' + item.title;
-            });
+            for (i = 0; i < items.length; i++) {
+                if (items[i].value === currentRate.status) {
+                    items[i].title = '\u2713 ' + items[i].title; // юникод-галочка
+                }
+            }
         }
 
         if (window.Lampa && Lampa.Select && Lampa.Select.show) {
@@ -1268,7 +1263,8 @@
         if (!anime || !anime.id || !page.length) return;
         if (page.find('.shikimori-full-extra').length) return;
         url = SHIKI_HOST + '/animes/' + anime.id;
-        score = anime.score && anime.score !== '0.0' ? '★ ' + anime.score : '—';
+        
+        score = anime.score && anime.score !== '0.0' ? '\u2605 ' + anime.score : '\u2014';
         
         if (!page.find('.rate--shikimori').length) {
             page.find('.full-start__rate-line, .full-start-new__rate-line').first().append('<div class="rate rate--shikimori"><div>' + esc(score) + '</div><span>Shikimori</span></div>');
@@ -1276,11 +1272,10 @@
         
         line = $('<div class="shikimori-full-extra"></div>');
         line.append('<div class="shikimori-full-extra__item"><span>Статус</span><b>' + esc(statusName(anime.status)) + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Сезон</span><b>' + esc(seasonName(anime.season) || (anime.aired_on ? anime.aired_on : '—')) + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Фандаб</span><b>' + esc(anime.fandubbers && anime.fandubbers.length ? anime.fandubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Фансаб</span><b>' + esc(anime.fansubbers && anime.fansubbers.length ? anime.fansubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
+        line.append('<div class="shikimori-full-extra__item"><span>Сезон</span><b>' + esc(seasonName(anime.season) || (anime.aired_on ? anime.aired_on : '\u2014')) + '</b></div>');
+        line.append('<div class="shikimori-full-extra__item"><span>Фандаб</span><b>' + esc(anime.fandubbers && anime.fandubbers.length ? anime.fandubbers.slice(0, 3).join(', ') : '\u2014') + '</b></div>');
+        line.append('<div class="shikimori-full-extra__item"><span>Фансаб</span><b>' + esc(anime.fansubbers && anime.fansubbers.length ? anime.fansubbers.slice(0, 3).join(', ') : '\u2014') + '</b></div>');
         
-        // Кнопка списков, если пользователь авторизован
         var auth = readAuth();
         if (isAuthorized() && auth.id) {
             line.append('<div class="simple-button selector shikimori-full-extra__link shikimori-list-btn">В список Shikimori</div>');
@@ -1334,4 +1329,30 @@
             '.Shikimori-card__rating{top:.5em;left:.5em;color:#ffd166}' +
             '.Shikimori-card__badge{top:.5em;right:.5em;background:rgba(200,58,75,.9)}' +
             '.Shikimori-card__user-rate{top:2.2em;left:.5em;color:#2ecc71;}' +
-            '.Shikimori.card .card__title{font-size:1.06em
+            '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.6em;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}' +
+            '.Shikimori-card__meta{font-size:.85em;line-height:1.25;color:rgba(255,255,255,.5);height:1.25em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:.2em}' +
+            '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.5);padding:3em 0}' +
+            '.shikimori-full-extra{display:flex;flex-wrap:wrap;margin:1em 0;background:rgba(255,255,255,0.05);padding:1em;border-radius:0.5em;}' +
+            '.shikimori-full-extra__item{margin:0 1.5em .8em 0;}' +
+            '.shikimori-full-extra__item span{display:block;color:rgba(255,255,255,.48);font-size:.85em;margin-bottom:.3em;text-transform:uppercase;letter-spacing:1px;}' +
+            '.shikimori-full-extra__item b{font-weight:600;color:#fff;font-size:1.1em;}' +
+            '.shikimori-full-extra__link{margin-top:auto;margin-right:1em;margin-bottom:auto;background:rgba(200,58,75,.2);color:#ff7686;border:1px solid rgba(200,58,75,.5);transition:all 0.2s;}' +
+            '.shikimori-full-extra__link.focus{background:#c83a4b;color:#fff;border-color:#c83a4b;transform:scale(1.05);}' +
+            '.shikimori-list-btn{background:rgba(46,204,113,0.15);color:#2ecc71;border-color:rgba(46,204,113,0.5);}' +
+            '.shikimori-list-btn.focus{background:#2ecc71;color:#fff;border-color:#2ecc71;}' +
+        '</style>');
+    }
+
+    function start() {
+        if (!window.Lampa || !window.$) return;
+        addStyles();
+        Lampa.Component.add('shikimori', Catalog);
+        extendFull();
+        if (window.appready) addMenu();
+        else Lampa.Listener.follow('app', function (e) {
+            if (e.type === 'ready') addMenu();
+        });
+    }
+
+    start();
+})();
