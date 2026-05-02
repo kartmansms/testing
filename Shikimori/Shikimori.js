@@ -4,11 +4,11 @@
     if (window.plugin_shikimori_ready) return;
     window.plugin_shikimori_ready = true;
 
-    var SETTINGS_KEY = 'shikimori_settings_v1';
-    var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
-    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
-    var AUTH_KEY = 'shikimori_auth_v1';
-    var SHIKI_HOST = 'https://shikimori.one';
+    var SETTINGS_KEY = 'shikimori_settings_v2';
+    var GENRES_CACHE_KEY = 'shikimori_genres_cache_v2';
+    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v2';
+    var AUTH_KEY = 'shikimori_auth_v2';
+    var SHIKI_HOST = 'https://shikimori.io'; // Обновленный актуальный домен
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
@@ -26,7 +26,7 @@
             }
         } catch (e) {}
         try {
-            value = localStorage.getItem(key);
+            value = window.localStorage.getItem(key);
             return value ? JSON.parse(value) : fallback;
         } catch (err) {
             return fallback;
@@ -41,7 +41,7 @@
             }
         } catch (e) {}
         try {
-            localStorage.setItem(key, JSON.stringify(value));
+            window.localStorage.setItem(key, JSON.stringify(value));
         } catch (err) {}
     }
 
@@ -98,11 +98,6 @@
         return value.replace(/[&<>"']/g, function (symbol) {
             return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[symbol];
         });
-    }
-
-    function gqlValue(value) {
-        value = value === undefined || value === null ? '' : String(value);
-        return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
     function seasonName(code) {
@@ -177,19 +172,25 @@
     function requestAnime(params, oncomplete, onerror) {
         var doRequest = function (token) {
             var page = parseInt(params.page, 10) || 1;
-            var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
+            var sortOrder = params.sort || readSettings().default_sort; // order безопасен, т.к. выбирается из нашего UI
             
-            if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
-            if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
-            if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
-            if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
-            if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
-            if (params.mylist) parts.push('mylist: "' + gqlValue(params.mylist) + '"');
+            // Запрос с использованием GraphQL переменных для безопасности от инъекций
+            var query = "query getAnimes($limit: Int, $page: Int, $search: String, $kind: String, $status: String, $season: String, $genre: String, $mylist: String) { " +
+                        "animes(limit: $limit, page: $page, order: " + sortOrder + ", search: $search, kind: $kind, status: $status, season: $season, genre: $genre, mylist: $mylist) { " +
+                        "id name russian english japanese kind score status season airedOn { year } poster { originalUrl } " +
+                        (token ? "userRate { score status } " : "") +
+                        "} }";
+
+            var variables = { limit: PAGE_LIMIT, page: page };
+            if (params.search) variables.search = params.search;
+            if (params.kind) variables.kind = params.kind;
+            if (params.status) variables.status = params.status;
+            if (params.season) variables.season = params.season;
+            if (params.genre) variables.genre = params.genre;
+            if (params.mylist) variables.mylist = params.mylist;
 
             var headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
-
-            var userRateQuery = token ? ' userRate { score }' : '';
 
             $.ajax({
                 url: SHIKI_HOST + '/api/graphql',
@@ -197,7 +198,7 @@
                 headers: headers,
                 dataType: 'json',
                 timeout: 15000,
-                data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl }' + userRateQuery + ' } }' }),
+                data: JSON.stringify({ query: query, variables: variables }),
                 success: function (answer) {
                     if (answer && answer.errors) {
                         notify('Shikimori: Ошибка запроса к API');
@@ -207,7 +208,8 @@
                     oncomplete(answer && answer.data && answer.data.animes ? answer.data.animes : []);
                 },
                 error: function (xhr) {
-                    notify('Shikimori: не удалось загрузить каталог');
+                    if (xhr.status === 429) notify('Shikimori: Слишком много запросов (429). Подождите минуту.');
+                    else notify('Shikimori: не удалось загрузить каталог');
                     if (onerror) onerror(xhr);
                 }
             });
@@ -261,15 +263,17 @@
             if (uniqueQueries.indexOf(queries[i]) === -1 && queries[i].length > 1) uniqueQueries.push(queries[i]);
         }
 
-        if (uniqueQueries.length === 0) { openLampaSearch(data); return; }
+        if (uniqueQueries.length === 0) { openFakeCard(data); return; }
 
         var currentIndex = 0;
         var shikiYear = data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
 
         function tryNextQuery() {
-            if (currentIndex >= uniqueQueries.length) { openLampaSearch(data); return; }
+            if (currentIndex >= uniqueQueries.length) { openFakeCard(data); return; }
             var currentQuery = uniqueQueries[currentIndex++];
-            var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+            
+            // Безопасное получение ключа TMDB, если он есть в Lampa
+            var apiKey = (window.Lampa && Lampa.TMDB && Lampa.TMDB.key) ? Lampa.TMDB.key() : "4ef0d7355d9ffb5151e987764708ce96";
             var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
             var baseUrl = 'https://api.themoviedb.org/3/';
             
@@ -300,22 +304,38 @@
             } else $.ajax({ url: url, dataType: 'json', timeout: 6000, success: handleSuccess, error: tryNextQuery });
         }
 
-        notify('Поиск в базе...');
+        notify('Поиск в базе TMDB...');
         tryNextQuery();
     }
 
-    function openLampaSearch(shiki) {
-        notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
-        var query = titleOf(shiki);
-        if (window.Lampa && Lampa.Activity) {
-            Lampa.Activity.push({ url: '', title: 'Поиск: ' + query, component: 'search', query: query });
-        }
+    // ИНТЕГРАЦИЯ С БАЛАНСЕРАМИ (Kodik, Alloha и др.)
+    // Создаем карточку обхода TMDB, если аниме не найдено в западных базах
+    function openFakeCard(shiki) {
+        notify('Shikimori: Аниме не найдено в TMDB, открыта прямая карточка');
+        var type = shiki.kind === 'movie' ? 'movie' : 'tv';
+        var movie = {
+            id: shiki.id, // Фейковый ID для совместимости
+            shikimori_id: shiki.id, // Идея 3: Нативный ID для Kodik
+            imdb_id: 'shiki-' + shiki.id, // Идея 3: Фейковый IMDB для парсеров модов
+            title: titleOf(shiki),
+            original_title: shiki.name || shiki.english,
+            name: titleOf(shiki),
+            original_name: shiki.name || shiki.english,
+            poster_path: posterOf(shiki), // Прямая ссылка на постер Shikimori
+            background_image: posterOf(shiki),
+            vote_average: shiki.score,
+            shikimori: shiki,
+            source: 'shikimori'
+        };
+        Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type, card: movie, source: 'shikimori' });
     }
 
     function openTmdb(item, shiki) {
         var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
+            shikimori_id: shiki.id, // Идея 3: Нативный ID для Kodik
+            imdb_id: 'shiki-' + shiki.id, // Идея 3: Фейковый IMDB для парсеров
             title: item.title || item.name || titleOf(shiki),
             original_title: item.original_title || item.original_name || shiki.name,
             name: item.name || item.title || titleOf(shiki),
@@ -326,7 +346,7 @@
             shikimori: shiki
         };
         
-        if (!movie.id) { openLampaSearch(shiki); return; }
+        if (!movie.id) { openFakeCard(shiki); return; }
 
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
         if (!tmdbCache[shiki.id] || tmdbCache[shiki.id].id !== movie.id) {
@@ -976,6 +996,8 @@
         }
     }
 
+    // --- Обработчик окна фильма для внедрения Shikimori UI ---
+
     function extendFull() {
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
         Lampa.Listener.follow('full', function (event) {
@@ -1032,14 +1054,30 @@
         });
         line.append(linkBtn);
 
-        // Кнопка списков, внедренная в нашу собственную строку (это гарантирует её появление)
         var listBtn = $('<div class="simple-button selector shikimori-full-extra__list-btn">Список Shiki</div>');
         line.append(listBtn);
         
         page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
 
-        // Инициализируем функционал кнопки списка
         initShikimoriListButton(listBtn, anime);
+    }
+
+    // --- Интеграция фейкового источника для обхода ошибки Lampa при загрузке фейковых карточек ---
+    function mockShikimoriApi() {
+        if (window.Lampa && Lampa.Api && !Lampa.Api.sources.shikimori) {
+            Lampa.Api.sources.shikimori = {
+                full: function(object, oncomplete, onerror) {
+                    var shiki = object.card.shikimori || {};
+                    oncomplete({
+                        movie: object.card,
+                        persons: { cast: [], crew: [] },
+                        similar: { results: [] },
+                        recommendations: { results: [] },
+                        videos: { results: [] }
+                    });
+                }
+            };
+        }
     }
 
     function addMenu() {
@@ -1091,6 +1129,7 @@
     function start() {
         if (!window.Lampa || !window.$) return;
         addStyles();
+        mockShikimoriApi();
         Lampa.Component.add('shikimori', Catalog);
         extendFull();
         if (window.appready) addMenu();
