@@ -6,8 +6,8 @@
 
     var SETTINGS_KEY = 'shikimori_settings_v1';
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
-    // Изменен ключ кэша на v2 для автоматического сброса старых неправильных привязок
-    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v2'; 
+    // Кэш v3 для автоматического сброса старых неправильных результатов
+    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v3'; 
     var AUTH_KEY = 'shikimori_auth_v1';
     var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
@@ -229,7 +229,6 @@
         
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) {
-                // Строго задаем тип (если API не вернул точный media_type)
                 var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
                 openTmdb({ id: answer.themoviedb, media_type: expectedType }, data);
             } else {
@@ -248,25 +247,33 @@
 
     function fallbackSearch(data) {
         var queries = [];
+        // Сохраняем кириллицу (а-яА-Я), латиницу и цифры, удаляя технические слова
         function clean(str) {
             if (!str) return '';
             var s = str.replace(/\b(Season|Part|Cours)\s*\d*\.?\d*\b/gi, '')
                        .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
                        .replace(/\(TV\)/gi, '')
-                       .replace(/[^\w\s]/gi, ' ')
+                       .replace(/[^\w\s\u0400-\u04FF]/gi, ' ')
                        .replace(/\s{2,}/g, ' ');
             return s.trim();
         }
 
+        var rus = data.russian || '';
         var eng = data.english || '';
         var romaji = data.name || '';
-        var cleanEng = clean(eng);
-        var cleanRomaji = clean(romaji);
+        
+        var cRus = clean(rus);
+        var cEng = clean(eng);
+        var cRomaji = clean(romaji);
 
-        if (cleanEng) queries.push(cleanEng);
-        if (cleanRomaji && cleanRomaji !== cleanEng) queries.push(cleanRomaji);
-        if (eng && eng !== cleanEng) queries.push(eng);
-        if (romaji && romaji !== cleanRomaji) queries.push(romaji);
+        // Приоритет запросов: Русский -> Английский -> Ромадзи
+        if (cRus) queries.push(cRus);
+        if (cEng && cEng !== cRus) queries.push(cEng);
+        if (cRomaji && cRomaji !== cEng && cRomaji !== cRus) queries.push(cRomaji);
+        
+        // Добавляем оригинальные (необрезанные) названия на всякий случай
+        if (rus && rus !== cRus) queries.push(rus);
+        if (eng && eng !== cEng) queries.push(eng);
 
         var uniqueQueries = [];
         for(var i = 0; i < queries.length; i++) {
@@ -277,7 +284,6 @@
 
         var currentIndex = 0;
         var shikiYear = data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
-        // Строгое определение типа: всё кроме movie ищем как tv
         var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
 
         function tryNextQuery() {
@@ -292,32 +298,74 @@
             var handleSuccess = function(res) {
                 if (res && res.results && res.results.length > 0) {
                     var bestItem = null;
+                    var maxScore = -1;
 
                     for (var j = 0; j < res.results.length; j++) {
                         var item = res.results[j];
                         
-                        // Строго берем только тот тип, который мы ищем (игнорируем фильмы, если это сериал)
-                        if (item.media_type === expectedType) {
-                            var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
-                            var yearMatch = false;
+                        // Отбрасываем несовпадающие типы
+                        if (item.media_type !== expectedType) continue;
 
-                            if (shikiYear && itemYear) {
-                                if (expectedType === 'tv') {
-                                    // Год сериала в TMDB - это 1й сезон, он может быть раньше Shikimori
-                                    if (itemYear <= shikiYear + 1 && itemYear >= shikiYear - 15) yearMatch = true;
-                                } else {
-                                    if (Math.abs(itemYear - shikiYear) <= 2) yearMatch = true;
+                        var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : 
+                                       (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
+                        
+                        var score = 0;
+                        var valid = true;
+
+                        // Проверка года
+                        if (shikiYear && itemYear) {
+                            if (expectedType === 'tv') {
+                                // Сериал в TMDB не может начаться сильно позже сезона Shikimori
+                                if (itemYear > shikiYear + 1) valid = false;
+                                else {
+                                    // Даем больше баллов, если год начала сериала близок к году сезона
+                                    var diff = shikiYear - itemYear;
+                                    if (diff >= 0) score += (20 - Math.min(20, diff));
                                 }
                             } else {
-                                yearMatch = true;
+                                // Год фильма должен совпадать жестче
+                                if (Math.abs(itemYear - shikiYear) > 2) valid = false;
+                                else score += 20;
                             }
+                        }
 
-                            if (yearMatch) {
-                                bestItem = item;
-                                break;
-                            } else if (!bestItem) {
-                                bestItem = item; // берем совпавший по типу, если год не сошелся
-                            }
+                        if (!valid) continue;
+
+                        // Сверка названий (умный скоринг)
+                        var iName = (item.name || item.title || '').toLowerCase();
+                        var iOrig = (item.original_name || item.original_title || '').toLowerCase();
+                        
+                        var sEng = (data.english || '').toLowerCase();
+                        var sRus = (data.russian || '').toLowerCase();
+                        var sRom = (data.name || '').toLowerCase();
+
+                        var titleScore = 0;
+                        
+                        function checkMatch(tmdbStr, shikiStr) {
+                            if (!tmdbStr || !shikiStr) return 0;
+                            if (tmdbStr === shikiStr) return 100;
+                            if (tmdbStr.indexOf(shikiStr) === 0 || shikiStr.indexOf(tmdbStr) === 0) return 50;
+                            return 0;
+                        }
+
+                        titleScore = Math.max(
+                            titleScore,
+                            checkMatch(iName, sEng), checkMatch(iName, sRus), checkMatch(iName, sRom),
+                            checkMatch(iOrig, sEng), checkMatch(iOrig, sRus), checkMatch(iOrig, sRom)
+                        );
+
+                        score += titleScore;
+                        
+                        // Если названия вообще не похожи, сильно штрафуем
+                        if (titleScore === 0) score -= 50;
+
+                        // Добавляем микробаллы за популярность (чтобы при равенстве выбрать лучший)
+                        score += (item.popularity || 0) * 0.1;
+
+                        // Берем только тот, что набрал больше баллов и хотя бы немного совпадает
+                        if (score > maxScore && score > 0) {
+                            maxScore = score;
+                            bestItem = item;
                         }
                     }
 
@@ -346,11 +394,9 @@
     }
 
     function openTmdb(item, shiki) {
-        // Жесткое применение типа, чтобы исключить открытие фильмов как сериалов и наоборот
         var expectedType = (shiki.kind === 'movie') ? 'movie' : 'tv';
         var type = item.media_type || item.type || expectedType;
         
-        // Предохранитель от неверных данных
         if (type !== expectedType && (type === 'movie' || type === 'tv')) {
             type = expectedType;
         }
