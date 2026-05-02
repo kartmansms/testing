@@ -6,7 +6,8 @@
 
     var SETTINGS_KEY = 'shikimori_settings_v1';
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
-    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
+    // Изменен ключ кэша на v2 для автоматического сброса старых неправильных привязок
+    var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v2'; 
     var AUTH_KEY = 'shikimori_auth_v1';
     var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
@@ -227,8 +228,13 @@
         var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
         
         var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) openTmdb(answer, data);
-            else fallbackSearch(data);
+            if (answer && answer.themoviedb) {
+                // Строго задаем тип (если API не вернул точный media_type)
+                var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
+                openTmdb({ id: answer.themoviedb, media_type: expectedType }, data);
+            } else {
+                fallbackSearch(data);
+            }
         };
 
         if (window.Lampa && Lampa.Reguest) {
@@ -244,17 +250,23 @@
         var queries = [];
         function clean(str) {
             if (!str) return '';
-            var s = str.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '').replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '').replace(/\(TV\)/gi, '').replace(/[^\w\s]/gi, ' ').replace(/\s{2,}/g, ' ');
+            var s = str.replace(/\b(Season|Part|Cours)\s*\d*\.?\d*\b/gi, '')
+                       .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
+                       .replace(/\(TV\)/gi, '')
+                       .replace(/[^\w\s]/gi, ' ')
+                       .replace(/\s{2,}/g, ' ');
             return s.trim();
         }
 
         var eng = data.english || '';
         var romaji = data.name || '';
-        var bestEng = (clean(eng) && clean(eng).length < eng.length) ? clean(eng) : eng;
-        var bestRomaji = (clean(romaji) && clean(romaji).length < romaji.length) ? clean(romaji) : romaji;
+        var cleanEng = clean(eng);
+        var cleanRomaji = clean(romaji);
 
-        if (bestEng) queries.push(bestEng);
-        if (bestRomaji && bestRomaji !== bestEng) queries.push(bestRomaji);
+        if (cleanEng) queries.push(cleanEng);
+        if (cleanRomaji && cleanRomaji !== cleanEng) queries.push(cleanRomaji);
+        if (eng && eng !== cleanEng) queries.push(eng);
+        if (romaji && romaji !== cleanRomaji) queries.push(romaji);
 
         var uniqueQueries = [];
         for(var i = 0; i < queries.length; i++) {
@@ -265,6 +277,8 @@
 
         var currentIndex = 0;
         var shikiYear = data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
+        // Строгое определение типа: всё кроме movie ищем как tv
+        var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
 
         function tryNextQuery() {
             if (currentIndex >= uniqueQueries.length) { openLampaSearch(data); return; }
@@ -277,41 +291,37 @@
 
             var handleSuccess = function(res) {
                 if (res && res.results && res.results.length > 0) {
-                    var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
                     var bestItem = null;
-                    var backupItem = null;
 
                     for (var j = 0; j < res.results.length; j++) {
                         var item = res.results[j];
-                        if (item.media_type === 'tv' || item.media_type === 'movie') {
-                            var typeMatch = (item.media_type === expectedType);
+                        
+                        // Строго берем только тот тип, который мы ищем (игнорируем фильмы, если это сериал)
+                        if (item.media_type === expectedType) {
                             var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
                             var yearMatch = false;
 
                             if (shikiYear && itemYear) {
-                                if (typeMatch && item.media_type === 'tv') {
-                                    // Для сериалов год в TMDB - это год первого сезона. Shikimori может быть новым сезоном.
-                                    if (itemYear <= shikiYear + 1) yearMatch = true;
+                                if (expectedType === 'tv') {
+                                    // Год сериала в TMDB - это 1й сезон, он может быть раньше Shikimori
+                                    if (itemYear <= shikiYear + 1 && itemYear >= shikiYear - 15) yearMatch = true;
                                 } else {
-                                    if (Math.abs(itemYear - shikiYear) <= 1) yearMatch = true;
+                                    if (Math.abs(itemYear - shikiYear) <= 2) yearMatch = true;
                                 }
                             } else {
                                 yearMatch = true;
                             }
 
-                            if (typeMatch && yearMatch) {
+                            if (yearMatch) {
                                 bestItem = item;
                                 break;
-                            } else if (typeMatch && !bestItem) {
-                                bestItem = item;
-                            } else if (!backupItem) {
-                                backupItem = item;
+                            } else if (!bestItem) {
+                                bestItem = item; // берем совпавший по типу, если год не сошелся
                             }
                         }
                     }
 
-                    var finalItem = bestItem || backupItem;
-                    if (finalItem) openTmdb(finalItem, data);
+                    if (bestItem) openTmdb(bestItem, data);
                     else tryNextQuery();
                 } else tryNextQuery();
             };
@@ -328,7 +338,7 @@
     }
 
     function openLampaSearch(shiki) {
-        notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
+        notify('Shikimori: Не найдено точного совпадения в TMDB, открыт ручной поиск');
         var query = titleOf(shiki);
         if (window.Lampa && Lampa.Activity) {
             Lampa.Activity.push({ url: '', title: 'Поиск: ' + query, component: 'search', query: query });
@@ -336,7 +346,15 @@
     }
 
     function openTmdb(item, shiki) {
-        var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
+        // Жесткое применение типа, чтобы исключить открытие фильмов как сериалов и наоборот
+        var expectedType = (shiki.kind === 'movie') ? 'movie' : 'tv';
+        var type = item.media_type || item.type || expectedType;
+        
+        // Предохранитель от неверных данных
+        if (type !== expectedType && (type === 'movie' || type === 'tv')) {
+            type = expectedType;
+        }
+
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
             title: item.title || item.name || titleOf(shiki),
@@ -353,11 +371,11 @@
 
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
         if (!tmdbCache[shiki.id] || tmdbCache[shiki.id].id !== movie.id) {
-            tmdbCache[shiki.id] = { id: movie.id, type: type === 'movie' ? 'movie' : 'tv' };
+            tmdbCache[shiki.id] = { id: movie.id, type: type };
             storageSet(TMDB_CACHE_KEY, tmdbCache);
         }
 
-        Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type === 'movie' ? 'movie' : 'tv', card: movie, source: 'tmdb' });
+        Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type, card: movie, source: 'tmdb' });
     }
 
     // --- Авторизация ---
@@ -1055,13 +1073,11 @@
         });
         line.append(linkBtn);
 
-        // Кнопка списков, внедренная в нашу собственную строку (это гарантирует её появление)
         var listBtn = $('<div class="simple-button selector shikimori-full-extra__list-btn">Список Shiki</div>');
         line.append(listBtn);
         
         page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
 
-        // Инициализируем функционал кнопки списка
         initShikimoriListButton(listBtn, anime);
     }
 
