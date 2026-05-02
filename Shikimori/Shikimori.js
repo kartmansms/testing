@@ -14,7 +14,14 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal' };
+        return { 
+            title_language: 'ru', 
+            hide_adult: true, 
+            default_sort: 'popularity', 
+            card_size: 'normal',
+            kodik_token: 'cd2355598162fa9c66ccdeec3c0f2095', // Публичный рабочий токен Kodik
+            alloha_token: '' // Нужно получать самостоятельно, если требуется
+        };
     }
 
     function storageGet(key, fallback) {
@@ -189,7 +196,7 @@
             var headers = { 'Content-Type': 'application/json' };
             if (token) headers['Authorization'] = 'Bearer ' + token;
 
-            var userRateQuery = token ? ' userRate { score }' : '';
+            var userRateQuery = token ? ' userRate { score status }' : '';
 
             $.ajax({
                 url: SHIKI_HOST + '/api/graphql',
@@ -300,12 +307,10 @@
             } else $.ajax({ url: url, dataType: 'json', timeout: 6000, success: handleSuccess, error: tryNextQuery });
         }
 
-        notify('Поиск в базе...');
         tryNextQuery();
     }
 
     function openLampaSearch(shiki) {
-        notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
         var query = titleOf(shiki);
         if (window.Lampa && Lampa.Activity) {
             Lampa.Activity.push({ url: '', title: 'Поиск: ' + query, component: 'search', query: query });
@@ -323,7 +328,7 @@
             poster_path: item.poster_path || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
-            shikimori: shiki
+            shikimori: shiki // Прокидываем объект в Lampa Activity
         };
         
         if (!movie.id) { openLampaSearch(shiki); return; }
@@ -458,11 +463,8 @@
                 data: payload,
                 success: function(res) { callback(res); },
                 error: function(xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка сохранения в список Shikimori');
-                    }
+                    if (xhr.status === 403 || xhr.status === 401) notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                    else notify('Ошибка сохранения в список Shikimori');
                 }
             });
         });
@@ -477,11 +479,8 @@
                 headers: { Authorization: 'Bearer ' + token },
                 success: function() { callback(); },
                 error: function(xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка удаления из Shikimori');
-                    }
+                    if (xhr.status === 403 || xhr.status === 401) notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                    else notify('Ошибка удаления из Shikimori');
                 }
             });
         });
@@ -494,10 +493,7 @@
         var listLoading = false;
 
         function updateBtnLabel() {
-            if (!isAuthorized()) {
-                btn.text('Список (Войти)');
-                return;
-            }
+            if (!isAuthorized()) { btn.text('Список (Войти)'); return; }
             var map = { planned: 'В планах', watching: 'Смотрю', rewatching: 'Пересматриваю', completed: 'Просмотрено', on_hold: 'Отложено', dropped: 'Брошено' };
             if (currentRate && currentRate.status) {
                 var text = map[currentRate.status] || 'В списке';
@@ -514,40 +510,23 @@
             var auth = readAuth();
             if (auth.id) {
                 btn.text('Загрузка списка...');
-                fetchUserRate(anime.id, function(rate) {
-                    currentRate = rate;
-                    updateBtnLabel();
-                });
-            } else {
-                updateBtnLabel();
-            }
-        } else {
-            updateBtnLabel();
-        }
+                fetchUserRate(anime.id, function(rate) { currentRate = rate; updateBtnLabel(); });
+            } else updateBtnLabel();
+        } else updateBtnLabel();
 
         btn.on('hover:enter click tap mouseup', function() {
             if (listLoading) return;
-            if (!isAuthorized()) {
-                notify('Пожалуйста, авторизуйтесь в настройках Shikimori');
-                return;
-            }
+            if (!isAuthorized()) { notify('Пожалуйста, авторизуйтесь в настройках Shikimori'); return; }
             var auth = readAuth();
-            if (!auth.id) {
-                notify('Загрузка профиля, подождите...');
-                loadWhoami();
-                return;
-            }
+            if (!auth.id) { notify('Загрузка профиля, подождите...'); loadWhoami(); return; }
             showListMenu();
         });
 
         function showListMenu() {
             var map = [
-                { title: 'Смотрю', value: 'watching' },
-                { title: 'В планах', value: 'planned' },
-                { title: 'Просмотрено', value: 'completed' },
-                { title: 'Пересматриваю', value: 'rewatching' },
-                { title: 'Отложено', value: 'on_hold' },
-                { title: 'Брошено', value: 'dropped' }
+                { title: 'Смотрю', value: 'watching' }, { title: 'В планах', value: 'planned' },
+                { title: 'Просмотрено', value: 'completed' }, { title: 'Пересматриваю', value: 'rewatching' },
+                { title: 'Отложено', value: 'on_hold' }, { title: 'Брошено', value: 'dropped' }
             ];
 
             var items = [];
@@ -555,23 +534,15 @@
                 var prefix = (currentRate && currentRate.status === map[i].value) ? '✓ ' : '';
                 items.push({ title: prefix + map[i].title, value: map[i].value, action: 'status' });
             }
-
             items.push({ title: 'Оценить (1-10)', action: 'rate' });
-            if (currentRate && currentRate.id) {
-                items.push({ title: 'Удалить из списка', action: 'delete' });
-            }
+            if (currentRate && currentRate.id) items.push({ title: 'Удалить из списка', action: 'delete' });
 
             Lampa.Select.show({
-                title: 'Shikimori: Список',
-                items: items,
+                title: 'Shikimori: Список', items: items,
                 onSelect: function(item) {
-                    if (item.action === 'status') {
-                        setRateData({ status: item.value });
-                    } else if (item.action === 'rate') {
-                        showRateMenu();
-                    } else if (item.action === 'delete') {
-                        removeRate();
-                    }
+                    if (item.action === 'status') setRateData({ status: item.value });
+                    else if (item.action === 'rate') showRateMenu();
+                    else if (item.action === 'delete') removeRate();
                 },
                 onBack: function() { Lampa.Controller.toggle('content'); }
             });
@@ -586,20 +557,16 @@
             items.push({ title: 'Без оценки', value: 0 });
 
             Lampa.Select.show({
-                title: 'Оценка Shikimori',
-                items: items,
+                title: 'Оценка Shikimori', items: items,
                 onSelect: function(item) { setRateData({ score: item.value }); },
                 onBack: function() { showListMenu(); }
             });
         }
 
         function setRateData(data) {
-            listLoading = true;
-            notify('Сохранение...');
+            listLoading = true; notify('Сохранение...');
             saveUserRate(anime.id, currentRate ? currentRate.id : null, data, function(newRate) {
-                listLoading = false;
-                currentRate = newRate;
-                updateBtnLabel();
+                listLoading = false; currentRate = newRate; updateBtnLabel();
                 notify('Успешно сохранено в Shikimori');
                 Lampa.Controller.toggle('content');
             });
@@ -609,13 +576,159 @@
             if (!currentRate || !currentRate.id) return;
             listLoading = true;
             deleteUserRate(currentRate.id, function() {
-                listLoading = false;
-                currentRate = null;
-                updateBtnLabel();
+                listLoading = false; currentRate = null; updateBtnLabel();
                 notify('Удалено из списка Shikimori');
                 Lampa.Controller.toggle('content');
             });
         }
+    }
+
+
+    // --- БАЛАНСЕРЫ И ПЛЕЕР ---
+
+    function openIframeOverlay(url, title) {
+        if (url.indexOf('//') === 0) url = 'https:' + url;
+        var html = '<div style="position:absolute;top:0;left:0;width:100%;height:100%;background:#000;z-index:99999;">' +
+                   '<iframe src="' + esc(url) + '" width="100%" height="100%" frameborder="0" allowfullscreen allow="autoplay *; fullscreen *"></iframe></div>';
+        
+        var overlay = $(html);
+        $('body').append(overlay);
+
+        // Перехватываем управление Lampa для закрытия по кнопке "Назад"
+        Lampa.Controller.add('shikimori_player', {
+            toggle: function() {},
+            up: function() {}, down: function() {}, right: function() {}, left: function() {},
+            back: function() {
+                overlay.remove();
+                Lampa.Controller.toggle('content');
+            }
+        });
+        Lampa.Controller.toggle('shikimori_player');
+    }
+
+    function searchKodik(anime) {
+        var token = readSettings().kodik_token || 'cd2355598162fa9c66ccdeec3c0f2095';
+        var url = 'https://kodikapi.com/search?token=' + encodeURIComponent(token) + '&shikimori_id=' + anime.id + '&with_episodes=true';
+        notify('Ищем в Kodik...');
+        $.ajax({
+            url: url, dataType: 'json', timeout: 10000,
+            success: function(res) {
+                if (!res || !res.results || !res.results.length) { notify('В Kodik видео не найдено'); return; }
+                var items = [];
+                for(var i = 0; i < res.results.length; i++) {
+                    var r = res.results[i];
+                    var q = r.quality ? ' [' + r.quality + ']' : '';
+                    items.push({ title: (r.translation.title || 'Неизвестно') + q, link: r.link });
+                }
+                if (items.length === 1) openIframeOverlay(items[0].link, anime.name);
+                else {
+                    Lampa.Select.show({
+                        title: 'Kodik: Выберите озвучку', items: items,
+                        onSelect: function(item) { openIframeOverlay(item.link, anime.name); },
+                        onBack: function() { initBalancersMenu(anime); }
+                    });
+                }
+            },
+            error: function() { notify('Ошибка соединения с Kodik'); }
+        });
+    }
+
+    function searchAnilibria(anime) {
+        var query = anime.name || anime.russian;
+        var url = 'https://api.anilibria.tv/v3/title/search?search=' + encodeURIComponent(query);
+        notify('Ищем в Anilibria...');
+        $.ajax({
+            url: url, dataType: 'json', timeout: 10000,
+            success: function(res) {
+                if (!res || !res.list || !res.list.length) { notify('В Anilibria видео не найдено'); return; }
+                var items = [];
+                for(var i = 0; i < res.list.length; i++) {
+                    var r = res.list[i];
+                    items.push({ title: (r.names.ru || r.names.en), id: r.id });
+                }
+                if (items.length === 1) openIframeOverlay('https://www.anilibria.tv/public/iframe.php?id=' + items[0].id, anime.name);
+                else {
+                    Lampa.Select.show({
+                        title: 'Anilibria: Найдено несколько', items: items,
+                        onSelect: function(item) { openIframeOverlay('https://www.anilibria.tv/public/iframe.php?id=' + item.id, anime.name); },
+                        onBack: function() { initBalancersMenu(anime); }
+                    });
+                }
+            },
+            error: function() { notify('Ошибка соединения с Anilibria'); }
+        });
+    }
+
+    function searchAnimeVost(anime) {
+        var query = anime.russian || anime.name;
+        notify('Ищем в AnimeVost...');
+        $.ajax({
+            url: 'https://api.animevost.org/v1/search', method: 'POST', data: { name: query }, dataType: 'json', timeout: 10000,
+            success: function(res) {
+                if (!res || !res.data || !res.data.length) { notify('В AnimeVost видео не найдено'); return; }
+                var items = [];
+                for(var i = 0; i < res.data.length; i++) {
+                    items.push({ title: res.data[i].title, id: res.data[i].id });
+                }
+                if (items.length === 1) openIframeOverlay('https://animevost.org/frame.php?play=' + items[0].id, anime.name);
+                else {
+                    Lampa.Select.show({
+                        title: 'AnimeVost: Выберите аниме', items: items,
+                        onSelect: function(item) { openIframeOverlay('https://animevost.org/frame.php?play=' + item.id, anime.name); },
+                        onBack: function() { initBalancersMenu(anime); }
+                    });
+                }
+            },
+            error: function() { notify('Ошибка соединения с AnimeVost'); }
+        });
+    }
+
+    function searchAlloha(anime) {
+        var token = readSettings().alloha_token;
+        if (!token) { notify('Пожалуйста, введите токен Alloha в настройках Shikimori'); return; }
+        var query = anime.name || anime.russian;
+        var url = 'https://api.apialloha.ru/?token=' + encodeURIComponent(token) + '&name=' + encodeURIComponent(query);
+        notify('Ищем в Alloha...');
+        $.ajax({
+            url: url, dataType: 'json', timeout: 10000,
+            success: function(res) {
+                if (!res || !res.data || !res.data.length) { notify('В Alloha видео не найдено'); return; }
+                var items = [];
+                for(var i = 0; i < res.data.length; i++) {
+                    items.push({ title: res.data[i].title || res.data[i].name, link: res.data[i].iframe });
+                }
+                if (items.length === 1) openIframeOverlay(items[0].link, anime.name);
+                else {
+                    Lampa.Select.show({
+                        title: 'Alloha: Результаты', items: items,
+                        onSelect: function(item) { openIframeOverlay(item.link, anime.name); },
+                        onBack: function() { initBalancersMenu(anime); }
+                    });
+                }
+            },
+            error: function() { notify('Ошибка соединения с Alloha'); }
+        });
+    }
+
+    function initBalancersMenu(anime) {
+        var items = [
+            { title: 'Kodik (Много озвучек)', action: 'kodik' },
+            { title: 'Anilibria (Оригинал Anilibria)', action: 'anilibria' },
+            { title: 'AnimeVost', action: 'animevost' },
+            { title: 'Alloha (Требуется токен)', action: 'alloha' }
+        ];
+
+        Lampa.Select.show({
+            title: 'Смотреть аниме',
+            items: items,
+            onSelect: function(item) {
+                if (item.action === 'kodik') searchKodik(anime);
+                else if (item.action === 'anilibria') searchAnilibria(anime);
+                else if (item.action === 'animevost') searchAnimeVost(anime);
+                else if (item.action === 'alloha') searchAlloha(anime);
+            },
+            onBack: function() { Lampa.Controller.toggle('content'); }
+        });
     }
 
 
@@ -877,6 +990,8 @@
                 { title: 'Скрывать 18+: ' + (settings.hide_adult ? 'да' : 'нет'), value: 'hide_adult' },
                 { title: 'Сортировка по умолчанию: ' + sortName(settings.default_sort), value: 'default_sort' },
                 { title: 'Размер карточек: ' + (settings.card_size === 'compact' ? 'компактный' : 'обычный'), value: 'card_size' },
+                { title: 'Ввести Kodik Токен (Плеер)', value: 'kodik_token' },
+                { title: 'Ввести Alloha Токен (Плеер)', value: 'alloha_token' },
                 { title: 'Очистить кэш поиска TMDB', value: 'clear_tmdb_cache' },
                 { title: 'Авторизация Shikimori: ' + authStatusTitle(), value: 'auth' }
             ];
@@ -885,8 +1000,15 @@
                 else if (item.value === 'hide_adult') settings.hide_adult = !settings.hide_adult;
                 else if (item.value === 'default_sort') settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                 else if (item.value === 'card_size') settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
+                else if (item.value === 'kodik_token') {
+                    askText('Kodik Token', settings.kodik_token, function(v) { settings.kodik_token = v; saveSettings(settings); notify('Сохранено'); }); return;
+                }
+                else if (item.value === 'alloha_token') {
+                    askText('Alloha Token', settings.alloha_token, function(v) { settings.alloha_token = v; saveSettings(settings); notify('Сохранено'); }); return;
+                }
                 else if (item.value === 'clear_tmdb_cache') { storageSet(TMDB_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; }
                 else if (item.value === 'auth') { openAuthSettings(); return; }
+                
                 saveSettings(settings); notify('Настройки Shikimori сохранены'); openWith({ page: 1, sort: settings.default_sort });
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
         }
@@ -939,11 +1061,7 @@
             requestAnime(params, function (data) {
                 loading = false; body.find('.Shikimori-loader').remove();
                 if (!append) body.empty();
-                if (!data.length) {
-                    ended = true;
-                    if (!append) body.append('<div class="Shikimori-empty">Ничего не найдено</div>');
-                    return;
-                }
+                if (!data.length) { ended = true; if (!append) body.append('<div class="Shikimori-empty">Ничего не найдено</div>'); return; }
                 autoLoading = false;
                 if (data.length < PAGE_LIMIT) ended = true;
                 for (var i = 0; i < data.length; i++) appendCard(data[i]);
@@ -1032,13 +1150,18 @@
         });
         line.append(linkBtn);
 
-        // Кнопка списков, внедренная в нашу собственную строку (это гарантирует её появление)
         var listBtn = $('<div class="simple-button selector shikimori-full-extra__list-btn">Список Shiki</div>');
         line.append(listBtn);
-        
+
+        // --- ДОБАВЛЕНА КНОПКА БАЛАНСЕРОВ ---
+        var watchBtn = $('<div class="simple-button selector shikimori-full-extra__watch-btn">▶ Смотреть (Выбор)</div>');
+        watchBtn.on('hover:enter click tap mouseup', function() {
+            initBalancersMenu(anime);
+        });
+        line.append(watchBtn);
+
         page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
 
-        // Инициализируем функционал кнопки списка
         initShikimoriListButton(listBtn, anime);
     }
 
@@ -1083,8 +1206,10 @@
             '.shikimori-full-extra__item{margin:0 1.3em .8em 0;min-width:8em}' +
             '.shikimori-full-extra__item span{display:block;color:rgba(255,255,255,.48);font-size:.88em;margin-bottom:.2em}' +
             '.shikimori-full-extra__item b{font-weight:500;color:#fff}' +
-            '.shikimori-full-extra__link, .shikimori-full-extra__list-btn{margin:.1em .8em .8em 0}' +
+            '.shikimori-full-extra__link, .shikimori-full-extra__list-btn, .shikimori-full-extra__watch-btn{margin:.1em .8em .8em 0}' +
             '.shikimori-list-active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7);color:#fff}' +
+            '.shikimori-full-extra__watch-btn{background:rgba(92,77,158,0.7);border-color:#5c4d9e}' +
+            '.shikimori-full-extra__watch-btn.focus{background:#5c4d9e;color:#fff;border-color:#7f6fd3}' +
         '</style>');
     }
 
