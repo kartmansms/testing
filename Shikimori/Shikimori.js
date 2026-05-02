@@ -240,30 +240,19 @@
         }
     }
 
-   function fallbackSearch(data) {
+    function fallbackSearch(data) {
         var queries = [];
-        // Очищаем названия от приписок сезонов, чтобы найти основной сериал в TMDB
         function clean(str) {
             if (!str) return '';
-            var s = str.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
-                     .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
-                     .replace(/\(TV\)/gi, '')
-                     // Добавлена поддержка кириллицы (а-яА-ЯёЁ)
-                     .replace(/[^\w\sа-яА-ЯёЁ]/gi, ' ')
-                     .replace(/\s{2,}/g, ' ');
+            var s = str.replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '').replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '').replace(/\(TV\)/gi, '').replace(/[^\w\s]/gi, ' ').replace(/\s{2,}/g, ' ');
             return s.trim();
         }
 
-        var rus = data.russian || '';
         var eng = data.english || '';
         var romaji = data.name || '';
-        
-        var bestRus = (clean(rus) && clean(rus).length < rus.length) ? clean(rus) : rus;
         var bestEng = (clean(eng) && clean(eng).length < eng.length) ? clean(eng) : eng;
         var bestRomaji = (clean(romaji) && clean(romaji).length < romaji.length) ? clean(romaji) : romaji;
 
-        // Приоритет: сначала ищем по русскому, затем по английскому
-        if (bestRus) queries.push(bestRus);
         if (bestEng) queries.push(bestEng);
         if (bestRomaji && bestRomaji !== bestEng) queries.push(bestRomaji);
 
@@ -288,32 +277,41 @@
 
             var handleSuccess = function(res) {
                 if (res && res.results && res.results.length > 0) {
+                    var expectedType = (data.kind === 'movie') ? 'movie' : 'tv';
                     var bestItem = null;
+                    var backupItem = null;
+
                     for (var j = 0; j < res.results.length; j++) {
                         var item = res.results[j];
                         if (item.media_type === 'tv' || item.media_type === 'movie') {
-                            // Сохраняем самый первый (наиболее релевантный) результат как запасной
-                            if (!bestItem) bestItem = item; 
-                            
-                            if (shikiYear) {
-                                var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
-                                if (itemYear) {
-                                    // Логика TMDB: Год сериала = год 1-го сезона. 
-                                    // Значит, дата выхода в TMDB должна быть МЕНЬШЕ ИЛИ РАВНА дате сезона в Shikimori.
-                                    if (item.media_type === 'tv' && itemYear <= shikiYear + 1) { 
-                                        bestItem = item; 
-                                        break; 
-                                    }
-                                    // Для фильмов используем точное совпадение (+- 1 год)
-                                    else if (item.media_type === 'movie' && Math.abs(itemYear - shikiYear) <= 1) { 
-                                        bestItem = item; 
-                                        break; 
-                                    }
+                            var typeMatch = (item.media_type === expectedType);
+                            var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
+                            var yearMatch = false;
+
+                            if (shikiYear && itemYear) {
+                                if (typeMatch && item.media_type === 'tv') {
+                                    // Для сериалов год в TMDB - это год первого сезона. Shikimori может быть новым сезоном.
+                                    if (itemYear <= shikiYear + 1) yearMatch = true;
+                                } else {
+                                    if (Math.abs(itemYear - shikiYear) <= 1) yearMatch = true;
                                 }
-                            } else break;
+                            } else {
+                                yearMatch = true;
+                            }
+
+                            if (typeMatch && yearMatch) {
+                                bestItem = item;
+                                break;
+                            } else if (typeMatch && !bestItem) {
+                                bestItem = item;
+                            } else if (!backupItem) {
+                                backupItem = item;
+                            }
                         }
                     }
-                    if (bestItem) openTmdb(bestItem, data);
+
+                    var finalItem = bestItem || backupItem;
+                    if (finalItem) openTmdb(finalItem, data);
                     else tryNextQuery();
                 } else tryNextQuery();
             };
@@ -325,7 +323,7 @@
             } else $.ajax({ url: url, dataType: 'json', timeout: 6000, success: handleSuccess, error: tryNextQuery });
         }
 
-        notify('Поиск в базе TMDB...');
+        notify('Поиск в базе...');
         tryNextQuery();
     }
 
