@@ -4,13 +4,13 @@
     if (window.plugin_jutsu_ready) return;
     window.plugin_jutsu_ready = true;
 
-    var SETTINGS_KEY = 'jutsu_settings_v1';
-    var TMDB_CACHE_KEY = 'jutsu_tmdb_cache_v1';
-    var SITE_HOST = 'https://jut-su.net'; // Укажите актуальный домен
+    var SETTINGS_KEY = 'jutsu_settings_v2';
+    var TMDB_CACHE_KEY = 'jutsu_tmdb_cache_v2';
+    var SITE_HOST = 'https://jut-su.net'; // Актуальный домен
     var PAGE_LIMIT = 20;
 
     function defaults() {
-        return { card_size: 'normal' };
+        return { card_size: 'normal', proxy_type: 'corsproxy' };
     }
 
     function storageGet(key, fallback) {
@@ -66,8 +66,6 @@
         var tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
 
-        // Ищем блоки с контентом (стандартные классы DLE шаблонов)
-        // Если верстка на сайте изменится, нужно будет обновить эти селекторы
         var posts = tempDiv.querySelectorAll('.short, .item, .post, article, .movie-item, .short-item');
         
         for (var i = 0; i < posts.length; i++) {
@@ -82,7 +80,6 @@
             if (poster && poster.indexOf('//') === 0) poster = 'https:' + poster;
             else if (poster && poster.indexOf('http') !== 0) poster = SITE_HOST + poster;
 
-            // Пытаемся вытащить название
             var title = imgNode.getAttribute('alt') || '';
             if (!title) {
                 var titleNode = post.querySelector('.title, h2, h3, .name');
@@ -90,11 +87,11 @@
             }
             if (!title) title = linkNode.innerText || linkNode.textContent;
 
-            title = title.trim().replace(/\s+/g, ' '); // Очистка лишних пробелов
+            title = title.trim().replace(/\s+/g, ' ');
 
             if (url && title) {
                 items.push({
-                    id: url, // В качестве ID используем ссылку на страницу
+                    id: url,
                     name: title,
                     poster: poster || ''
                 });
@@ -103,61 +100,49 @@
         return items;
     }
 
+    function getProxyUrl(url) {
+        var proxy = readSettings().proxy_type;
+        if (proxy === 'corsproxy') return 'https://corsproxy.io/?' + encodeURIComponent(url);
+        if (proxy === 'allorigins') return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
+        if (proxy === 'thingproxy') return 'https://thingproxy.freeboard.io/fetch/' + url;
+        return url; // direct
+    }
+
     function requestAnime(params, oncomplete, onerror) {
         var page = parseInt(params.page, 10) || 1;
-        var method = 'GET';
         var url = SITE_HOST;
-        var data = null;
 
         if (params.search) {
-            // DLE поиск обычно работает через POST запрос
-            method = 'POST';
-            url = SITE_HOST + '/index.php?do=search';
-            data = {
-                do: 'search',
-                subaction: 'search',
-                story: params.search,
-                search_start: page,
-                full_search: 0,
-                result_from: (page - 1) * PAGE_LIMIT + 1
-            };
+            // Используем GET поиск DLE для совместимости с прокси
+            url = SITE_HOST + '/index.php?do=search&subaction=search&search_start=' + page + '&full_search=0&result_from=' + ((page - 1) * PAGE_LIMIT + 1) + '&story=' + encodeURIComponent(params.search);
         } else {
             url = params.category || SITE_HOST;
-            // Пагинация DLE
             if (page > 1) {
                 url = url.replace(/\/$/, '') + '/page/' + page + '/';
             }
         }
 
-        var ajaxParams = {
-            url: url,
-            method: method,
+        var finalUrl = getProxyUrl(url);
+
+        $.ajax({
+            url: finalUrl,
+            method: 'GET',
             dataType: 'html',
             timeout: 15000,
             success: function (html) {
+                if (html.indexOf('Cloudflare') > -1 || html.indexOf('Just a moment...') > -1) {
+                    notify('Jut.su: Блокировка Cloudflare. Прокси не помог.');
+                    if (onerror) onerror();
+                    return;
+                }
                 var items = parseHTML(html);
                 oncomplete(items);
             },
             error: function (xhr) {
-                notify('Jut.su: Ошибка загрузки данных. Возможно блокирует CORS.');
+                notify('Jut.su: Ошибка сети или прокси недоступен.');
                 if (onerror) onerror(xhr);
             }
-        };
-
-        if (data) ajaxParams.data = data;
-
-        // Используем Lampa.Reguest для обхода CORS если доступно
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.timeout(15000);
-            if (method === 'POST') {
-                network.silent(url, function(html) { oncomplete(parseHTML(html)); }, onerror, data);
-            } else {
-                network.silent(url, function(html) { oncomplete(parseHTML(html)); }, onerror);
-            }
-        } else {
-            $.ajax(ajaxParams);
-        }
+        });
     }
 
     // --- Привязка к TMDB ---
@@ -172,10 +157,8 @@
     }
 
     function fallbackSearch(data) {
-        // Очищаем название для поиска
         function clean(str) {
             if (!str) return '';
-            // Удаляем "1 сезон", "2 сезон", "ТВ-1", "(2024)", "смотреть онлайн" и т.д.
             var s = str
                 .replace(/\b(\d+\s*сезон)\b/gi, '')
                 .replace(/\b(ТВ-?\d+)\b/gi, '')
@@ -215,13 +198,7 @@
         };
 
         notify('Поиск в базе TMDB...');
-        
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.silent(url, handleSuccess, function() { openLampaSearch(data); });
-        } else {
-            $.ajax({ url: url, dataType: 'json', success: handleSuccess, error: function() { openLampaSearch(data); } });
-        }
+        $.ajax({ url: url, dataType: 'json', success: handleSuccess, error: function() { openLampaSearch(data); } });
     }
 
     function openLampaSearch(data) {
@@ -246,8 +223,6 @@
             jutsu: sourceData
         };
         
-        if (!movie.id) { openLampaSearch(sourceData); return; }
-
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
         if (!tmdbCache[sourceData.id] || tmdbCache[sourceData.id].id !== movie.id) {
             tmdbCache[sourceData.id] = { id: movie.id, type: type === 'movie' ? 'movie' : 'tv' };
@@ -332,7 +307,6 @@
             Lampa.Controller.toggle('content');
         };
 
-        this.stop = function () {}; this.pause = function () {};
         this.destroy = function () { html.off(); scroll.render().off(); scroll.destroy(); html.remove(); };
 
         function buildHeader() {
@@ -341,7 +315,6 @@
             addHeadButton('Поиск', openSearch);
             addHeadButton('Настройки', openSettings);
             
-            // Типичные категории для подобных сайтов. Проверьте актуальность URL для jut-su.net
             addQuick('Новинки', { category: SITE_HOST, search: '' });
             addQuick('Онгоинги', { category: SITE_HOST + '/ongoing/', search: '' });
             addQuick('Топ 100', { category: SITE_HOST + '/top/', search: '' });
@@ -400,14 +373,7 @@
             next.page = values.hasOwnProperty('page') ? values.page : 1;
             for (var key in values) { if (values[key] === '') delete next[key]; else next[key] = values[key]; }
             
-            Lampa.Activity.push({ 
-                url: '', 
-                title: 'Jut.su', 
-                component: 'jutsu', 
-                page: next.page, 
-                search: next.search || '', 
-                category: next.category || '' 
-            });
+            Lampa.Activity.push({ url: '', title: 'Jut.su', component: 'jutsu', page: next.page, search: next.search || '', category: next.category || '' });
         }
 
         function openSearch() {
@@ -425,15 +391,45 @@
 
         function openSettings() {
             var settings = readSettings();
+            
+            var proxyMap = {
+                'corsproxy': 'CorsProxy.io (Рекомендуется)',
+                'allorigins': 'AllOrigins (Резервный)',
+                'thingproxy': 'ThingProxy (Резервный 2)',
+                'direct': 'Прямой (Без прокси - для MSX/Android)'
+            };
+
             var items = [
+                { title: 'Сервер-прокси: ' + (proxyMap[settings.proxy_type] || proxyMap['corsproxy']), value: 'proxy_type' },
                 { title: 'Размер карточек: ' + (settings.card_size === 'compact' ? 'компактный' : 'обычный'), value: 'card_size' },
                 { title: 'Очистить кэш поиска TMDB', value: 'clear_tmdb_cache' }
             ];
             Lampa.Select.show({ title: 'Настройки Jut.su', items: items, onSelect: function (item) {
-                if (item.value === 'card_size') settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
-                else if (item.value === 'clear_tmdb_cache') { storageSet(TMDB_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; }
+                if (item.value === 'card_size') {
+                    settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
+                } else if (item.value === 'proxy_type') {
+                    showProxySelector(settings);
+                    return;
+                } else if (item.value === 'clear_tmdb_cache') { 
+                    storageSet(TMDB_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; 
+                }
                 saveSettings(settings); notify('Настройки сохранены'); openWith({ page: 1 });
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
+        }
+
+        function showProxySelector(settings) {
+            var items = [
+                { title: 'CorsProxy.io (Рекомендуется)', value: 'corsproxy' },
+                { title: 'AllOrigins (Резервный)', value: 'allorigins' },
+                { title: 'ThingProxy (Резервный 2)', value: 'thingproxy' },
+                { title: 'Прямой (Без прокси)', value: 'direct' }
+            ];
+            Lampa.Select.show({ title: 'Выберите сервер', items: items, onSelect: function(item) {
+                settings.proxy_type = item.value;
+                saveSettings(settings);
+                notify('Прокси изменен');
+                openWith({ page: 1 });
+            }, onBack: function() { openSettings(); }});
         }
 
         function load(append) {
@@ -446,22 +442,20 @@
                 loading = false; body.find('.Jutsu-loader').remove();
                 if (!append) body.empty();
                 
-                // Если парсер ничего не нашел
                 if (!data || !data.length) {
                     ended = true;
-                    if (!append) body.append('<div class="Jutsu-empty">Ничего не найдено (или сайт заблокировал парсинг)</div>');
+                    if (!append) body.append('<div class="Jutsu-empty">Ничего не найдено</div>');
                     return;
                 }
                 
                 autoLoading = false;
-                // В DLE обычно нет точного API для лимитов, смотрим по факту
-                if (data.length < 10) ended = true; 
+                if (data.length < PAGE_LIMIT - 5) ended = true; 
                 for (var i = 0; i < data.length; i++) appendCard(data[i]);
-                if (!ended && !params.search) addMoreButton(); // Пагинация поиска DLE через парсер часто ломается
+                if (!ended && !params.search) addMoreButton(); 
                 if (window.Lampa && Lampa.Controller) { Lampa.Controller.collectionSet(html); Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html); }
             }, function () {
                 autoLoading = false; loading = false; body.find('.Jutsu-loader').remove();
-                if (append) addMoreButton(); else body.append('<div class="Jutsu-empty">Ошибка сети (CORS или защита Cloudflare)</div>');
+                if (append) addMoreButton(); else body.append('<div class="Jutsu-empty" style="padding:2em; line-height:1.5;">Ошибка сети.<br>Возможно прокси-сервер недоступен или сайт включил жесткую блокировку Cloudflare.<br><br>Попробуйте сменить сервер-прокси в Настройках.</div>');
             });
         }
 
@@ -486,8 +480,6 @@
         }
     }
 
-    // --- Интеграция в полную карточку фильма (full) ---
-
     function extendFull() {
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
         Lampa.Listener.follow('full', function (event) {
@@ -495,49 +487,36 @@
             if (!event || event.type !== 'complite' || !event.object || !event.object.activity) return;
             card = event.object.activity.card || {};
             
-            // Добавляем кнопку поиска на Jut.su ко всем аниме карточкам
-            appendSearchButton(event.object.activity, card);
+            var page = $('.full-start, .full-start-new').last();
+            if (!page.length) page = $('.full').last();
+            if (!card || !page.length) return;
+            
+            if (page.find('.jutsu-full-btn').length) return;
+
+            var title = card.name || card.title || card.original_name || '';
+            if (!title) return;
+
+            var line = $('<div class="jutsu-full-extra" style="margin-top:1em;"></div>');
+            var linkBtn = $('<div class="simple-button selector jutsu-full-btn" style="background: rgba(30,144,255,0.2); border-color: #1e90ff;">Найти на Jut.su</div>');
+            
+            linkBtn.on('hover:enter click tap mouseup', function () {
+                Lampa.Activity.push({ url: '', title: 'Jut.su', component: 'jutsu', page: 1, search: title, category: '' });
+            });
+            
+            line.append(linkBtn);
+            page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
         });
     }
-
-    function appendSearchButton(activity, card) {
-        var page = $('.full-start, .full-start-new').last();
-        if (!page.length) page = $('.full').last();
-        if (!card || !page.length) return;
-        
-        // Предотвращаем дублирование
-        if (page.find('.jutsu-full-btn').length) return;
-
-        var title = card.name || card.title || card.original_name || '';
-        if (!title) return;
-
-        var line = $('<div class="jutsu-full-extra" style="margin-top:1em;"></div>');
-        var linkBtn = $('<div class="simple-button selector jutsu-full-btn" style="background: rgba(30,144,255,0.2); border-color: #1e90ff;">Найти на Jut.su</div>');
-        
-        linkBtn.on('hover:enter click tap mouseup', function () {
-            Lampa.Activity.push({ url: '', title: 'Jut.su', component: 'jutsu', page: 1, search: title, category: '' });
-        });
-        
-        line.append(linkBtn);
-        page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
-    }
-
-    // --- Добавление в меню Lampa ---
 
     function addMenu() {
         var menu = $('.menu .menu__list').eq(0);
         if (!menu.length || $('.menu__item.selector[data-action="jutsu"]').length) return;
-        
-        // Иконка (синяя буква J)
         var button = $('<li class="menu__item selector" data-action="jutsu"><div class="menu__ico"><svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="19" fill="#1e90ff"/><path d="M25 12h-6v14c0 2.2-1.8 4-4 4h-1v-4h1c0.6 0 1-0.4 1-1V12z" fill="#fff" transform="scale(1.2) translate(-2, -2)"/></svg></div><div class="menu__text">Jut.su</div></li>');
-        
         button.on('hover:enter click tap mouseup', function () {
             Lampa.Activity.push({ url: '', title: 'Jut.su', component: 'jutsu', page: 1, category: SITE_HOST });
         });
         menu.append(button);
     }
-
-    // --- Стили CSS ---
 
     function addStyles() {
         if ($('#jutsu-style').length) return;
