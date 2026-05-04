@@ -175,9 +175,12 @@
     }
 
     function requestAnime(params, oncomplete, onerror) {
-        var doRequest = function (token) {
-            var page = parseInt(params.page, 10) || 1;
-            var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(params.sort || readSettings().default_sort)];
+        var page = parseInt(params.page, 10) || 1;
+        var sort = params.sort || readSettings().default_sort;
+
+        // Для авторизованных пользователей: GraphQL (позволяет грузить личные оценки)
+        var doGraphQL = function (token) {
+            var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(sort)];
             
             if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
             if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
@@ -213,8 +216,61 @@
             });
         };
 
-        if (params.mylist) withAccessToken(doRequest);
-        else doRequest(isAuthorized() ? readAuth().access_token : '');
+        // Для гостей: классический REST API (обходит блокировки GraphQL)
+        var doREST = function () {
+            var url = SHIKI_HOST + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
+            if (params.search) url += '&search=' + encodeURIComponent(params.search);
+            if (params.kind) url += '&kind=' + encodeURIComponent(params.kind);
+            if (params.status) url += '&status=' + encodeURIComponent(params.status);
+            if (params.season) url += '&season=' + encodeURIComponent(params.season);
+            if (params.genre) url += '&genre=' + encodeURIComponent(params.genre);
+
+            $.ajax({
+                url: url,
+                method: 'GET',
+                dataType: 'json',
+                timeout: 15000,
+                success: function (data) {
+                    if (!Array.isArray(data)) {
+                        if (data && data.errors) notify('Shikimori: Ошибка запроса к API');
+                        oncomplete([]);
+                        return;
+                    }
+                    var mapped = [];
+                    for (var i = 0; i < data.length; i++) {
+                        var item = data[i];
+                        mapped.push({
+                            id: item.id,
+                            name: item.name,
+                            russian: item.russian,
+                            english: item.english || '',
+                            japanese: item.japanese || '',
+                            kind: item.kind,
+                            score: item.score,
+                            status: item.status,
+                            season: item.season || '',
+                            airedOn: { year: item.aired_on ? String(item.aired_on).substring(0, 4) : '' },
+                            poster: { originalUrl: item.image && item.image.original ? item.image.original : '' }
+                        });
+                    }
+                    oncomplete(mapped);
+                },
+                error: function (xhr) {
+                    notify('Shikimori: не удалось загрузить каталог');
+                    if (onerror) onerror(xhr);
+                }
+            });
+        };
+
+        if (params.mylist) {
+            withAccessToken(doGraphQL);
+        } else {
+            if (isAuthorized()) {
+                doGraphQL(readAuth().access_token);
+            } else {
+                doREST();
+            }
+        }
     }
 
     function openAnime(data) {
@@ -1032,13 +1088,11 @@
         });
         line.append(linkBtn);
 
-        // Кнопка списков, внедренная в нашу собственную строку (это гарантирует её появление)
         var listBtn = $('<div class="simple-button selector shikimori-full-extra__list-btn">Список Shiki</div>');
         line.append(listBtn);
         
         page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
 
-        // Инициализируем функционал кнопки списка
         initShikimoriListButton(listBtn, anime);
     }
 
