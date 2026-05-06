@@ -100,11 +100,6 @@
         });
     }
 
-    function gqlValue(value) {
-        value = value === undefined || value === null ? '' : String(value);
-        return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    }
-
     function seasonName(code) {
         var map = { winter: 'зима', spring: 'весна', summer: 'лето', fall: 'осень' };
         var parts;
@@ -161,113 +156,102 @@
 
     function loadGenres(callback) {
         var cache = storageGet(GENRES_CACHE_KEY, []);
-        if (cache && cache.length) callback(filterGenres(cache));
-        $.ajax({
-            url: SHIKI_HOST + '/api/genres',
-            dataType: 'json',
-            timeout: 12000,
-            success: function (genres) {
-                if (!genres || !genres.length) return;
-                storageSet(GENRES_CACHE_KEY, genres);
-                if (!cache || !cache.length) callback(filterGenres(genres));
-            }
-        });
+        if (cache && cache.length) { callback(filterGenres(cache)); return; }
+        
+        var url = SHIKI_HOST + '/api/genres';
+        var onSuccess = function (genres) {
+            if (!genres || !genres.length) return;
+            storageSet(GENRES_CACHE_KEY, genres);
+            if (!cache || !cache.length) callback(filterGenres(genres));
+        };
+
+        if (window.Lampa && Lampa.Reguest) {
+            var network = new Lampa.Reguest();
+            network.silent(url, onSuccess);
+        } else {
+            $.ajax({ url: url, dataType: 'json', timeout: 12000, success: onSuccess });
+        }
     }
 
     function requestAnime(params, oncomplete, onerror) {
         var page = parseInt(params.page, 10) || 1;
         var sort = params.sort || readSettings().default_sort;
 
-        var doGraphQL = function (token) {
-            var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(sort)];
-            
-            if (params.search) parts.push('search: "' + gqlValue(params.search) + '"');
-            if (params.kind) parts.push('kind: "' + gqlValue(params.kind) + '"');
-            if (params.status) parts.push('status: "' + gqlValue(params.status) + '"');
-            if (params.season) parts.push('season: "' + gqlValue(params.season) + '"');
-            if (params.genre) parts.push('genre: "' + gqlValue(params.genre) + '"');
-            if (params.mylist) parts.push('mylist: "' + gqlValue(params.mylist) + '"');
-
-            var headers = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = 'Bearer ' + token;
-
-            var userRateQuery = token ? ' userRate { score }' : '';
-
-            $.ajax({
-                url: SHIKI_HOST + '/api/graphql',
-                method: 'POST',
-                headers: headers,
-                dataType: 'json',
-                timeout: 15000,
-                data: JSON.stringify({ query: '{ animes(' + parts.join(', ') + ') { id name russian english japanese kind score status season airedOn { year } poster { originalUrl }' + userRateQuery + ' } }' }),
-                success: function (answer) {
-                    if (answer && answer.errors) {
-                        notify('Shikimori: Ошибка запроса к API');
-                        if (onerror) onerror();
-                        return;
-                    }
-                    oncomplete(answer && answer.data && answer.data.animes ? answer.data.animes : []);
-                },
-                error: function (xhr) {
-                    notify('Shikimori: не удалось загрузить каталог');
-                    if (onerror) onerror(xhr);
-                }
-            });
-        };
-
-        var doREST = function () {
+        var doREST = function (token) {
             var url = SHIKI_HOST + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
             if (params.search) url += '&search=' + encodeURIComponent(params.search);
             if (params.kind) url += '&kind=' + encodeURIComponent(params.kind);
             if (params.status) url += '&status=' + encodeURIComponent(params.status);
             if (params.season) url += '&season=' + encodeURIComponent(params.season);
             if (params.genre) url += '&genre=' + encodeURIComponent(params.genre);
+            if (params.mylist) url += '&mylist=' + encodeURIComponent(params.mylist);
 
-            $.ajax({
-                url: url,
-                method: 'GET',
-                dataType: 'json',
-                timeout: 15000,
-                success: function (data) {
-                    if (!Array.isArray(data)) {
-                        if (data && data.errors) notify('Shikimori: Ошибка запроса к API');
-                        oncomplete([]);
-                        return;
-                    }
-                    var mapped = [];
-                    for (var i = 0; i < data.length; i++) {
-                        var item = data[i];
-                        mapped.push({
-                            id: item.id,
-                            name: item.name,
-                            russian: item.russian,
-                            english: item.english || '',
-                            japanese: item.japanese || '',
-                            kind: item.kind,
-                            score: item.score,
-                            status: item.status,
-                            season: item.season || '',
-                            airedOn: { year: item.aired_on ? String(item.aired_on).substring(0, 4) : '' },
-                            poster: { originalUrl: item.image && item.image.original ? item.image.original : '' }
-                        });
-                    }
-                    oncomplete(mapped);
-                },
-                error: function (xhr) {
-                    notify('Shikimori: не удалось загрузить каталог');
-                    if (onerror) onerror(xhr);
+            var headers = {};
+            if (token) headers['Authorization'] = 'Bearer ' + token;
+
+            var onSuccess = function (data) {
+                if (!Array.isArray(data)) {
+                    if (data && data.errors) notify('Shikimori: Ошибка запроса к API');
+                    oncomplete([]);
+                    return;
                 }
-            });
+                var mapped = [];
+                for (var i = 0; i < data.length; i++) {
+                    var item = data[i];
+                    mapped.push({
+                        id: item.id,
+                        name: item.name,
+                        russian: item.russian,
+                        english: item.english || '',
+                        japanese: item.japanese || '',
+                        kind: item.kind,
+                        score: item.score,
+                        status: item.status,
+                        season: item.season || '',
+                        airedOn: { year: item.aired_on ? String(item.aired_on).substring(0, 4) : '' },
+                        poster: { originalUrl: item.image && item.image.original ? item.image.original : '' }
+                    });
+                }
+                oncomplete(mapped);
+            };
+
+            var onError = function (xhr) {
+                notify('Shikimori: не удалось загрузить каталог');
+                if (onerror) onerror(xhr);
+            };
+
+            if (token) {
+                $.ajax({
+                    url: url,
+                    method: 'GET',
+                    headers: headers,
+                    dataType: 'json',
+                    timeout: 15000,
+                    success: onSuccess,
+                    error: onError
+                });
+            } else {
+                if (window.Lampa && Lampa.Reguest) {
+                    var network = new Lampa.Reguest();
+                    network.timeout(15000);
+                    network.silent(url, onSuccess, onError);
+                } else {
+                    $.ajax({
+                        url: url,
+                        method: 'GET',
+                        dataType: 'json',
+                        timeout: 15000,
+                        success: onSuccess,
+                        error: onError
+                    });
+                }
+            }
         };
 
         if (params.mylist) {
-            withAccessToken(doGraphQL);
+            withAccessToken(doREST);
         } else {
-            if (isAuthorized()) {
-                doGraphQL(readAuth().access_token);
-            } else {
-                doREST();
-            }
+            doREST(null);
         }
     }
 
@@ -391,8 +375,6 @@
         Lampa.Activity.push({ url: '', title: movie.title, component: 'full', id: movie.id, method: type === 'movie' ? 'movie' : 'tv', card: movie, source: 'tmdb' });
     }
 
-    // --- Авторизация ---
-
     function authUrl() {
         var auth = readAuth();
         if (!auth.client_id || !auth.redirect_uri) return '';
@@ -479,8 +461,6 @@
         });
     }
 
-    // --- API списков (user_rates) ---
-
     function fetchUserRate(animeId, callback) {
         var auth = readAuth();
         if (!auth.id) { callback(null); return; }
@@ -540,8 +520,6 @@
             });
         });
     }
-
-    // --- Вкладка списков ---
 
     function initShikimoriListButton(btn, anime) {
         var currentRate = null;
@@ -672,9 +650,6 @@
         }
     }
 
-
-    // --- Интерфейс ---
-
     function Card(data) {
         var settings = readSettings();
         var year = data && data.airedOn ? data.airedOn.year : '';
@@ -686,23 +661,12 @@
         if (season) meta.push(season);
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
-        
-        var userRateHTML = '';
-        if (data.userRate && data.userRate.score && data.userRate.score > 0) {
-            userRateHTML = '<div class="Shikimori-card__user-rate">♥ ' + data.userRate.score + '</div>';
-        }
 
-        // === ИЗМЕНЕНИЯ ЗДЕСЬ: Ленивая загрузка и fallback на случай 404 картинки ===
-        var emptyImg = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-        var fallbackSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Нет фото</text></svg>');
-        
         this.data = data;
         this.render = function () {
             return $('<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
-                '<div class="card__view">' +
-                '<img class="card__img lazy" src="' + emptyImg + '" data-src="' + esc(posterOf(data)) + '" onerror="this.onerror=null;this.src=\'' + fallbackSvg + '\';" />' +
+                '<div class="card__view"><img class="card__img" src="' + esc(posterOf(data)) + '" />' +
                 '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' + 
-                userRateHTML + 
                 '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
                 '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div></div>');
         };
