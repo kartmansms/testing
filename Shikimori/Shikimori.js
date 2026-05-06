@@ -136,7 +136,13 @@
         var poster = data && data.poster ? data.poster.originalUrl : '';
         if (poster && poster.indexOf('//') === 0) poster = 'https:' + poster;
         if (poster && poster.indexOf('http') !== 0) poster = SHIKI_HOST + poster;
-        return poster || 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Shikimori</text></svg>');
+        
+        // Исправление для VPN: используем CDN desu.shikimori, который реже блокируется Cloudflare
+        if (poster && poster.indexOf('shikimori.one') !== -1) {
+            poster = poster.replace('shikimori.one', 'desu.shikimori.one');
+        }
+        
+        return poster || '';
     }
 
     function isAdultGenre(genre) {
@@ -658,14 +664,20 @@
         var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
         
+        // Исправление загрузки картинок: резервная SVG заглушка
+        var fallbackSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Нет постера</text></svg>');
+        var posterSrc = posterOf(data);
+        var imgSrc = posterSrc ? esc(posterSrc) : fallbackSVG;
+        
         if (season) meta.push(season);
         else if (year) meta.push(year);
         if (data.status) meta.push(statusName(data.status));
 
         this.data = data;
         this.render = function () {
+            // Исправление: добавлен атрибут onerror, чтобы ломающиеся картинки (блок VPN) заменялись заглушкой и не рушили карточки
             return $('<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
-                '<div class="card__view"><img class="card__img" src="' + esc(posterOf(data)) + '" />' +
+                '<div class="card__view"><img class="card__img" src="' + imgSrc + '" onerror="this.src=\'' + fallbackSVG + '\'" />' +
                 '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' + 
                 '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
                 '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div></div>');
