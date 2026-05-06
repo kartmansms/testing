@@ -178,7 +178,6 @@
         var page = parseInt(params.page, 10) || 1;
         var sort = params.sort || readSettings().default_sort;
 
-        // Для авторизованных пользователей: GraphQL (позволяет грузить личные оценки)
         var doGraphQL = function (token) {
             var parts = ['limit: ' + PAGE_LIMIT, 'page: ' + page, 'order: ' + gqlValue(sort)];
             
@@ -216,7 +215,6 @@
             });
         };
 
-        // Для гостей: классический REST API (обходит блокировки GraphQL)
         var doREST = function () {
             var url = SHIKI_HOST + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
             if (params.search) url += '&search=' + encodeURIComponent(params.search);
@@ -694,10 +692,15 @@
             userRateHTML = '<div class="Shikimori-card__user-rate">♥ ' + data.userRate.score + '</div>';
         }
 
+        // === ИЗМЕНЕНИЯ ЗДЕСЬ: Ленивая загрузка и fallback на случай 404 картинки ===
+        var emptyImg = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+        var fallbackSvg = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Нет фото</text></svg>');
+        
         this.data = data;
         this.render = function () {
             return $('<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
-                '<div class="card__view"><img class="card__img" src="' + esc(posterOf(data)) + '" />' +
+                '<div class="card__view">' +
+                '<img class="card__img lazy" src="' + emptyImg + '" data-src="' + esc(posterOf(data)) + '" onerror="this.onerror=null;this.src=\'' + fallbackSvg + '\';" />' +
                 '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' + 
                 userRateHTML + 
                 '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div></div>' +
