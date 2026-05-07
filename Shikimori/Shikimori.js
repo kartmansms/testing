@@ -8,7 +8,7 @@
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
     var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
-    var SHIKI_HOST = 'https://shikimori.one';
+    var SHIKI_HOST = 'https://shikimori.me'; // Изменено на рабочее зеркало
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
@@ -137,9 +137,10 @@
         if (poster && poster.indexOf('//') === 0) poster = 'https:' + poster;
         if (poster && poster.indexOf('http') !== 0) poster = SHIKI_HOST + poster;
         
-        // Исправление для VPN: используем CDN desu.shikimori, который реже блокируется Cloudflare
-        if (poster && poster.indexOf('shikimori.one') !== -1) {
-            poster = poster.replace('shikimori.one', 'desu.shikimori.one');
+        // Исправление загрузки постеров через стабильное зеркало .me
+        if (poster) {
+            poster = poster.replace('shikimori.one', 'shikimori.me');
+            poster = poster.replace('desu.shikimori.one', 'shikimori.me');
         }
         
         return poster || '';
@@ -664,7 +665,6 @@
         var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
         
-        // Исправление загрузки картинок: резервная SVG заглушка
         var fallbackSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Нет постера</text></svg>');
         var posterSrc = posterOf(data);
         var imgSrc = posterSrc ? esc(posterSrc) : fallbackSVG;
@@ -675,7 +675,6 @@
 
         this.data = data;
         this.render = function () {
-            // Исправление: добавлен атрибут onerror, чтобы ломающиеся картинки (блок VPN) заменялись заглушкой и не рушили карточки
             return $('<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                 '<div class="card__view"><img class="card__img" src="' + imgSrc + '" onerror="this.src=\'' + fallbackSVG + '\'" />' +
                 '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' + 
