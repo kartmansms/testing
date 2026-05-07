@@ -14,7 +14,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.me' };
+        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.one' };
     }
 
     function storageGet(key, fallback) {
@@ -134,19 +134,27 @@
     }
 
     function posterOf(data) {
-        var posterUrl = data && data.poster ? data.poster.originalUrl : '';
-        if (!posterUrl) return '';
+    var posterUrl = data && data.poster
+        ? data.poster.originalUrl
+        : '';
 
-        var settings = readSettings();
-        var imgDomain = settings.domain || 'shikimori.me';
-        
-        // Очищаем оригинальную ссылку от домена (чтобы получить только путь, например /system/animes/...)
-        var path = posterUrl.replace(/^https?:\/\/[^\/]+/, '');
-        if (path.indexOf('/') !== 0) path = '/' + path;
-        
-        // Отдаём картинку через выбранное зеркало напрямую (без поддомена desu)
-        return 'https://' + imgDomain + path;
+    if (!posterUrl) return '';
+
+    // если ссылка уже полная
+    if (/^https?:\/\//.test(posterUrl)) {
+        return posterUrl;
     }
+
+    var settings = readSettings();
+    var imgDomain = settings.domain || 'shikimori.one';
+
+    // относительный путь
+    if (posterUrl.indexOf('/') !== 0) {
+        posterUrl = '/' + posterUrl;
+    }
+
+    return 'https://' + imgDomain + posterUrl;
+}
 
     function isAdultGenre(genre) {
         var name = String((genre && (genre.name || genre.russian)) || '').toLowerCase();
@@ -218,7 +226,18 @@
                         status: item.status,
                         season: item.season || '',
                         airedOn: { year: item.aired_on ? String(item.aired_on).substring(0, 4) : '' },
-                        poster: { originalUrl: item.image && item.image.original ? item.image.original : '' }
+                        poster: {
+    originalUrl:
+        (item.poster && (
+            item.poster.originalUrl ||
+            item.poster.mainUrl
+        )) ||
+        (item.image && (
+            item.image.original ||
+            item.image.preview
+        )) ||
+        ''
+}
                     });
                 }
                 oncomplete(mapped);
