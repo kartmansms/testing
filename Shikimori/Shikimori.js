@@ -14,7 +14,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.tech' };
+        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.one' };
     }
 
     function storageGet(key, fallback) {
