@@ -133,7 +133,7 @@
         return data.russian || data.name || data.english || 'Shikimori';
     }
 
-    ction posterOf(data) {
+    function posterOf(data) {
     var posterUrl = data && data.poster
         ? data.poster.originalUrl
         : '';
