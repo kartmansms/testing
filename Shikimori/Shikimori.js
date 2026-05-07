@@ -14,7 +14,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.one' };
+        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.tech' };
     }
 
     function storageGet(key, fallback) {
@@ -127,29 +127,33 @@
     }
 
     function titleOf(data) {
+        var settings = readSettings();
         if (settings.title_language === 'original') return data.name || data.english || data.russian || 'Shikimori';
         if (settings.title_language === 'en') return data.english || data.name || data.russian || 'Shikimori';
         return data.russian || data.name || data.english || 'Shikimori';
     }
 
-    function posterOf(data) {
+    ction posterOf(data) {
     var posterUrl = data && data.poster
         ? data.poster.originalUrl
         : '';
 
     if (!posterUrl) return '';
 
-    // абсолютная ссылка
-    if (/^https?:\/\//i.test(posterUrl)) {
+    // если ссылка уже полная
+    if (/^https?:\/\//.test(posterUrl)) {
         return posterUrl;
     }
 
-    // относительная ссылка
+    var settings = readSettings();
+    var imgDomain = settings.domain || 'shikimori.one';
+
+    // относительный путь
     if (posterUrl.indexOf('/') !== 0) {
         posterUrl = '/' + posterUrl;
     }
 
-    return 'https://shikimori.one' + posterUrl;
+    return 'https://' + imgDomain + posterUrl;
 }
 
     function isAdultGenre(genre) {
@@ -158,6 +162,7 @@
     }
 
     function filterGenres(genres) {
+        var settings = readSettings();
         var result = [];
         for (var i = 0; i < genres.length; i++) {
             if (genres[i] && genres[i].entry_type && genres[i].entry_type !== 'Anime') continue;
@@ -224,13 +229,12 @@
                         poster: {
     originalUrl:
         (item.poster && (
-            item.poster.mainUrl ||
-            item.poster.previewUrl ||
-            item.poster.originalUrl
+            item.poster.originalUrl ||
+            item.poster.mainUrl
         )) ||
         (item.image && (
-            item.image.preview ||
-            item.image.original
+            item.image.original ||
+            item.image.preview
         )) ||
         ''
 }
@@ -675,6 +679,7 @@
     }
 
     function Card(data) {
+        var settings = readSettings();
         var year = data && data.airedOn ? data.airedOn.year : '';
         var season = seasonName(data.season);
         var compact = settings.card_size === 'compact' ? ' Shikimori--compact' : '';
@@ -922,6 +927,7 @@
         }
 
         function openSettings() {
+            var settings = readSettings();
             var items = [
                 { title: 'Домен для постеров: ' + (settings.domain || 'shikimori.me'), value: 'domain' },
                 { title: 'Язык названий: ' + (settings.title_language === 'original' ? 'оригинал' : (settings.title_language === 'en' ? 'английский' : 'русский')), value: 'title_language' },
