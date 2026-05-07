@@ -14,7 +14,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.one' };
+        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal' };
     }
 
     function storageGet(key, fallback) {
@@ -51,7 +51,6 @@
         var key;
         if (!saved || typeof saved !== 'object') saved = {};
         for (key in saved) if (saved.hasOwnProperty(key)) base[key] = saved[key];
-        if (!base.domain) base.domain = 'shikimori.me'; // Зеркало для постеров по умолчанию
         return base;
     }
 
@@ -134,27 +133,11 @@
     }
 
     function posterOf(data) {
-    var posterUrl = data && data.poster
-        ? data.poster.originalUrl
-        : '';
-
-    if (!posterUrl) return '';
-
-    // если ссылка уже полная
-    if (/^https?:\/\//.test(posterUrl)) {
-        return posterUrl;
+        var posterUrl = data && data.poster ? data.poster.originalUrl : '';
+        if (!posterUrl) return '';
+        if (/^https?:\/\//.test(posterUrl)) return posterUrl;
+        return 'https://shikimori.one' + (posterUrl.indexOf('/') === 0 ? posterUrl : '/' + posterUrl);
     }
-
-    var settings = readSettings();
-    var imgDomain = settings.domain || 'shikimori.one';
-
-    // относительный путь
-    if (posterUrl.indexOf('/') !== 0) {
-        posterUrl = '/' + posterUrl;
-    }
-
-    return 'https://' + imgDomain + posterUrl;
-}
 
     function isAdultGenre(genre) {
         var name = String((genre && (genre.name || genre.russian)) || '').toLowerCase();
@@ -227,17 +210,8 @@
                         season: item.season || '',
                         airedOn: { year: item.aired_on ? String(item.aired_on).substring(0, 4) : '' },
                         poster: {
-    originalUrl:
-        (item.poster && (
-            item.poster.originalUrl ||
-            item.poster.mainUrl
-        )) ||
-        (item.image && (
-            item.image.original ||
-            item.image.preview
-        )) ||
-        ''
-}
+                            originalUrl: (item.poster && (item.poster.originalUrl || item.poster.mainUrl)) || (item.image && (item.image.original || item.image.preview)) || ''
+                        }
                     });
                 }
                 oncomplete(mapped);
@@ -929,7 +903,6 @@
         function openSettings() {
             var settings = readSettings();
             var items = [
-                { title: 'Домен для постеров: ' + (settings.domain || 'shikimori.me'), value: 'domain' },
                 { title: 'Язык названий: ' + (settings.title_language === 'original' ? 'оригинал' : (settings.title_language === 'en' ? 'английский' : 'русский')), value: 'title_language' },
                 { title: 'Скрывать 18+: ' + (settings.hide_adult ? 'да' : 'нет'), value: 'hide_adult' },
                 { title: 'Сортировка по умолчанию: ' + sortName(settings.default_sort), value: 'default_sort' },
@@ -938,12 +911,7 @@
                 { title: 'Авторизация: ' + authStatusTitle(), value: 'auth' }
             ];
             Lampa.Select.show({ title: 'Настройки Shikimori', items: items, onSelect: function (item) {
-                if (item.value === 'domain') {
-                    var domains = ['shikimori.me', 'shikimori.one', 'shikimori.tech'];
-                    var idx = domains.indexOf(settings.domain || 'shikimori.me');
-                    settings.domain = domains[(idx + 1) % domains.length];
-                }
-                else if (item.value === 'title_language') settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
+                if (item.value === 'title_language') settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
                 else if (item.value === 'hide_adult') settings.hide_adult = !settings.hide_adult;
                 else if (item.value === 'default_sort') settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                 else if (item.value === 'card_size') settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
@@ -953,7 +921,7 @@
                 saveSettings(settings); 
                 notify('Настройки Shikimori сохранены'); 
                 
-                if (['domain', 'title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
+                if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
                     openWith({ page: 1, sort: settings.default_sort }); 
                 }
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
