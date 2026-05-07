@@ -8,7 +8,7 @@
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
     var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
-    var SHIKI_HOST = 'https://shikimori.one'; // API строго через основной домен!
+    var SHIKI_HOST = 'https://shikimori.one'; // API работает строго через основной домен
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
@@ -51,7 +51,7 @@
         var key;
         if (!saved || typeof saved !== 'object') saved = {};
         for (key in saved) if (saved.hasOwnProperty(key)) base[key] = saved[key];
-        if (!base.domain) base.domain = 'shikimori.me'; // Устанавливаем актуальное зеркало постеров по умолчанию
+        if (!base.domain) base.domain = 'shikimori.me'; // Зеркало для постеров по умолчанию
         return base;
     }
 
@@ -134,19 +134,18 @@
     }
 
     function posterOf(data) {
-        var poster = data && data.poster ? data.poster.originalUrl : '';
-        if (!poster) return '';
+        var posterUrl = data && data.poster ? data.poster.originalUrl : '';
+        if (!posterUrl) return '';
 
-        if (poster.indexOf('//') === 0) poster = 'https:' + poster;
-        else if (poster.indexOf('http') !== 0) poster = SHIKI_HOST + poster;
-        
         var settings = readSettings();
         var imgDomain = settings.domain || 'shikimori.me';
         
-        // Заменяем оригинальный хост картинки на CDN desu + выбранное зеркало (для обхода блокировки)
-        poster = poster.replace(/https?:\/\/(desu\.)?shikimori\.[a-z]+/, 'https://desu.' + imgDomain);
+        // Очищаем оригинальную ссылку от домена (чтобы получить только путь, например /system/animes/...)
+        var path = posterUrl.replace(/^https?:\/\/[^\/]+/, '');
+        if (path.indexOf('/') !== 0) path = '/' + path;
         
-        return poster;
+        // Отдаём картинку через выбранное зеркало напрямую (без поддомена desu)
+        return 'https://' + imgDomain + path;
     }
 
     function isAdultGenre(genre) {
@@ -911,7 +910,7 @@
         function openSettings() {
             var settings = readSettings();
             var items = [
-                { title: 'Домен для картинок: ' + (settings.domain || 'shikimori.me'), value: 'domain' },
+                { title: 'Домен для постеров: ' + (settings.domain || 'shikimori.me'), value: 'domain' },
                 { title: 'Язык названий: ' + (settings.title_language === 'original' ? 'оригинал' : (settings.title_language === 'en' ? 'английский' : 'русский')), value: 'title_language' },
                 { title: 'Скрывать 18+: ' + (settings.hide_adult ? 'да' : 'нет'), value: 'hide_adult' },
                 { title: 'Сортировка по умолчанию: ' + sortName(settings.default_sort), value: 'default_sort' },
