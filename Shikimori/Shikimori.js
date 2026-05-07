@@ -8,13 +8,12 @@
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
     var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
-    var SHIKI_HOST = 'https://shikimori.me'; // Изменено на рабочее зеркало
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
-        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal' };
+        return { title_language: 'ru', hide_adult: true, default_sort: 'popularity', card_size: 'normal', domain: 'shikimori.me' };
     }
 
     function storageGet(key, fallback) {
@@ -51,11 +50,17 @@
         var key;
         if (!saved || typeof saved !== 'object') saved = {};
         for (key in saved) if (saved.hasOwnProperty(key)) base[key] = saved[key];
+        if (!base.domain) base.domain = 'shikimori.me'; // Устанавливаем актуальное зеркало по умолчанию
         return base;
     }
 
     function saveSettings(settings) {
         storageSet(SETTINGS_KEY, settings || defaults());
+    }
+
+    function getShikiHost() {
+        var s = readSettings();
+        return 'https://' + (s.domain || 'shikimori.me');
     }
 
     function defaultAuth() {
@@ -133,14 +138,23 @@
     }
 
     function posterOf(data) {
+        var host = getShikiHost();
+        var domain = readSettings().domain || 'shikimori.me';
         var poster = data && data.poster ? data.poster.originalUrl : '';
         if (poster && poster.indexOf('//') === 0) poster = 'https:' + poster;
-        if (poster && poster.indexOf('http') !== 0) poster = SHIKI_HOST + poster;
+        if (poster && poster.indexOf('http') !== 0) poster = host + poster;
         
-        // Исправление загрузки постеров через стабильное зеркало .me
+        // Обход блокировок и Cloudflare: используем CDN desu 
         if (poster) {
-            poster = poster.replace('shikimori.one', 'shikimori.me');
-            poster = poster.replace('desu.shikimori.one', 'shikimori.me');
+            // Удаляем возможные старые префиксы desu
+            poster = poster.replace('desu.shikimori.one', 'shikimori.one');
+            poster = poster.replace('desu.shikimori.me', 'shikimori.me');
+            poster = poster.replace('desu.shikimori.tech', 'shikimori.tech');
+            
+            // Заменяем хосты на рабочее зеркало изображений
+            poster = poster.replace('shikimori.one', 'desu.' + domain);
+            poster = poster.replace('shikimori.me', 'desu.' + domain);
+            poster = poster.replace('shikimori.tech', 'desu.' + domain);
         }
         
         return poster || '';
@@ -165,7 +179,7 @@
         var cache = storageGet(GENRES_CACHE_KEY, []);
         if (cache && cache.length) { callback(filterGenres(cache)); return; }
         
-        var url = SHIKI_HOST + '/api/genres';
+        var url = getShikiHost() + '/api/genres';
         var onSuccess = function (genres) {
             if (!genres || !genres.length) return;
             storageSet(GENRES_CACHE_KEY, genres);
@@ -185,7 +199,7 @@
         var sort = params.sort || readSettings().default_sort;
 
         var doREST = function (token) {
-            var url = SHIKI_HOST + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
+            var url = getShikiHost() + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
             if (params.search) url += '&search=' + encodeURIComponent(params.search);
             if (params.kind) url += '&kind=' + encodeURIComponent(params.kind);
             if (params.status) url += '&status=' + encodeURIComponent(params.status);
@@ -385,7 +399,7 @@
     function authUrl() {
         var auth = readAuth();
         if (!auth.client_id || !auth.redirect_uri) return '';
-        return SHIKI_HOST + '/oauth/authorize?client_id=' + encodeURIComponent(auth.client_id) + '&redirect_uri=' + encodeURIComponent(auth.redirect_uri) + '&response_type=code&scope=user_rates';
+        return getShikiHost() + '/oauth/authorize?client_id=' + encodeURIComponent(auth.client_id) + '&redirect_uri=' + encodeURIComponent(auth.redirect_uri) + '&response_type=code&scope=user_rates';
     }
 
     function requestTokenByCode(code, callback) {
@@ -395,7 +409,7 @@
             return;
         }
         $.ajax({
-            url: SHIKI_HOST + '/oauth/token',
+            url: getShikiHost() + '/oauth/token',
             method: 'POST',
             dataType: 'json',
             timeout: 15000,
@@ -415,7 +429,7 @@
             return;
         }
         $.ajax({
-            url: SHIKI_HOST + '/oauth/token',
+            url: getShikiHost() + '/oauth/token',
             method: 'POST',
             dataType: 'json',
             timeout: 15000,
@@ -451,7 +465,7 @@
     function loadWhoami() {
         withAccessToken(function (token) {
             $.ajax({
-                url: SHIKI_HOST + '/api/users/whoami',
+                url: getShikiHost() + '/api/users/whoami',
                 method: 'GET',
                 dataType: 'json',
                 timeout: 12000,
@@ -473,7 +487,7 @@
         if (!auth.id) { callback(null); return; }
         withAccessToken(function(token) {
             $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates?user_id=' + auth.id + '&target_id=' + animeId + '&target_type=Anime',
+                url: getShikiHost() + '/api/v2/user_rates?user_id=' + auth.id + '&target_id=' + animeId + '&target_type=Anime',
                 method: 'GET',
                 dataType: 'json',
                 timeout: 10000,
@@ -491,7 +505,7 @@
             for (var k in data) payload.user_rate[k] = data[k];
 
             $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates' + (rateId ? '/' + rateId : ''),
+                url: getShikiHost() + '/api/v2/user_rates' + (rateId ? '/' + rateId : ''),
                 method: rateId ? 'PATCH' : 'POST',
                 dataType: 'json',
                 timeout: 10000,
@@ -512,7 +526,7 @@
     function deleteUserRate(rateId, callback) {
         withAccessToken(function(token) {
             $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates/' + rateId,
+                url: getShikiHost() + '/api/v2/user_rates/' + rateId,
                 method: 'DELETE',
                 timeout: 10000,
                 headers: { Authorization: 'Bearer ' + token },
@@ -665,6 +679,7 @@
         var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
         
+        // Резервная SVG заглушка
         var fallbackSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="24" text-anchor="middle">Нет постера</text></svg>');
         var posterSrc = posterOf(data);
         var imgSrc = posterSrc ? esc(posterSrc) : fallbackSVG;
@@ -821,7 +836,7 @@
                 var auth = readAuth();
                 if (!auth.id) { notify('Обновление данных профиля...'); loadWhoami(); return; }
                 $.ajax({
-                    url: SHIKI_HOST + '/api/users/' + auth.id, method: 'GET', dataType: 'json', timeout: 12000, headers: { Authorization: 'Bearer ' + token },
+                    url: getShikiHost() + '/api/users/' + auth.id, method: 'GET', dataType: 'json', timeout: 12000, headers: { Authorization: 'Bearer ' + token },
                     success: function (user) {
                         var stats = (user.stats && user.stats.statuses && user.stats.statuses.anime) || [];
                         var map = {};
@@ -907,21 +922,34 @@
         function openSettings() {
             var settings = readSettings();
             var items = [
+                { title: 'Домен: ' + (settings.domain || 'shikimori.me'), value: 'domain' },
                 { title: 'Язык названий: ' + (settings.title_language === 'original' ? 'оригинал' : (settings.title_language === 'en' ? 'английский' : 'русский')), value: 'title_language' },
                 { title: 'Скрывать 18+: ' + (settings.hide_adult ? 'да' : 'нет'), value: 'hide_adult' },
                 { title: 'Сортировка по умолчанию: ' + sortName(settings.default_sort), value: 'default_sort' },
                 { title: 'Размер карточек: ' + (settings.card_size === 'compact' ? 'компактный' : 'обычный'), value: 'card_size' },
                 { title: 'Очистить кэш поиска TMDB', value: 'clear_tmdb_cache' },
-                { title: 'Авторизация Shikimori: ' + authStatusTitle(), value: 'auth' }
+                { title: 'Авторизация: ' + authStatusTitle(), value: 'auth' }
             ];
             Lampa.Select.show({ title: 'Настройки Shikimori', items: items, onSelect: function (item) {
-                if (item.value === 'title_language') settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
+                if (item.value === 'domain') {
+                    var domains = ['shikimori.me', 'shikimori.one', 'shikimori.tech'];
+                    var idx = domains.indexOf(settings.domain || 'shikimori.me');
+                    settings.domain = domains[(idx + 1) % domains.length];
+                }
+                else if (item.value === 'title_language') settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
                 else if (item.value === 'hide_adult') settings.hide_adult = !settings.hide_adult;
                 else if (item.value === 'default_sort') settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                 else if (item.value === 'card_size') settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
                 else if (item.value === 'clear_tmdb_cache') { storageSet(TMDB_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; }
                 else if (item.value === 'auth') { openAuthSettings(); return; }
-                saveSettings(settings); notify('Настройки Shikimori сохранены'); openWith({ page: 1, sort: settings.default_sort });
+                
+                saveSettings(settings); 
+                notify('Настройки Shikimori сохранены'); 
+                if (item.value === 'domain') {
+                    openWith({ page: 1, sort: settings.default_sort }); 
+                } else {
+                    openWith({ page: 1, sort: settings.default_sort });
+                }
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
         }
 
@@ -1024,7 +1052,7 @@
             var doFetch = function(answer) {
                 var mal = extractMalId(answer);
                 if (!mal) return;
-                $.ajax({ url: SHIKI_HOST + '/api/animes/' + encodeURIComponent(mal), dataType: 'json', timeout: 12000, success: function (anime) { appendFull(event.object.activity, anime); } });
+                $.ajax({ url: getShikiHost() + '/api/animes/' + encodeURIComponent(mal), dataType: 'json', timeout: 12000, success: function (anime) { appendFull(event.object.activity, anime); } });
             };
 
             if (window.Lampa && Lampa.Reguest) {
@@ -1046,7 +1074,7 @@
         if (!anime || !anime.id || !page.length) return;
         if (page.find('.shikimori-full-extra').length) return;
         
-        var url = SHIKI_HOST + '/animes/' + anime.id;
+        var url = getShikiHost() + '/animes/' + anime.id;
         var score = anime.score && anime.score !== '0.0' ? anime.score : '—';
         
         if (!page.find('.rate--shikimori').length) {
