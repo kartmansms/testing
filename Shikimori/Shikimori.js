@@ -1137,7 +1137,7 @@
             }
 
             var map = {
-                planned: 'В планах',
+                planned: 'Запланировано',
                 watching: 'Смотрю',
                 rewatching: 'Пересматриваю',
                 completed: 'Просмотрено',
@@ -1209,7 +1209,7 @@
         function showListMenu() {
             var map = [
                 { title: 'Смотрю', value: 'watching' },
-                { title: 'В планах', value: 'planned' },
+                { title: 'Запланировано', value: 'planned' },
                 { title: 'Просмотрено', value: 'completed' },
                 { title: 'Пересматриваю', value: 'rewatching' },
                 { title: 'Отложено', value: 'on_hold' },
