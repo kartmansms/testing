@@ -79,8 +79,9 @@
     function defaultAuth() {
         return {
             id: 0,
-            client_id: '',
-            client_secret: '',
+            // ВСТАВЬТЕ СЮДА ВАШИ КЛЮЧИ SHIKIMORI
+            client_id: 'ВАШ_CLIENT_ID_ОТ_SHIKIMORI',
+            client_secret: 'ВАШ_CLIENT_SECRET_ОТ_SHIKIMORI',
             redirect_uri: 'urn:ietf:wg:oauth:2.0:oob',
             access_token: '',
             refresh_token: '',
@@ -117,7 +118,7 @@
 
         if (isAuthorized()) return 'подключено' + (auth.nickname ? ': ' + auth.nickname : '');
         if (auth.refresh_token) return 'требуется обновление';
-        if (auth.client_id && auth.client_secret) return 'ключи введены';
+        if (auth.client_id && auth.client_id.indexOf('ВАШ_') === -1) return 'ключи введены';
 
         return 'не подключено';
     }
@@ -897,7 +898,7 @@
     function authUrl() {
         var auth = readAuth();
 
-        if (!auth.client_id || !auth.redirect_uri) return '';
+        if (!auth.client_id || !auth.redirect_uri || auth.client_id.indexOf('ВАШ_') !== -1) return '';
 
         return SHIKI_HOST +
             '/oauth/authorize?client_id=' + encodeURIComponent(auth.client_id) +
@@ -909,7 +910,7 @@
         var auth = readAuth();
 
         if (!auth.client_id || !auth.client_secret || !auth.redirect_uri) {
-            notify('Введите Client ID, Client Secret и Redirect URI');
+            notify('В коде плагина не прописаны Client ID или Secret');
             return;
         }
 
@@ -1956,45 +1957,109 @@
 
         function openAuthSettings() {
             var auth = readAuth();
+            var items = [];
 
-            var items = [
-                { title: 'Статус: ' + authStatusTitle(), value: 'whoami' },
-                { title: 'Ввести Client ID', value: 'client_id' },
-                { title: 'Ввести Client Secret', value: 'client_secret' },
-                { title: 'Redirect URI: ' + auth.redirect_uri, value: 'redirect_uri' },
-                { title: 'Скопировать ссылку авторизации', value: 'copy_url' },
-                { title: 'Ввести код авторизации', value: 'code' },
-                { title: 'Обновить токен', value: 'refresh' },
-                { title: 'Выйти из Shikimori', value: 'logout' }
-            ];
+            if (isAuthorized()) {
+                items.push({ title: 'Профиль: ' + auth.nickname, value: 'whoami' });
+                items.push({ title: 'Обновить токен', value: 'refresh' });
+                items.push({ title: 'Выйти из аккаунта', value: 'logout' });
+            } else {
+                items.push({ title: '1. Авторизоваться (Показать QR-код)', value: 'show_qr' });
+                items.push({ title: '2. Ввести код подтверждения', value: 'code' });
+            }
+
+            items.push({ title: 'Продвинутые настройки (свои ключи API)', value: 'advanced' });
 
             Lampa.Select.show({
                 title: 'Авторизация Shikimori',
                 items: items,
                 onSelect: function (item) {
+                    if (item.value === 'show_qr') {
+                        var url = authUrl();
+                        
+                        if (!url || (auth.client_id && auth.client_id.indexOf('ВАШ_') !== -1)) {
+                            notify('Ошибка: В коде плагина не прописан Client ID');
+                            return;
+                        }
+
+                        var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&bgcolor=ffffff&data=' + encodeURIComponent(url);
+                        var modalHtml = $('<div><div style="text-align:center; padding: 20px; background: #fff; border-radius: 10px; display: inline-block; margin-top: 10px;"><img src="' + qrUrl + '" style="width:300px; height:300px; display:block;" /></div><div style="margin-top: 15px; font-size: 1.1em; color: #fff;">Отсканируйте камерой телефона, разрешите доступ<br>и запомните полученный код.</div></div>');
+
+                        Lampa.Modal.show({
+                            title: 'Шаг 1: Сканируйте QR',
+                            html: modalHtml,
+                            size: 'medium',
+                            onBack: function() {
+                                Lampa.Modal.close();
+                                openAuthSettings();
+                            }
+                        });
+
+                    } else if (item.value === 'code') {
+                        askText('Введите полученный код', '', function (value) {
+                            if (value) requestTokenByCode(value, function() {
+                                loadWhoami();
+                                Lampa.Controller.toggle('content');
+                            });
+                        });
+                    } else if (item.value === 'refresh') {
+                        refreshToken(loadWhoami);
+                    } else if (item.value === 'whoami') {
+                        loadWhoami();
+                    } else if (item.value === 'logout') {
+                        saveAuth(defaultAuth());
+                        notify('Выход из Shikimori выполнен');
+                        openWith({ page: 1, sort: readSettings().default_sort, mylist: '' });
+                    } else if (item.value === 'advanced') {
+                        showAdvancedAuth();
+                    }
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function showAdvancedAuth() {
+            var auth = readAuth();
+            var items = [
+                { title: 'Client ID: ' + (auth.client_id && auth.client_id.indexOf('ВАШ_') === -1 ? 'установлен' : 'пусто'), value: 'client_id' },
+                { title: 'Client Secret: ' + (auth.client_secret && auth.client_secret.indexOf('ВАШ_') === -1 ? 'установлен' : 'пусто'), value: 'client_secret' },
+                { title: 'Redirect URI: ' + auth.redirect_uri, value: 'redirect_uri' },
+                { title: 'Скопировать ссылку авторизации', value: 'copy_url' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Свои ключи API',
+                items: items,
+                onSelect: function (item) {
                     if (item.value === 'client_id') {
-                        askText('Client ID Shikimori', auth.client_id, function (value) {
+                        var cval = auth.client_id === 'ВАШ_CLIENT_ID_ОТ_SHIKIMORI' ? '' : auth.client_id;
+                        askText('Client ID Shikimori', cval, function (value) {
                             auth.client_id = value;
                             saveAuth(auth);
                             notify('Client ID сохранён');
+                            showAdvancedAuth();
                         });
                     } else if (item.value === 'client_secret') {
-                        askText('Client Secret Shikimori', auth.client_secret, function (value) {
+                        var sval = auth.client_secret === 'ВАШ_CLIENT_SECRET_ОТ_SHIKIMORI' ? '' : auth.client_secret;
+                        askText('Client Secret Shikimori', sval, function (value) {
                             auth.client_secret = value;
                             saveAuth(auth);
                             notify('Client Secret сохранён');
+                            showAdvancedAuth();
                         });
                     } else if (item.value === 'redirect_uri') {
                         askText('Redirect URI', auth.redirect_uri, function (value) {
-                            auth.redirect_uri = value || defaultAuth().redirect_uri;
+                            auth.redirect_uri = value || 'urn:ietf:wg:oauth:2.0:oob';
                             saveAuth(auth);
                             notify('Redirect URI сохранён');
+                            showAdvancedAuth();
                         });
                     } else if (item.value === 'copy_url') {
                         var url = authUrl();
-
-                        if (!url) {
-                            notify('Сначала введите Client ID');
+                        if (!url || (auth.client_id && auth.client_id.indexOf('ВАШ_') !== -1)) {
+                            notify('Сначала введите свой Client ID');
                             return;
                         }
 
@@ -2005,27 +2070,10 @@
                         } else {
                             notify(url);
                         }
-                    } else if (item.value === 'code') {
-                        askText('Код авторизации', '', function (value) {
-                            if (value) requestTokenByCode(value, loadWhoami);
-                        });
-                    } else if (item.value === 'refresh') {
-                        refreshToken(loadWhoami);
-                    } else if (item.value === 'whoami') {
-                        loadWhoami();
-                    } else if (item.value === 'logout') {
-                        saveAuth(defaultAuth());
-                        notify('Выход из Shikimori выполнен');
-
-                        openWith({
-                            page: 1,
-                            sort: readSettings().default_sort,
-                            mylist: ''
-                        });
                     }
                 },
                 onBack: function () {
-                    Lampa.Controller.toggle('content');
+                    openAuthSettings();
                 }
             });
         }
