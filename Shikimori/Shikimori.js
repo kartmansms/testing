@@ -1120,7 +1120,7 @@
                 btn.attr('data-title', 'Список Shikimori');
                 btn.attr('data-state-title', text || 'Список Shikimori');
 
-                btn.find('.shikimori-full-list-button__tooltip').text('Список Shikimori');
+                btn.find('.shikimori-full-list-button__text').text('Список Shikimori');
 
                 btn.toggleClass('shikimori-list-active', !!active);
                 btn.toggleClass('shikimori-list-loading', !!loading);
@@ -2437,7 +2437,7 @@
                     '<path d="M18 14h24c3.3 0 6 2.7 6 6v28c0 1.9-2.1 3-3.7 2L32 42.5 19.7 50c-1.6 1-3.7-.1-3.7-2V20c0-3.3 2.7-6 6-6Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>' +
                     '<path d="M25 25h14M25 33h14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>' +
                 '</svg>' +
-                '<span class="shikimori-full-list-button__tooltip">Список Shikimori</span>' +
+                '<span class="shikimori-full-list-button__text">Список Shikimori</span>' +
             '</div>'
         );
     }
@@ -2447,7 +2447,6 @@
 
         if (!anime || !anime.id || !page.length) return;
 
-        var url = SHIKI_HOST + '/animes/' + anime.id;
         var score = anime.score && anime.score !== '0.0' ? anime.score : '—';
 
         if (!page.find('.rate--shikimori').length) {
@@ -2492,35 +2491,6 @@
                 } catch (e) {}
             }, 100);
         }
-
-        if (page.find('.shikimori-full-extra').length) return;
-
-        var line = $('<div class="shikimori-full-extra"></div>');
-
-        var seasonText = seasonName(anime.season) ||
-            (anime.airedOn && anime.airedOn.year ? anime.airedOn.year : '') ||
-            (anime.aired_on ? anime.aired_on : '—');
-
-        line.append('<div class="shikimori-full-extra__item"><span>Статус</span><b>' + esc(statusName(anime.status)) + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Сезон</span><b>' + esc(seasonText) + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Фандаб</span><b>' + esc(anime.fandubbers && anime.fandubbers.length ? anime.fandubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
-        line.append('<div class="shikimori-full-extra__item"><span>Фансаб</span><b>' + esc(anime.fansubbers && anime.fansubbers.length ? anime.fansubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
-
-        var linkBtn = $('<div class="simple-button selector shikimori-full-extra__link">Открыть на Shikimori</div>');
-
-        linkBtn.on('hover:enter click tap mouseup', function () {
-            if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) {
-                Lampa.Utils.copyTextToClipboard(url, function () {
-                    notify('Ссылка скопирована');
-                });
-            } else {
-                notify(url);
-            }
-        });
-
-        line.append(linkBtn);
-
-        page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
     }
 
     function addMenu() {
@@ -2563,7 +2533,7 @@
                 '.Shikimori-module .scroll__body{width:100%}' +
                 '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
                 '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
-                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus,.shikimori-full-extra__link.focus,.shikimori-full-extra__list-btn.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
+                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
                 '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
                 '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
                 '.Shikimori-active span{color:#e95a68;font-weight:600}' +
@@ -2582,18 +2552,14 @@
                 '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
                 '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
                 '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
-                '.shikimori-full-extra{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin:1em 0;color:#fff}' +
-                '.shikimori-full-extra__item{margin:0 1.3em .8em 0;min-width:8em}' +
-                '.shikimori-full-extra__item span{display:block;color:rgba(255,255,255,.48);font-size:.88em;margin-bottom:.2em}' +
-                '.shikimori-full-extra__item b{font-weight:500;color:#fff}' +
-                '.shikimori-full-extra__link,.shikimori-full-extra__list-btn{margin:.1em .8em .8em 0}' +
-                '.shikimori-list-active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7);color:#fff}' +
+                '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
 
-                '.shikimori-full-list-button{position:relative;color:#fff}' +
-                '.shikimori-full-list-button svg{display:block;pointer-events:none}' +
-                '.shikimori-full-list-button__tooltip{position:absolute;left:50%;bottom:-2.6em;transform:translateX(-50%);padding:.45em .7em;border-radius:.45em;background:rgba(10,12,16,.92);color:#fff;font-size:.72em;line-height:1;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:20}' +
-                '.shikimori-full-list-button.focus .shikimori-full-list-button__tooltip,.shikimori-full-list-button:hover .shikimori-full-list-button__tooltip{opacity:1;visibility:visible}' +
-                '.shikimori-full-list-button.shikimori-list-active{background:rgba(200,58,75,.72)!important;color:#fff}' +
+                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;overflow:visible!important}' +
+                '.shikimori-full-list-button svg{display:block;pointer-events:none;flex:0 0 auto}' +
+                '.shikimori-full-list-button__text{display:none;margin-left:.55em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
+                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.05em!important;padding-right:1.05em!important}' +
+                '.shikimori-full-list-button.focus .shikimori-full-list-button__text{display:inline-block}' +
+                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.16)!important;color:#fff!important}' +
                 '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
             '</style>'
         );
