@@ -163,14 +163,11 @@
         var poster = data && data.poster ? data.poster : {};
         var image = data && data.image ? data.image : {};
 
-        // Для списка сначала берём main/preview, потому что original у части тайтлов отдаёт 404-заглушку.
         pushPosterUrl(list, poster.mainUrl || poster.main_url);
         pushPosterUrl(list, poster.previewUrl || poster.preview_url);
         pushPosterUrl(list, image.preview);
-
         pushPosterUrl(list, poster.originalUrl || poster.original_url);
         pushPosterUrl(list, image.original);
-
         pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
         pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
 
@@ -203,13 +200,7 @@
             network.timeout(8000);
             network.silent(url, success, error || function () {});
         } else {
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                timeout: 8000,
-                success: success,
-                error: error || function () {}
-            });
+            $.ajax({ url: url, dataType: 'json', timeout: 8000, success: success, error: error || function () {} });
         }
     }
 
@@ -237,44 +228,28 @@
     function finishPosterRequest(animeId, posterUrl) {
         var callbacks = posterRequests[animeId] || [];
         delete posterRequests[animeId];
-
         saveResolvedPoster(animeId, posterUrl);
-
-        for (var i = 0; i < callbacks.length; i++) {
-            callbacks[i](posterUrl || '');
-        }
+        for (var i = 0; i < callbacks.length; i++) callbacks[i](posterUrl || '');
     }
 
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
-        var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
         type = type === 'movie' ? 'movie' : 'tv';
-
-        var url = 'https://api.themoviedb.org/3/' + type +
-            '/' + encodeURIComponent(tmdbId) +
-            '?api_key=' + apiKey +
-            '&language=' + encodeURIComponent(tmdbLanguage());
+        var url = 'https://api.themoviedb.org/3/' + type + '/' + encodeURIComponent(tmdbId) + '?api_key=' + apiKey + '&language=' + encodeURIComponent(tmdbLanguage());
 
         apiGetJson(url, function (res) {
             var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
-
             if (poster) {
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-                tmdbCache[data.id] = {
-                    id: tmdbId,
-                    type: type,
-                    poster: poster
-                };
+                tmdbCache[data.id] = { id: tmdbId, type: type, poster: poster };
                 storageSet(TMDB_CACHE_KEY, tmdbCache);
             }
-
             callback(poster);
-        }, function () {
-            callback('');
-        });
+        }, function () { callback(''); });
     }
 
     function resolvePosterByTmdbSearch(data, callback) {
-        var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
+        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
         var queries = [];
         var year = getAnimeYear(data);
 
@@ -287,144 +262,81 @@
         addQuery(data.name);
         addQuery(data.russian);
 
-        if (!queries.length) {
-            callback('');
-            return;
-        }
+        if (!queries.length) { callback(''); return; }
 
         var index = 0;
-
         function next() {
-            if (index >= queries.length) {
-                callback('');
-                return;
-            }
-
+            if (index >= queries.length) { callback(''); return; }
             var query = queries[index++];
-            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + apiKey +
-                '&language=' + encodeURIComponent(tmdbLanguage()) +
-                '&query=' + encodeURIComponent(query);
+            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + apiKey + '&language=' + encodeURIComponent(tmdbLanguage()) + '&query=' + encodeURIComponent(query);
 
             apiGetJson(url, function (res) {
                 var results = res && res.results ? res.results : [];
                 var best = null;
-
                 for (var i = 0; i < results.length; i++) {
                     var item = results[i];
-
                     if ((item.media_type === 'tv' || item.media_type === 'movie') && item.poster_path) {
                         if (!best) best = item;
-
                         if (year) {
-                            var itemYear = item.first_air_date
-                                ? parseInt(item.first_air_date.substring(0, 4), 10)
-                                : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
-
-                            if (itemYear && Math.abs(itemYear - year) <= 1) {
-                                best = item;
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
+                            var itemYear = item.first_air_date ? parseInt(item.first_air_date.substring(0, 4), 10) : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
+                            if (itemYear && Math.abs(itemYear - year) <= 1) { best = item; break; }
+                        } else break;
                     }
                 }
 
                 if (best && best.poster_path) {
                     var poster = tmdbPosterUrl(best.poster_path);
                     var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-
-                    tmdbCache[data.id] = {
-                        id: best.id,
-                        type: best.media_type === 'movie' ? 'movie' : 'tv',
-                        poster: poster
-                    };
+                    tmdbCache[data.id] = { id: best.id, type: best.media_type === 'movie' ? 'movie' : 'tv', poster: poster };
                     storageSet(TMDB_CACHE_KEY, tmdbCache);
-
                     callback(poster);
-                } else {
-                    next();
-                }
+                } else next();
             }, next);
         }
-
         next();
     }
 
     function resolveExternalPoster(data, callback) {
-        if (!data || !data.id) {
-            callback('');
-            return;
-        }
+        if (!data || !data.id) { callback(''); return; }
 
         var posterCache = storageGet(POSTER_CACHE_KEY, {});
-        if (posterCache.hasOwnProperty(data.id)) {
-            callback(posterCache[data.id] || '');
-            return;
-        }
+        if (posterCache.hasOwnProperty(data.id)) { callback(posterCache[data.id] || ''); return; }
 
-        if (posterRequests[data.id]) {
-            posterRequests[data.id].push(callback);
-            return;
-        }
-
+        if (posterRequests[data.id]) { posterRequests[data.id].push(callback); return; }
         posterRequests[data.id] = [callback];
 
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-        if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
-            finishPosterRequest(data.id, tmdbCache[data.id].poster);
-            return;
-        }
+        if (tmdbCache[data.id] && tmdbCache[data.id].poster) { finishPosterRequest(data.id, tmdbCache[data.id].poster); return; }
 
         if (tmdbCache[data.id] && tmdbCache[data.id].id) {
             fetchTmdbDetailsPoster(data, tmdbCache[data.id].id, tmdbCache[data.id].type, function (poster) {
-                if (poster) {
-                    finishPosterRequest(data.id, poster);
-                } else {
-                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
-                    });
-                }
+                if (poster) finishPosterRequest(data.id, poster);
+                else resolvePosterByTmdbSearch(data, function (searchPoster) { finishPosterRequest(data.id, searchPoster); });
             });
             return;
         }
 
-        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
-
+        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
         apiGetJson(armUrl, function (answer) {
             var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
             var type = answer && (answer.media_type || answer.type);
-
             if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
             if (tmdbId) {
                 fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
+                    if (poster) finishPosterRequest(data.id, poster);
+                    else resolvePosterByTmdbSearch(data, function (searchPoster) { finishPosterRequest(data.id, searchPoster); });
                 });
             } else {
-                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
-                });
+                resolvePosterByTmdbSearch(data, function (searchPoster) { finishPosterRequest(data.id, searchPoster); });
             }
         }, function () {
-            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
-            });
+            resolvePosterByTmdbSearch(data, function (searchPoster) { finishPosterRequest(data.id, searchPoster); });
         });
     }
 
     function installPosterFallback(img, urls, fallback, data) {
         img = $(img);
         urls = urls || [];
-
         img.data('poster-index', 0);
         img.data('poster-external-tried', false);
         img.data('poster-fallback-done', false);
@@ -436,38 +348,22 @@
         }
 
         function tryExternalPoster() {
-            if (img.data('poster-external-tried')) {
-                setFallback();
-                return;
-            }
-
+            if (img.data('poster-external-tried')) { setFallback(); return; }
             img.data('poster-external-tried', true);
-
-            resolveExternalPoster(data, function (url) {
-                if (url) img.attr('src', url);
-                else setFallback();
-            });
+            resolveExternalPoster(data, function (url) { if (url) img.attr('src', url); else setFallback(); });
         }
 
         img.on('error', function () {
             var index;
-
             if (img.data('poster-fallback-done')) return;
-
             index = parseInt(img.data('poster-index'), 10) || 0;
             index += 1;
             img.data('poster-index', index);
-
-            if (urls[index]) {
-                img.attr('src', urls[index]);
-            } else {
-                tryExternalPoster();
-            }
+            if (urls[index]) img.attr('src', urls[index]);
+            else tryExternalPoster();
         });
 
-        if (!urls.length) {
-            tryExternalPoster();
-        }
+        if (!urls.length) tryExternalPoster();
     }
 
     function isAdultGenre(genre) {
@@ -559,38 +455,20 @@
             };
 
             if (token) {
-                $.ajax({
-                    url: url,
-                    method: 'GET',
-                    headers: headers,
-                    dataType: 'json',
-                    timeout: 15000,
-                    success: onSuccess,
-                    error: onError
-                });
+                $.ajax({ url: url, method: 'GET', headers: headers, dataType: 'json', timeout: 15000, success: onSuccess, error: onError });
             } else {
                 if (window.Lampa && Lampa.Reguest) {
                     var network = new Lampa.Reguest();
                     network.timeout(15000);
                     network.silent(url, onSuccess, onError);
                 } else {
-                    $.ajax({
-                        url: url,
-                        method: 'GET',
-                        dataType: 'json',
-                        timeout: 15000,
-                        success: onSuccess,
-                        error: onError
-                    });
+                    $.ajax({ url: url, method: 'GET', dataType: 'json', timeout: 15000, success: onSuccess, error: onError });
                 }
             }
         };
 
-        if (params.mylist) {
-            withAccessToken(doREST);
-        } else {
-            doREST(null);
-        }
+        if (params.mylist) withAccessToken(doREST);
+        else doREST(null);
     }
 
     function openAnime(data) {
@@ -601,11 +479,7 @@
         }
 
         var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' + encodeURIComponent(data.id) + '&include=themoviedb,myanimelist';
-        
-        var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) openTmdb(answer, data);
-            else fallbackSearch(data);
-        };
+        var onSuccess = function (answer) { if (answer && answer.themoviedb) openTmdb(answer, data); else fallbackSearch(data); };
 
         if (window.Lampa && Lampa.Reguest) {
             var network = new Lampa.Reguest();
@@ -648,7 +522,6 @@
             var apiKey = "4ef0d7355d9ffb5151e987764708ce96";
             var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
             var baseUrl = 'https://api.themoviedb.org/3/';
-            
             var url = baseUrl + 'search/multi?api_key=' + apiKey + '&language=' + lang + '&query=' + encodeURIComponent(currentQuery);
 
             var handleSuccess = function(res) {
@@ -683,9 +556,7 @@
     function openLampaSearch(shiki) {
         notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
         var query = titleOf(shiki);
-        if (window.Lampa && Lampa.Activity) {
-            Lampa.Activity.push({ url: '', title: 'Поиск: ' + query, component: 'search', query: query });
-        }
+        if (window.Lampa && Lampa.Activity) Lampa.Activity.push({ url: '', title: 'Поиск: ' + query, component: 'search', query: query });
     }
 
     function openTmdb(item, shiki) {
@@ -701,7 +572,6 @@
             vote_average: item.vote_average || 0,
             shikimori: shiki
         };
-        
         if (!movie.id) { openLampaSearch(shiki); return; }
 
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
@@ -721,40 +591,28 @@
 
     function requestTokenByCode(code, callback) {
         var auth = readAuth();
-        if (!auth.client_id || !auth.client_secret || !auth.redirect_uri) {
-            notify('Введите Client ID, Client Secret и Redirect URI');
-            return;
-        }
+        if (!auth.client_id || !auth.client_secret || !auth.redirect_uri) { notify('Введите Client ID, Client Secret и Redirect URI'); return; }
         $.ajax({
             url: SHIKI_HOST + '/oauth/token',
             method: 'POST',
             dataType: 'json',
             timeout: 15000,
             data: { grant_type: 'authorization_code', client_id: auth.client_id, client_secret: auth.client_secret, code: code, redirect_uri: auth.redirect_uri },
-            success: function (answer) {
-                saveTokenAnswer(answer);
-                if (callback) callback();
-            },
+            success: function (answer) { saveTokenAnswer(answer); if (callback) callback(); },
             error: function () { notify('Shikimori: не удалось получить токен'); }
         });
     }
 
     function refreshToken(callback) {
         var auth = readAuth();
-        if (!auth.client_id || !auth.client_secret || !auth.refresh_token) {
-            notify('Shikimori: нет данных для обновления токена');
-            return;
-        }
+        if (!auth.client_id || !auth.client_secret || !auth.refresh_token) { notify('Shikimori: нет данных для обновления токена'); return; }
         $.ajax({
             url: SHIKI_HOST + '/oauth/token',
             method: 'POST',
             dataType: 'json',
             timeout: 15000,
             data: { grant_type: 'refresh_token', client_id: auth.client_id, client_secret: auth.client_secret, refresh_token: auth.refresh_token },
-            success: function (answer) {
-                saveTokenAnswer(answer);
-                if (callback) callback();
-            },
+            success: function (answer) { saveTokenAnswer(answer); if (callback) callback(); },
             error: function () { notify('Shikimori: не удалось обновить токен'); }
         });
     }
@@ -772,10 +630,7 @@
     function withAccessToken(callback) {
         var auth = readAuth();
         if (isAuthorized()) { callback(auth.access_token); return; }
-        if (auth.refresh_token) {
-            refreshToken(function () { callback(readAuth().access_token); });
-            return;
-        }
+        if (auth.refresh_token) { refreshToken(function () { callback(readAuth().access_token); }); return; }
         notify('Shikimori: требуется авторизация');
     }
 
@@ -830,11 +685,8 @@
                 data: payload,
                 success: function(res) { callback(res); },
                 error: function(xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка сохранения в список Shikimori');
-                    }
+                    if (xhr.status === 403 || xhr.status === 401) notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                    else notify('Ошибка сохранения в список Shikimori');
                 }
             });
         });
@@ -849,11 +701,8 @@
                 headers: { Authorization: 'Bearer ' + token },
                 success: function() { callback(); },
                 error: function(xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка удаления из Shikimori');
-                    }
+                    if (xhr.status === 403 || xhr.status === 401) notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                    else notify('Ошибка удаления из Shikimori');
                 }
             });
         });
@@ -862,52 +711,55 @@
     function initShikimoriListButton(btn, anime) {
         var currentRate = null;
         var listLoading = false;
+        var iconMode = btn.hasClass('shikimori-full-list-button');
+
+        function setButtonState(text, active, loading) {
+            if (iconMode) {
+                btn.attr('title', 'Список Shikimori');
+                btn.attr('aria-label', 'Список Shikimori');
+                btn.attr('data-title', 'Список Shikimori');
+                btn.attr('data-state-title', text || 'Список Shikimori');
+                btn.find('.shikimori-full-list-button__tooltip').text('Список Shikimori');
+                btn.toggleClass('shikimori-list-active', !!active);
+                btn.toggleClass('shikimori-list-loading', !!loading);
+            } else {
+                btn.text(text);
+                btn.toggleClass('shikimori-list-active', !!active);
+            }
+        }
 
         function updateBtnLabel() {
-            if (!isAuthorized()) {
-                btn.text('Список (Войти)');
-                return;
-            }
+            if (!isAuthorized()) { setButtonState('Список (Войти)', false, false); return; }
             var map = { planned: 'В планах', watching: 'Смотрю', rewatching: 'Пересматриваю', completed: 'Просмотрено', on_hold: 'Отложено', dropped: 'Брошено' };
             if (currentRate && currentRate.status) {
                 var text = map[currentRate.status] || 'В списке';
                 if (currentRate.score) text += ' (★ ' + currentRate.score + ')';
-                btn.text(text);
-                btn.addClass('shikimori-list-active');
-            } else {
-                btn.text('Добавить в список');
-                btn.removeClass('shikimori-list-active');
-            }
+                setButtonState(text, true, false);
+            } else setButtonState('Добавить в список', false, false);
         }
 
         if (isAuthorized()) {
             var auth = readAuth();
             if (auth.id) {
-                btn.text('Загрузка списка...');
-                fetchUserRate(anime.id, function(rate) {
-                    currentRate = rate;
-                    updateBtnLabel();
-                });
-            } else {
-                updateBtnLabel();
-            }
-        } else {
-            updateBtnLabel();
+                setButtonState('Загрузка списка...', false, true);
+                fetchUserRate(anime.id, function(rate) { currentRate = rate; updateBtnLabel(); });
+            } else updateBtnLabel();
+        } else updateBtnLabel();
+
+        function runListAction() {
+            if (listLoading) return;
+            if (!isAuthorized()) { notify('Пожалуйста, авторизуйтесь в настройках Shikimori'); return; }
+            var auth = readAuth();
+            if (!auth.id) { notify('Загрузка профиля, подождите...'); loadWhoami(); return; }
+            showListMenu();
         }
 
-        btn.on('hover:enter click tap mouseup', function() {
-            if (listLoading) return;
-            if (!isAuthorized()) {
-                notify('Пожалуйста, авторизуйтесь в настройках Shikimori');
-                return;
-            }
-            var auth = readAuth();
-            if (!auth.id) {
-                notify('Загрузка профиля, подождите...');
-                loadWhoami();
-                return;
-            }
-            showListMenu();
+        btn.data('action', runListAction);
+        btn.off('.shikimori-list');
+        btn.on('hover:enter.shikimori-list click.shikimori-list tap.shikimori-list mouseup.shikimori-list', function(e) {
+            if (e) { e.preventDefault(); e.stopPropagation(); }
+            runListAction();
+            return false;
         });
 
         function showListMenu() {
@@ -925,23 +777,16 @@
                 var prefix = (currentRate && currentRate.status === map[i].value) ? '✓ ' : '';
                 items.push({ title: prefix + map[i].title, value: map[i].value, action: 'status' });
             }
-
             items.push({ title: 'Оценить (1-10)', action: 'rate' });
-            if (currentRate && currentRate.id) {
-                items.push({ title: 'Удалить из списка', action: 'delete' });
-            }
+            if (currentRate && currentRate.id) items.push({ title: 'Удалить из списка', action: 'delete' });
 
             Lampa.Select.show({
                 title: 'Shikimori: Список',
                 items: items,
                 onSelect: function(item) {
-                    if (item.action === 'status') {
-                        setRateData({ status: item.value });
-                    } else if (item.action === 'rate') {
-                        showRateMenu();
-                    } else if (item.action === 'delete') {
-                        removeRate();
-                    }
+                    if (item.action === 'status') setRateData({ status: item.value });
+                    else if (item.action === 'rate') showRateMenu();
+                    else if (item.action === 'delete') removeRate();
                 },
                 onBack: function() { Lampa.Controller.toggle('content'); }
             });
@@ -954,17 +799,12 @@
                 items.push({ title: prefix + i, value: i });
             }
             items.push({ title: 'Без оценки', value: 0 });
-
-            Lampa.Select.show({
-                title: 'Оценка Shikimori',
-                items: items,
-                onSelect: function(item) { setRateData({ score: item.value }); },
-                onBack: function() { showListMenu(); }
-            });
+            Lampa.Select.show({ title: 'Оценка Shikimori', items: items, onSelect: function(item) { setRateData({ score: item.value }); }, onBack: function() { showListMenu(); } });
         }
 
         function setRateData(data) {
             listLoading = true;
+            setButtonState('Сохранение...', !!(currentRate && currentRate.status), true);
             notify('Сохранение...');
             saveUserRate(anime.id, currentRate ? currentRate.id : null, data, function(newRate) {
                 listLoading = false;
@@ -978,6 +818,7 @@
         function removeRate() {
             if (!currentRate || !currentRate.id) return;
             listLoading = true;
+            setButtonState('Удаление...', true, true);
             deleteUserRate(currentRate.id, function() {
                 listLoading = false;
                 currentRate = null;
@@ -996,20 +837,8 @@
         var score = data.score && data.score !== '0.0' ? data.score : '—';
         var meta = [];
 
-        var loadingSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
-            '<rect width="100%" height="100%" fill="#22252d"/>' +
-            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Загрузка...</text>' +
-            '</svg>'
-        );
-
-        var noPosterSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
-            '<rect width="100%" height="100%" fill="#22252d"/>' +
-            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Нет постера</text>' +
-            '</svg>'
-        );
-
+        var loadingSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Загрузка...</text></svg>');
+        var noPosterSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440"><rect width="100%" height="100%" fill="#22252d"/><text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Нет постера</text></svg>');
         var posterList = posterUrls(data);
         var imgSrc = posterList.length ? esc(posterList[0]) : loadingSVG;
 
@@ -1026,7 +855,6 @@
                 '<div class="card__title">' + esc(titleOf(data)) + '</div><div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div></div>');
 
             installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
-
             return element;
         };
     }
@@ -1059,7 +887,6 @@
                     if (enabledController && enabledController.name !== 'content') Lampa.Controller.toggle('content');
                     if (step > 0) Navigator.move('down'); else Navigator.move('up');
                 };
-
                 scroll.onEnd = function () { loadNextPage(true); };
                 buildHeader();
                 load(false);
@@ -1071,19 +898,13 @@
 
         this.start = function () {
             Lampa.Controller.add('content', {
-                toggle: function () {
-                    Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
-                },
+                toggle: function () { Lampa.Controller.collectionSet(html); Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html); },
                 left: function () { if (Navigator.canmove('left')) Navigator.move('left'); else Lampa.Controller.toggle('menu'); },
                 right: function () { Navigator.move('right'); },
                 up: function () { if (Navigator.canmove('up')) Navigator.move('up'); else Lampa.Controller.toggle('head'); },
                 down: function () { if (Navigator.canmove('down')) Navigator.move('down'); },
                 back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
-                enter: function () { 
-                    var focused = html.find('.selector.focus');
-                    if (focused.length) { var action = focused.data('action'); if (action) action(); }
-                }
+                enter: function () { var focused = html.find('.selector.focus'); if (focused.length) { var action = focused.data('action'); if (action) action(); } }
             });
             Lampa.Controller.toggle('content');
         };
@@ -1099,7 +920,6 @@
             addHeadButton('Фильтры', openFilters);
             addHeadButton('Сезоны', openSeasons);
             addHeadButton('Настройки', openSettings);
-            
             addQuick('Популярное', { sort: 'popularity', status: '', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
             addQuick('Онгоинги', { status: 'ongoing', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
             addQuick('Анонсы', { status: 'anons', sort: 'popularity', kind: '', season: '', genre: '', genre_title: '', search: '', mylist: '' });
@@ -1112,9 +932,7 @@
 
         function bindPress(element, action) {
             var locked = false;
-            var run = function () {
-                if (locked) return; locked = true; setTimeout(function () { locked = false; }, 280); action();
-            };
+            var run = function () { if (locked) return; locked = true; setTimeout(function () { locked = false; }, 280); action(); };
             element.data('action', run);
             element.on('hover:enter click tap mouseup', run);
             element.on('keydown keyup', function (e) {
@@ -1158,7 +976,7 @@
             var next = {};
             for (var key in params) if (params[key] !== undefined && params[key] !== null && params[key] !== '') next[key] = params[key];
             next.page = values.hasOwnProperty('page') ? values.page : 1;
-            for (var key in values) { if (values[key] === '') delete next[key]; else next[key] = values[key]; }
+            for (var key2 in values) { if (values[key2] === '') delete next[key2]; else next[key2] = values[key2]; }
             if (!next.genre) delete next.genre_title;
             if (!next.sort) next.sort = readSettings().default_sort;
             Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'shikimori', page: next.page, search: next.search || '', kind: next.kind || '', status: next.status || '', season: next.season || '', genre: next.genre || '', genre_title: next.genre_title || '', sort: next.sort || readSettings().default_sort, mylist: next.mylist || '' });
@@ -1267,15 +1085,11 @@
                 else if (item.value === 'hide_adult') settings.hide_adult = !settings.hide_adult;
                 else if (item.value === 'default_sort') settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                 else if (item.value === 'card_size') settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
-                else if (item.value === 'clear_tmdb_cache') { storageSet(TMDB_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; }
+                else if (item.value === 'clear_tmdb_cache') { storageSet(TMDB_CACHE_KEY, {}); storageSet(POSTER_CACHE_KEY, {}); notify('Кэш поиска очищен'); return; }
                 else if (item.value === 'auth') { openAuthSettings(); return; }
-                
                 saveSettings(settings); 
                 notify('Настройки Shikimori сохранены'); 
-                
-                if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
-                    openWith({ page: 1, sort: settings.default_sort }); 
-                }
+                if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) openWith({ page: 1, sort: settings.default_sort }); 
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
         }
 
@@ -1292,31 +1106,24 @@
                 { title: 'Выйти из Shikimori', value: 'logout' }
             ];
             Lampa.Select.show({ title: 'Авторизация Shikimori', items: items, onSelect: function (item) {
-                if (item.value === 'client_id') {
-                    askText('Client ID Shikimori', auth.client_id, function (value) { auth.client_id = value; saveAuth(auth); notify('Client ID сохранён'); });
-                } else if (item.value === 'client_secret') {
-                    askText('Client Secret Shikimori', auth.client_secret, function (value) { auth.client_secret = value; saveAuth(auth); notify('Client Secret сохранён'); });
-                } else if (item.value === 'redirect_uri') {
-                    askText('Redirect URI', auth.redirect_uri, function (value) { auth.redirect_uri = value || defaultAuth().redirect_uri; saveAuth(auth); notify('Redirect URI сохранён'); });
-                } else if (item.value === 'copy_url') {
+                if (item.value === 'client_id') askText('Client ID Shikimori', auth.client_id, function (value) { auth.client_id = value; saveAuth(auth); notify('Client ID сохранён'); });
+                else if (item.value === 'client_secret') askText('Client Secret Shikimori', auth.client_secret, function (value) { auth.client_secret = value; saveAuth(auth); notify('Client Secret сохранён'); });
+                else if (item.value === 'redirect_uri') askText('Redirect URI', auth.redirect_uri, function (value) { auth.redirect_uri = value || defaultAuth().redirect_uri; saveAuth(auth); notify('Redirect URI сохранён'); });
+                else if (item.value === 'copy_url') {
                     var url = authUrl();
                     if (!url) { notify('Сначала введите Client ID'); return; }
                     if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) Lampa.Utils.copyTextToClipboard(url, function () { notify('Скопировано'); });
                     else notify(url);
-                } else if (item.value === 'code') {
-                    askText('Код авторизации', '', function (value) { if (value) requestTokenByCode(value, loadWhoami); });
-                } else if (item.value === 'refresh') { refreshToken(loadWhoami);
-                } else if (item.value === 'whoami') { loadWhoami();
-                } else if (item.value === 'logout') { saveAuth(defaultAuth()); notify('Выход из Shikimori выполнен'); openWith({ page: 1, sort: readSettings().default_sort, mylist: '' }); }
+                } else if (item.value === 'code') askText('Код авторизации', '', function (value) { if (value) requestTokenByCode(value, loadWhoami); });
+                else if (item.value === 'refresh') refreshToken(loadWhoami);
+                else if (item.value === 'whoami') loadWhoami();
+                else if (item.value === 'logout') { saveAuth(defaultAuth()); notify('Выход из Shikimori выполнен'); openWith({ page: 1, sort: readSettings().default_sort, mylist: '' }); }
             }, onBack: function () { Lampa.Controller.toggle('content'); } });
         }
 
         function askText(title, value, callback) {
-            if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
-                Lampa.Input.edit({ title: title, value: value || '', free: true }, function (text) { callback(String(text || '').trim()); });
-            } else {
-                value = window.prompt(title, value || ''); if (value !== null) callback(String(value || '').trim());
-            }
+            if (window.Lampa && Lampa.Input && Lampa.Input.edit) Lampa.Input.edit({ title: title, value: value || '', free: true }, function (text) { callback(String(text || '').trim()); });
+            else { value = window.prompt(title, value || ''); if (value !== null) callback(String(value || '').trim()); }
         }
 
         function load(append) {
@@ -1327,11 +1134,7 @@
             requestAnime(params, function (data) {
                 loading = false; body.find('.Shikimori-loader').remove();
                 if (!append) body.empty();
-                if (!data.length) {
-                    ended = true;
-                    if (!append) body.append('<div class="Shikimori-empty">Ничего не найдено</div>');
-                    return;
-                }
+                if (!data.length) { ended = true; if (!append) body.append('<div class="Shikimori-empty">Ничего не найдено</div>'); return; }
                 autoLoading = false;
                 if (data.length < PAGE_LIMIT) ended = true;
                 for (var i = 0; i < data.length; i++) appendCard(data[i]);
@@ -1373,17 +1176,14 @@
             id = card && card.shikimori && card.shikimori.id ? card.shikimori.id : '';
             if (id) { appendFull(event.object.activity, card.shikimori); return; }
             if (!card.id) return;
-            
             var url = ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(card.id);
             var doFetch = function(answer) {
                 var mal = extractMalId(answer);
                 if (!mal) return;
                 $.ajax({ url: SHIKI_HOST + '/api/animes/' + encodeURIComponent(mal), dataType: 'json', timeout: 12000, success: function (anime) { appendFull(event.object.activity, anime); } });
             };
-
-            if (window.Lampa && Lampa.Reguest) {
-                var network = new Lampa.Reguest(); network.timeout(12000); network.silent(url, doFetch);
-            } else $.ajax({ url: url, dataType: 'json', timeout: 12000, success: doFetch });
+            if (window.Lampa && Lampa.Reguest) { var network = new Lampa.Reguest(); network.timeout(12000); network.silent(url, doFetch); }
+            else $.ajax({ url: url, dataType: 'json', timeout: 12000, success: doFetch });
         });
     }
 
@@ -1394,47 +1194,56 @@
         return '';
     }
 
+    function createShikimoriFullListButton() {
+        return $('<div class="full-start__button full-start-new__button selector shikimori-full-list-button" title="Список Shikimori" aria-label="Список Shikimori" data-title="Список Shikimori">' +
+            '<svg viewBox="0 0 64 64" width="1.75em" height="1.75em" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                '<path d="M18 14h24c3.3 0 6 2.7 6 6v28c0 1.9-2.1 3-3.7 2L32 42.5 19.7 50c-1.6 1-3.7-.1-3.7-2V20c0-3.3 2.7-6 6-6Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>' +
+                '<path d="M25 25h14M25 33h14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>' +
+            '</svg>' +
+            '<span class="shikimori-full-list-button__tooltip">Список Shikimori</span>' +
+        '</div>');
+    }
+
     function appendFull(activity, anime) {
         var page = $('.full-start, .full-start-new').last();
         if (!page.length) page = $('.full').last();
         if (!anime || !anime.id || !page.length) return;
-        if (page.find('.shikimori-full-extra').length) return;
-        
         var url = SHIKI_HOST + '/animes/' + anime.id;
         var score = anime.score && anime.score !== '0.0' ? anime.score : '—';
         
-        if (!page.find('.rate--shikimori').length) {
-            page.find('.full-start__rate-line, .full-start-new__rate-line').first().append('<div class="rate rate--shikimori"><div>★ ' + esc(score) + '</div><span>Shikimori</span></div>');
+        if (!page.find('.rate--shikimori').length) page.find('.full-start__rate-line, .full-start-new__rate-line').first().append('<div class="rate rate--shikimori"><div>★ ' + esc(score) + '</div><span>Shikimori</span></div>');
+
+        if (!page.find('.shikimori-full-list-button').length) {
+            var buttons = page.find('.full-start__buttons, .full-start-new__buttons').first();
+            var listBtn = createShikimoriFullListButton();
+            if (buttons.length) {
+                var selectors = buttons.children('.selector');
+                var lastButton = selectors.last();
+                if (lastButton.length) lastButton.before(listBtn);
+                else buttons.append(listBtn);
+            } else page.append(listBtn);
+
+            initShikimoriListButton(listBtn, anime);
+            setTimeout(function () { try { if (window.Lampa && Lampa.Controller) Lampa.Controller.collectionSet(page); } catch (e) {} }, 100);
         }
-        
+
+        if (page.find('.shikimori-full-extra').length) return;
         var line = $('<div class="shikimori-full-extra"></div>');
         line.append('<div class="shikimori-full-extra__item"><span>Статус</span><b>' + esc(statusName(anime.status)) + '</b></div>');
         line.append('<div class="shikimori-full-extra__item"><span>Сезон</span><b>' + esc(seasonName(anime.season) || (anime.aired_on ? anime.aired_on : '—')) + '</b></div>');
         line.append('<div class="shikimori-full-extra__item"><span>Фандаб</span><b>' + esc(anime.fandubbers && anime.fandubbers.length ? anime.fandubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
         line.append('<div class="shikimori-full-extra__item"><span>Фансаб</span><b>' + esc(anime.fansubbers && anime.fansubbers.length ? anime.fansubbers.slice(0, 3).join(', ') : '—') + '</b></div>');
-        
         var linkBtn = $('<div class="simple-button selector shikimori-full-extra__link">Открыть на Shikimori</div>');
-        linkBtn.on('hover:enter click tap mouseup', function () {
-            if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) Lampa.Utils.copyTextToClipboard(url, function () { notify('Ссылка скопирована'); });
-            else notify(url);
-        });
+        linkBtn.on('hover:enter click tap mouseup', function () { if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) Lampa.Utils.copyTextToClipboard(url, function () { notify('Ссылка скопирована'); }); else notify(url); });
         line.append(linkBtn);
-
-        var listBtn = $('<div class="simple-button selector shikimori-full-extra__list-btn">Список Shiki</div>');
-        line.append(listBtn);
-        
         page.find('.full-start__buttons, .full-start-new__buttons').first().after(line);
-
-        initShikimoriListButton(listBtn, anime);
     }
 
     function addMenu() {
         var menu = $('.menu .menu__list').eq(0);
         if (!menu.length || $('.menu__item.selector[data-action="shikimori"]').length) return;
         var button = $('<li class="menu__item selector" data-action="shikimori"><div class="menu__ico"><svg viewBox="0 0 44 44" width="44" height="44"><circle cx="22" cy="22" r="19" fill="#c83a4b"/><path d="M13 29c2 3 5 5 9 5 6 0 10-3 10-8 0-4-2-6-8-8l-3-1c-3-1-4-2-4-4s2-3 5-3c3 0 5 1 7 3l3-4c-2-3-6-4-10-4-6 0-10 3-10 8 0 4 3 7 8 8l3 1c3 1 4 2 4 4s-2 3-5 3c-3 0-6-2-8-4l-1 4z" fill="#fff"/></svg></div><div class="menu__text">Shikimori</div></li>');
-        button.on('hover:enter click tap mouseup', function () {
-            Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'shikimori', page: 1, sort: readSettings().default_sort });
-        });
+        button.on('hover:enter click tap mouseup', function () { Lampa.Activity.push({ url: '', title: 'Shikimori', component: 'shikimori', page: 1, sort: readSettings().default_sort }); });
         menu.append(button);
     }
 
@@ -1471,6 +1280,12 @@
             '.shikimori-full-extra__item b{font-weight:500;color:#fff}' +
             '.shikimori-full-extra__link, .shikimori-full-extra__list-btn{margin:.1em .8em .8em 0}' +
             '.shikimori-list-active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7);color:#fff}' +
+            '.shikimori-full-list-button{position:relative;color:#fff}' +
+            '.shikimori-full-list-button svg{display:block;pointer-events:none}' +
+            '.shikimori-full-list-button__tooltip{position:absolute;left:50%;bottom:-2.6em;transform:translateX(-50%);padding:.45em .7em;border-radius:.45em;background:rgba(10,12,16,.92);color:#fff;font-size:.72em;line-height:1;white-space:nowrap;opacity:0;visibility:hidden;pointer-events:none;z-index:20}' +
+            '.shikimori-full-list-button.focus .shikimori-full-list-button__tooltip,.shikimori-full-list-button:hover .shikimori-full-list-button__tooltip{opacity:1;visibility:visible}' +
+            '.shikimori-full-list-button.shikimori-list-active{background:rgba(200,58,75,.72)!important;color:#fff}' +
+            '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
         '</style>');
     }
 
@@ -1480,9 +1295,7 @@
         Lampa.Component.add('shikimori', Catalog);
         extendFull();
         if (window.appready) addMenu();
-        else Lampa.Listener.follow('app', function (e) {
-            if (e.type === 'ready') addMenu();
-        });
+        else Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') addMenu(); });
     }
 
     start();
