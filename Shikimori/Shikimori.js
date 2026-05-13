@@ -4,7 +4,8 @@
     if (window.plugin_shikimori_ready) return;
     window.plugin_shikimori_ready = true;
 
-    var SETTINGS_KEY = 'shikimori_settings_v1';
+    // Изменен ключ настроек, чтобы применить новые настройки по умолчанию для старых пользователей
+    var SETTINGS_KEY = 'shikimori_settings_v2';
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
     var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
@@ -20,7 +21,7 @@
 
     function defaults() {
         return {
-            title_language: 'ru',
+            title_language: 'original', // По умолчанию теперь Ромадзи (как на сайте)
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal'
@@ -214,6 +215,16 @@
         return data.russian || data.name || data.english || 'Shikimori';
     }
 
+    function originalTitleOf(data) {
+        var settings = readSettings();
+
+        // Альтернативное (вторичное) название для внутренних карточек Lampa
+        if (settings.title_language === 'original') return data.russian || data.english || '';
+        if (settings.title_language === 'en') return data.name || data.russian || '';
+
+        return data.name || data.english || '';
+    }
+
     function normalizePosterUrl(url) {
         url = url === undefined || url === null ? '' : String(url).trim();
 
@@ -312,7 +323,6 @@
             .replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
             .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
             .replace(/\(TV\)/gi, '')
-            // Сохраняем кириллицу, латиницу, цифры, пробелы, двоеточия и дефисы
             .replace(/[^\wа-яёА-ЯЁ\s:\-]/gi, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
@@ -378,7 +388,6 @@
             var cleaned = cleanTmdbQuery(value);
             if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
 
-            // Если есть двоеточие/дефис, пробуем добавить короткое название до спецсимвола
             var splitPos = cleaned.search(/[:\-]/);
             if (splitPos > 3) {
                 var shortCleaned = cleaned.substring(0, splitPos).trim();
@@ -424,7 +433,6 @@
                                 ? parseInt(item.first_air_date.substring(0, 4), 10)
                                 : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
 
-                            // Погрешность в 2 года из-за разницы выхода сезонов и спешлов в TMDB
                             if (itemYear && Math.abs(itemYear - year) <= 2) {
                                 best = item;
                                 break;
@@ -750,7 +758,6 @@
             var cleaned = cleanTmdbQuery(value);
             if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
 
-            // Если есть двоеточие/дефис, пробуем добавить короткое название до спецсимвола
             var splitPos = cleaned.search(/[:\-]/);
             if (splitPos > 3) {
                 var shortCleaned = cleaned.substring(0, splitPos).trim();
@@ -801,7 +808,6 @@
                                     ? parseInt(item.first_air_date.substring(0, 4), 10)
                                     : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
 
-                                // Погрешность в 2 года из-за разницы выхода сезонов и спешлов в TMDB
                                 if (itemYear && Math.abs(itemYear - shikiYear) <= 2) {
                                     bestItem = item;
                                     break;
@@ -844,12 +850,17 @@
     function openTmdb(item, shiki) {
         var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
 
+        // Подменяем название, чтобы внутри карточки Lampa отображалось то, что выбрано в настройках Shikimori,
+        // а не то, что возвращает TMDB
+        var mainTitle = titleOf(shiki) || item.title || item.name;
+        var secTitle = originalTitleOf(shiki) || item.original_title || item.original_name || shiki.name;
+
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
-            title: item.title || item.name || titleOf(shiki),
-            original_title: item.original_title || item.original_name || shiki.name,
-            name: item.name || item.title || titleOf(shiki),
-            original_name: item.original_name || item.original_title || shiki.name,
+            title: mainTitle,
+            original_title: secTitle,
+            name: mainTitle,
+            original_name: secTitle,
             poster_path: item.poster_path || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
