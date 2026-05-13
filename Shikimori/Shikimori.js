@@ -229,7 +229,6 @@
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
         
-        // Меняем io на one, чтобы обойти блокировки и редиректы, из-за которых грузился постер TMDB
         if (/^https?:\/\//.test(url)) {
             return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
         }
@@ -324,10 +323,41 @@
         return String(str)
             .replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
             .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
+            .replace(/\b(Сезон|Часть)\s*\d*\.?\d*\b/gi, '')
+            .replace(/\b(\d+(-й|-я|-ое|-е)? Сезон)\b/gi, '')
             .replace(/\(TV\)/gi, '')
             .replace(/[^\wа-яёА-ЯЁ\s:\-]/gi, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
+    }
+
+    function buildSmartQueries(value, queriesArray) {
+        if (!value) return;
+        var cleaned = cleanTmdbQuery(value);
+        if (cleaned && queriesArray.indexOf(cleaned) === -1) queriesArray.push(cleaned);
+
+        var splitPos = cleaned.search(/[:\-]/);
+        var shortCleaned = '';
+        
+        if (splitPos > 3) {
+            shortCleaned = cleaned.substring(0, splitPos).trim();
+            if (shortCleaned && queriesArray.indexOf(shortCleaned) === -1) queriesArray.push(shortCleaned);
+        }
+
+        // Отрезаем цифры сезонов в конце (например: "Дандадан 3", "Sword Art Online II")
+        var stripRegex = /\s+(2|3|4|5|6|7|8|9|10|II|III|IV|V|VI|VII|VIII|IX|X)$/i;
+        
+        var noDigitFull = cleaned.replace(stripRegex, '').trim();
+        if (noDigitFull && queriesArray.indexOf(noDigitFull) === -1 && noDigitFull.length > 1) {
+            queriesArray.push(noDigitFull);
+        }
+
+        if (shortCleaned) {
+            var noDigitShort = shortCleaned.replace(stripRegex, '').trim();
+            if (noDigitShort && queriesArray.indexOf(noDigitShort) === -1 && noDigitShort.length > 1) {
+                queriesArray.push(noDigitShort);
+            }
+        }
     }
 
     function getAnimeYear(data) {
@@ -385,21 +415,9 @@
         var queries = [];
         var year = getAnimeYear(data);
 
-        function addQuery(value) {
-            if (!value) return;
-            var cleaned = cleanTmdbQuery(value);
-            if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
-
-            var splitPos = cleaned.search(/[:\-]/);
-            if (splitPos > 3) {
-                var shortCleaned = cleaned.substring(0, splitPos).trim();
-                if (shortCleaned && queries.indexOf(shortCleaned) === -1) queries.push(shortCleaned);
-            }
-        }
-
-        addQuery(data.english);
-        addQuery(data.name);
-        addQuery(data.russian);
+        buildSmartQueries(data.english, queries);
+        buildSmartQueries(data.name, queries);
+        buildSmartQueries(data.russian, queries);
 
         if (!queries.length) {
             callback('');
@@ -755,21 +773,9 @@
     function fallbackSearch(data) {
         var queries = [];
 
-        function addQuery(value) {
-            if (!value) return;
-            var cleaned = cleanTmdbQuery(value);
-            if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
-
-            var splitPos = cleaned.search(/[:\-]/);
-            if (splitPos > 3) {
-                var shortCleaned = cleaned.substring(0, splitPos).trim();
-                if (shortCleaned && queries.indexOf(shortCleaned) === -1) queries.push(shortCleaned);
-            }
-        }
-
-        addQuery(data.english);
-        addQuery(data.name);
-        addQuery(data.russian);
+        buildSmartQueries(data.english, queries);
+        buildSmartQueries(data.name, queries);
+        buildSmartQueries(data.russian, queries);
 
         if (queries.length === 0) {
             openLampaSearch(data);
@@ -854,7 +860,7 @@
 
         var mainTitle = titleOf(shiki) || item.title || item.name;
         var secTitle = originalTitleOf(shiki) || item.original_title || item.original_name || shiki.name;
-        var shikiPoster = posterOf(shiki); // Берем оригинальный постер с Shikimori
+        var shikiPoster = posterOf(shiki);
 
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
@@ -862,7 +868,7 @@
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: shikiPoster || item.poster_path || '', // Насильно применяем постер внутри карточки Lampa
+            poster_path: shikiPoster || item.poster_path || '',
             img: shikiPoster || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
@@ -2261,17 +2267,11 @@
         var year = getCardYear(card);
         var queries = [];
 
-        function add(value) {
-            value = cleanTmdbQuery(value);
-
-            if (value && queries.indexOf(value) === -1) queries.push(value);
-        }
-
-        add(card.title);
-        add(card.name);
-        add(card.original_title);
-        add(card.original_name);
-        add(activity && activity.title);
+        buildSmartQueries(card.title, queries);
+        buildSmartQueries(card.name, queries);
+        buildSmartQueries(card.original_title, queries);
+        buildSmartQueries(card.original_name, queries);
+        buildSmartQueries(activity && activity.title, queries);
 
         if (!queries.length) {
             callback(null);
@@ -2301,7 +2301,7 @@
                         if (year && item.aired_on) {
                             var itemYear = parseInt(String(item.aired_on).substring(0, 4), 10);
 
-                            if (itemYear && Math.abs(itemYear - year) <= 1) {
+                            if (itemYear && Math.abs(itemYear - year) <= 2) {
                                 best = item;
                                 break;
                             }
