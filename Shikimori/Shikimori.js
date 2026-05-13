@@ -317,44 +317,41 @@
         }
     }
 
-    function cleanTmdbQuery(str) {
-        if (!str) return '';
-
-        return String(str)
-            .replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
+    function buildSmartQueries(value, queriesArray) {
+        if (!value) return;
+        var str = String(value);
+        
+        var cleaned = str
+            .replace(/\b(Season|Part|Cour)\s*\d*\.?\d*\b/gi, '')
             .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
-            .replace(/\b(Сезон|Часть)\s*\d*\.?\d*\b/gi, '')
+            .replace(/\b(Сезон|Часть|Кур)\s*\d*\.?\d*\b/gi, '')
             .replace(/\b(\d+(-й|-я|-ое|-е)? Сезон)\b/gi, '')
-            .replace(/\(TV\)/gi, '')
+            .replace(/[\(\[\{].*?[\)\]\}]/g, '')
             .replace(/[^\wа-яёА-ЯЁ\s:\-]/gi, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
-    }
 
-    function buildSmartQueries(value, queriesArray) {
-        if (!value) return;
-        var cleaned = cleanTmdbQuery(value);
         if (cleaned && queriesArray.indexOf(cleaned) === -1) queriesArray.push(cleaned);
 
         var splitPos = cleaned.search(/[:\-]/);
         var shortCleaned = '';
-        
-        if (splitPos > 3) {
+        if (splitPos > 0) {
             shortCleaned = cleaned.substring(0, splitPos).trim();
-            if (shortCleaned && queriesArray.indexOf(shortCleaned) === -1) queriesArray.push(shortCleaned);
+            if (shortCleaned && shortCleaned.length > 1 && queriesArray.indexOf(shortCleaned) === -1) {
+                queriesArray.push(shortCleaned);
+            }
         }
 
-        // Отрезаем цифры сезонов в конце (например: "Дандадан 3", "Sword Art Online II")
-        var stripRegex = /\s+(2|3|4|5|6|7|8|9|10|II|III|IV|V|VI|VII|VIII|IX|X)$/i;
+        var stripRegex = /\s+(1|2|3|4|5|6|7|8|9|10|11|12|13|14|15|1st|2nd|3rd|4th|5th|6th|7th|8th|9th|10th|II|III|IV|V|VI|VII|VIII|IX|X)$/i;
         
         var noDigitFull = cleaned.replace(stripRegex, '').trim();
-        if (noDigitFull && queriesArray.indexOf(noDigitFull) === -1 && noDigitFull.length > 1) {
+        if (noDigitFull && noDigitFull !== cleaned && noDigitFull.length > 1 && queriesArray.indexOf(noDigitFull) === -1) {
             queriesArray.push(noDigitFull);
         }
 
         if (shortCleaned) {
             var noDigitShort = shortCleaned.replace(stripRegex, '').trim();
-            if (noDigitShort && queriesArray.indexOf(noDigitShort) === -1 && noDigitShort.length > 1) {
+            if (noDigitShort && noDigitShort !== shortCleaned && noDigitShort.length > 1 && queriesArray.indexOf(noDigitShort) === -1) {
                 queriesArray.push(noDigitShort);
             }
         }
@@ -453,7 +450,18 @@
                                 ? parseInt(item.first_air_date.substring(0, 4), 10)
                                 : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
 
-                            if (itemYear && Math.abs(itemYear - year) <= 2) {
+                            var isValidYear = false;
+                            if (item.media_type === 'tv') {
+                                if (!itemYear || (year >= itemYear - 2 && year <= itemYear + 20)) {
+                                    isValidYear = true;
+                                }
+                            } else {
+                                if (!itemYear || Math.abs(itemYear - year) <= 2) {
+                                    isValidYear = true;
+                                }
+                            }
+
+                            if (isValidYear) {
                                 best = item;
                                 break;
                             }
@@ -816,7 +824,20 @@
                                     ? parseInt(item.first_air_date.substring(0, 4), 10)
                                     : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
 
-                                if (itemYear && Math.abs(itemYear - shikiYear) <= 2) {
+                                var isValidYear = false;
+                                if (item.media_type === 'tv') {
+                                    // TMDB tv year is the start of Season 1.
+                                    // Shikimori season year will be >= TMDB year.
+                                    if (!itemYear || (shikiYear >= itemYear - 2 && shikiYear <= itemYear + 20)) {
+                                        isValidYear = true;
+                                    }
+                                } else {
+                                    if (!itemYear || Math.abs(itemYear - shikiYear) <= 2) {
+                                        isValidYear = true;
+                                    }
+                                }
+
+                                if (isValidYear) {
                                     bestItem = item;
                                     break;
                                 }
@@ -2300,11 +2321,25 @@
 
                         if (year && item.aired_on) {
                             var itemYear = parseInt(String(item.aired_on).substring(0, 4), 10);
+                            var isTv = item.kind === 'tv';
 
-                            if (itemYear && Math.abs(itemYear - year) <= 2) {
+                            var isValidYear = false;
+                            if (isTv) {
+                                if (itemYear >= year - 2 && itemYear <= year + 20) {
+                                    isValidYear = true;
+                                }
+                            } else {
+                                if (Math.abs(itemYear - year) <= 2) {
+                                    isValidYear = true;
+                                }
+                            }
+
+                            if (isValidYear) {
                                 best = item;
                                 break;
                             }
+                        } else if (!year) {
+                            break;
                         }
                     }
                 }
