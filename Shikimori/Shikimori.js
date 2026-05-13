@@ -10,7 +10,7 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    var SHIKI_HOST = 'https://shikimori.io';
+    var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
@@ -38,8 +38,15 @@
         } catch (e) {}
 
         try {
-            value = localStorage.getItem(key);
-            return value ? JSON.parse(value) : fallback;
+            var raw = localStorage.getItem(key);
+            if (raw) {
+                try {
+                    return JSON.parse(raw);
+                } catch (e) {
+                    return fallback;
+                }
+            }
+            return fallback;
         } catch (err) {
             return fallback;
         }
@@ -273,12 +280,24 @@
         }
     }
 
+    // Исправленная функция apiGetJson: использует Lampa.Reguest, с fallback на $.ajax
     function apiGetJson(url, success, error) {
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.timeout(8000);
-            network.silent(url, success, error || function () {});
-        } else {
+        // Пробуем использовать оригинальный Lampa.Reguest
+        if (window.Lampa && typeof Lampa.Reguest === 'function') {
+            try {
+                var network = new Lampa.Reguest();
+                if (typeof network.timeout === 'function') network.timeout(8000);
+                if (typeof network.silent === 'function') {
+                    network.silent(url, success, error || function () {});
+                    return;
+                }
+            } catch (e) {
+                // При любой ошибке переходим на $.ajax
+            }
+        }
+
+        // Fallback на jQuery
+        if (window.$) {
             $.ajax({
                 url: url,
                 dataType: 'json',
@@ -286,6 +305,8 @@
                 success: success,
                 error: error || function () {}
             });
+        } else {
+            console.error('Shikimori: no network method available');
         }
     }
 
@@ -579,22 +600,34 @@
         var url = SHIKI_HOST + '/api/genres';
 
         var onSuccess = function (genres) {
-            if (!genres || !genres.length) return;
+            if (!genres || !genres.length) {
+                callback([]);
+                return;
+            }
 
             storageSet(GENRES_CACHE_KEY, genres);
-
-            if (!cache || !cache.length) callback(filterGenres(genres));
+            callback(filterGenres(genres));
         };
 
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.silent(url, onSuccess);
+        var onError = function () {
+            callback([]);
+        };
+
+        if (window.Lampa && typeof Lampa.Reguest === 'function') {
+            try {
+                var network = new Lampa.Reguest();
+                network.timeout(12000);
+                network.silent(url, onSuccess, onError);
+            } catch (e) {
+                $.ajax({ url: url, dataType: 'json', timeout: 12000, success: onSuccess, error: onError });
+            }
         } else {
             $.ajax({
                 url: url,
                 dataType: 'json',
                 timeout: 12000,
-                success: onSuccess
+                success: onSuccess,
+                error: onError
             });
         }
     }
@@ -671,20 +704,7 @@
                     error: onError
                 });
             } else {
-                if (window.Lampa && Lampa.Reguest) {
-                    var network = new Lampa.Reguest();
-                    network.timeout(15000);
-                    network.silent(url, onSuccess, onError);
-                } else {
-                    $.ajax({
-                        url: url,
-                        method: 'GET',
-                        dataType: 'json',
-                        timeout: 15000,
-                        success: onSuccess,
-                        error: onError
-                    });
-                }
+                apiGetJson(url, onSuccess, onError);
             }
         };
 
@@ -712,23 +732,9 @@
             else fallbackSearch(data);
         };
 
-        if (window.Lampa && Lampa.Reguest) {
-            var network = new Lampa.Reguest();
-            network.timeout(8000);
-            network.silent(url, onSuccess, function () {
-                fallbackSearch(data);
-            });
-        } else {
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                timeout: 8000,
-                success: onSuccess,
-                error: function () {
-                    fallbackSearch(data);
-                }
-            });
-        }
+        apiGetJson(url, onSuccess, function () {
+            fallbackSearch(data);
+        });
     }
 
     function fallbackSearch(data) {
@@ -818,19 +824,7 @@
                 }
             };
 
-            if (window.Lampa && Lampa.Reguest) {
-                var network = new Lampa.Reguest();
-                network.timeout(6000);
-                network.silent(url, handleSuccess, tryNextQuery);
-            } else {
-                $.ajax({
-                    url: url,
-                    dataType: 'json',
-                    timeout: 6000,
-                    success: handleSuccess,
-                    error: tryNextQuery
-                });
-            }
+            apiGetJson(url, handleSuccess, tryNextQuery);
         }
 
         notify('Поиск в базе...');
@@ -2364,28 +2358,32 @@
     }
 
     function scheduleAppendFull(activity) {
-        var delays = [0, 250, 700, 1300, 2200, 3500];
+        var delays = [300, 1500];
+        var apiCalled = false;
 
-        for (var i = 0; i < delays.length; i++) {
-            (function (delay) {
-                setTimeout(function () {
-                    var page = fullPage();
+        delays.forEach(function (delay) {
+            setTimeout(function () {
+                var page = fullPage();
+                if (!page.length) return;
+                if (page.find('.shikimori-full-list-button').length) return;
 
-                    if (!page.length) return;
-                    if (page.find('.shikimori-full-list-button').length) return;
-
+                if (!apiCalled) {
+                    apiCalled = true;
                     resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
-                        if (anime && anime.id) appendFull(getActiveActivity(), anime);
+                        if (anime && anime.id) {
+                            appendFull(getActiveActivity(), anime);
+                        }
                     });
-                }, delay);
-            })(delays[i]);
-        }
+                }
+            }, delay);
+        });
     }
 
     function extendFull() {
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
 
         Lampa.Listener.follow('full', function (event) {
+            fullResolveCache = {}; // очищаем кэш при открытии новой full страницы
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
         });
@@ -2396,7 +2394,6 @@
 
         setInterval(function () {
             var page = fullPage();
-
             if (!page.length) return;
             if (page.find('.shikimori-full-list-button').length) return;
 
