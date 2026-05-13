@@ -4,7 +4,6 @@
     if (window.plugin_shikimori_ready) return;
     window.plugin_shikimori_ready = true;
 
-    // Изменен ключ настроек, чтобы применить новые настройки по умолчанию для старых пользователей
     var SETTINGS_KEY = 'shikimori_settings_v2';
     var GENRES_CACHE_KEY = 'shikimori_genres_cache_v1';
     var TMDB_CACHE_KEY = 'shikimori_tmdb_cache_v1';
@@ -21,7 +20,7 @@
 
     function defaults() {
         return {
-            title_language: 'original', // По умолчанию теперь Ромадзи (как на сайте)
+            title_language: 'original',
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal'
@@ -218,7 +217,6 @@
     function originalTitleOf(data) {
         var settings = readSettings();
 
-        // Альтернативное (вторичное) название для внутренних карточек Lampa
         if (settings.title_language === 'original') return data.russian || data.english || '';
         if (settings.title_language === 'en') return data.name || data.russian || '';
 
@@ -230,9 +228,13 @@
 
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
-        if (/^https?:\/\//.test(url)) return url;
+        
+        // Меняем io на one, чтобы обойти блокировки и редиректы, из-за которых грузился постер TMDB
+        if (/^https?:\/\//.test(url)) {
+            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
+        }
 
-        return SHIKI_HOST + (url.indexOf('/') === 0 ? url : '/' + url);
+        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -850,10 +852,9 @@
     function openTmdb(item, shiki) {
         var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
 
-        // Подменяем название, чтобы внутри карточки Lampa отображалось то, что выбрано в настройках Shikimori,
-        // а не то, что возвращает TMDB
         var mainTitle = titleOf(shiki) || item.title || item.name;
         var secTitle = originalTitleOf(shiki) || item.original_title || item.original_name || shiki.name;
+        var shikiPoster = posterOf(shiki); // Берем оригинальный постер с Shikimori
 
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
@@ -861,7 +862,8 @@
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: item.poster_path || '',
+            poster_path: shikiPoster || item.poster_path || '', // Насильно применяем постер внутри карточки Lampa
+            img: shikiPoster || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
             shikimori: shiki
