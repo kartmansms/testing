@@ -280,9 +280,7 @@
         }
     }
 
-    // Исправленная функция apiGetJson: использует Lampa.Reguest, с fallback на $.ajax
     function apiGetJson(url, success, error) {
-        // Пробуем использовать оригинальный Lampa.Reguest
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
@@ -291,12 +289,9 @@
                     network.silent(url, success, error || function () {});
                     return;
                 }
-            } catch (e) {
-                // При любой ошибке переходим на $.ajax
-            }
+            } catch (e) {}
         }
 
-        // Fallback на jQuery
         if (window.$) {
             $.ajax({
                 url: url,
@@ -317,7 +312,8 @@
             .replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
             .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
             .replace(/\(TV\)/gi, '')
-            .replace(/[^\wа-яёА-ЯЁ\s]/gi, ' ')
+            // Сохраняем кириллицу, латиницу, цифры, пробелы, двоеточия и дефисы
+            .replace(/[^\wа-яёА-ЯЁ\s:\-]/gi, ' ')
             .replace(/\s{2,}/g, ' ')
             .trim();
     }
@@ -378,8 +374,16 @@
         var year = getAnimeYear(data);
 
         function addQuery(value) {
-            value = cleanTmdbQuery(value);
-            if (value && queries.indexOf(value) === -1) queries.push(value);
+            if (!value) return;
+            var cleaned = cleanTmdbQuery(value);
+            if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
+
+            // Если есть двоеточие/дефис, пробуем добавить короткое название до спецсимвола
+            var splitPos = cleaned.search(/[:\-]/);
+            if (splitPos > 3) {
+                var shortCleaned = cleaned.substring(0, splitPos).trim();
+                if (shortCleaned && queries.indexOf(shortCleaned) === -1) queries.push(shortCleaned);
+            }
         }
 
         addQuery(data.english);
@@ -420,7 +424,8 @@
                                 ? parseInt(item.first_air_date.substring(0, 4), 10)
                                 : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
 
-                            if (itemYear && Math.abs(itemYear - year) <= 1) {
+                            // Погрешность в 2 года из-за разницы выхода сезонов и спешлов в TMDB
+                            if (itemYear && Math.abs(itemYear - year) <= 2) {
                                 best = item;
                                 break;
                             }
@@ -740,35 +745,24 @@
     function fallbackSearch(data) {
         var queries = [];
 
-        function clean(str) {
-            if (!str) return '';
+        function addQuery(value) {
+            if (!value) return;
+            var cleaned = cleanTmdbQuery(value);
+            if (cleaned && queries.indexOf(cleaned) === -1) queries.push(cleaned);
 
-            var s = str
-                .replace(/\b(Season|Part)\s*\d*\.?\d*\b/gi, '')
-                .replace(/\b(\d+(st|nd|rd|th)? Season)\b/gi, '')
-                .replace(/\(TV\)/gi, '')
-                .replace(/[^\w\s]/gi, ' ')
-                .replace(/\s{2,}/g, ' ');
-
-            return s.trim();
+            // Если есть двоеточие/дефис, пробуем добавить короткое название до спецсимвола
+            var splitPos = cleaned.search(/[:\-]/);
+            if (splitPos > 3) {
+                var shortCleaned = cleaned.substring(0, splitPos).trim();
+                if (shortCleaned && queries.indexOf(shortCleaned) === -1) queries.push(shortCleaned);
+            }
         }
 
-        var eng = data.english || '';
-        var romaji = data.name || '';
+        addQuery(data.english);
+        addQuery(data.name);
+        addQuery(data.russian);
 
-        var bestEng = (clean(eng) && clean(eng).length < eng.length) ? clean(eng) : eng;
-        var bestRomaji = (clean(romaji) && clean(romaji).length < romaji.length) ? clean(romaji) : romaji;
-
-        if (bestEng) queries.push(bestEng);
-        if (bestRomaji && bestRomaji !== bestEng) queries.push(bestRomaji);
-
-        var uniqueQueries = [];
-
-        for (var i = 0; i < queries.length; i++) {
-            if (uniqueQueries.indexOf(queries[i]) === -1 && queries[i].length > 1) uniqueQueries.push(queries[i]);
-        }
-
-        if (uniqueQueries.length === 0) {
+        if (queries.length === 0) {
             openLampaSearch(data);
             return;
         }
@@ -777,12 +771,12 @@
         var shikiYear = data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
 
         function tryNextQuery() {
-            if (currentIndex >= uniqueQueries.length) {
+            if (currentIndex >= queries.length) {
                 openLampaSearch(data);
                 return;
             }
 
-            var currentQuery = uniqueQueries[currentIndex++];
+            var currentQuery = queries[currentIndex++];
             var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
             var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
             var baseUrl = 'https://api.themoviedb.org/3/';
@@ -807,7 +801,8 @@
                                     ? parseInt(item.first_air_date.substring(0, 4), 10)
                                     : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : null);
 
-                                if (itemYear && Math.abs(itemYear - shikiYear) <= 1) {
+                                // Погрешность в 2 года из-за разницы выхода сезонов и спешлов в TMDB
+                                if (itemYear && Math.abs(itemYear - shikiYear) <= 2) {
                                     bestItem = item;
                                     break;
                                 }
