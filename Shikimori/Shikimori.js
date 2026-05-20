@@ -370,7 +370,7 @@
     }
 
     function getAnimeYear(data) {
-        return data && data.airedOn ? parseInt(data.airedOn.year, 10) : 0;
+        return data && data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
     }
 
     function saveResolvedPoster(animeId, posterUrl) {
@@ -2234,4 +2234,393 @@
 
         if (date) year = parseInt(String(date).substring(0, 4), 10);
         if (!year && card.release_year) year = parseInt(card.release_year, 10);
-        if (!year && card.year)
+        if (!year && card.year) year = parseInt(card.year, 10);
+
+        return year || 0;
+    }
+
+    function mapShikiAnime(item) {
+        if (!item) return null;
+
+        return {
+            id: item.id,
+            name: item.name,
+            russian: item.russian,
+            english: item.english || '',
+            japanese: item.japanese || '',
+            kind: item.kind,
+            score: item.score,
+            status: item.status,
+            season: item.season || '',
+            airedOn: {
+                year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
+            },
+            poster: {
+                originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
+                mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
+                previewUrl: (item.poster && (item.poster.previewUrl || item.poster.preview_url)) || (item.image && item.image.preview) || '',
+                x96Url: (item.poster && (item.poster.x96Url || item.poster.x96_url)) || (item.image && item.image.x96) || '',
+                x48Url: (item.poster && (item.poster.x48Url || item.poster.x48_url)) || (item.image && item.image.x48) || ''
+            },
+            image: item.image || null
+        };
+    }
+
+    function fetchShikiAnimeById(id, callback) {
+        if (!id) {
+            callback(null);
+            return;
+        }
+
+        apiGetJson(
+            SHIKI_HOST + '/api/animes/' + encodeURIComponent(id),
+            function (anime) {
+                callback(anime && anime.id ? mapShikiAnime(anime) : null);
+            },
+            function () {
+                callback(null);
+            }
+        );
+    }
+
+    function searchShikiAnimeByTitle(activity, callback) {
+        var card = getFullCard(activity);
+        var year = getCardYear(card);
+        var queries = [];
+
+        buildSmartQueries(card.title, queries);
+        buildSmartQueries(card.name, queries);
+        buildSmartQueries(card.original_title, queries);
+        buildSmartQueries(card.original_name, queries);
+        buildSmartQueries(activity && activity.title, queries);
+
+        if (!queries.length) {
+            callback(null);
+            return;
+        }
+
+        var index = 0;
+
+        function next() {
+            if (index >= queries.length) {
+                callback(null);
+                return;
+            }
+
+            var query = queries[index++];
+            var url = SHIKI_HOST + '/api/animes?limit=10&search=' + encodeURIComponent(query);
+
+            apiGetJson(url, function (list) {
+                var best = null;
+
+                if (Array.isArray(list) && list.length) {
+                    for (var i = 0; i < list.length; i++) {
+                        var item = list[i];
+
+                        if (!best) best = item;
+
+                        if (year && item.aired_on) {
+                            var itemYear = parseInt(String(item.aired_on).substring(0, 4), 10);
+                            var isTv = item.kind === 'tv';
+
+                            var isValidYear = false;
+                            if (isTv) {
+                                if (itemYear >= year - 2 && itemYear <= year + 20) {
+                                    isValidYear = true;
+                                }
+                            } else {
+                                if (Math.abs(itemYear - year) <= 2) {
+                                    isValidYear = true;
+                                }
+                            }
+
+                            if (isValidYear) {
+                                best = item;
+                                break;
+                            }
+                        } else if (!year) {
+                            break;
+                        }
+                    }
+                }
+
+                if (best && best.id) callback(mapShikiAnime(best));
+                else next();
+            }, next);
+        }
+
+        next();
+    }
+
+    function resolveShikiAnimeForFull(activity, callback) {
+        activity = normalizeActivity(activity || getActiveActivity());
+
+        var card = getFullCard(activity);
+        var shiki = card.shikimori || activity.shikimori || null;
+        var tmdbId = card.id || activity.id || '';
+        var cacheKey = '';
+
+        if (shiki && shiki.id) {
+            callback(shiki);
+            return;
+        }
+
+        if (tmdbId) cacheKey = 'tmdb:' + tmdbId;
+        else cacheKey = 'title:' + getCardTitle(card, activity);
+
+        if (fullResolveCache[cacheKey]) {
+            callback(fullResolveCache[cacheKey]);
+            return;
+        }
+
+        function done(anime) {
+            if (anime && anime.id) fullResolveCache[cacheKey] = anime;
+            callback(anime || null);
+        }
+
+        if (tmdbId) {
+            var url = ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(tmdbId);
+
+            apiGetJson(url, function (answer) {
+                var mal = extractMalId(answer);
+
+                if (mal) {
+                    fetchShikiAnimeById(mal, function (anime) {
+                        if (anime && anime.id) done(anime);
+                        else searchShikiAnimeByTitle(activity, done);
+                    });
+                } else {
+                    searchShikiAnimeByTitle(activity, done);
+                }
+            }, function () {
+                searchShikiAnimeByTitle(activity, done);
+            });
+        } else {
+            searchShikiAnimeByTitle(activity, done);
+        }
+    }
+
+    function scheduleAppendFull(activity) {
+        var delays = [300, 1500];
+        var apiCalled = false;
+
+        delays.forEach(function (delay) {
+            setTimeout(function () {
+                var page = fullPage();
+                if (!page.length) return;
+                if (page.find('.shikimori-full-list-button').length) return;
+
+                if (!apiCalled) {
+                    apiCalled = true;
+                    resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
+                        if (anime && anime.id) {
+                            appendFull(getActiveActivity(), anime);
+                        }
+                    });
+                }
+            }, delay);
+        });
+    }
+
+    function extendFull() {
+        if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
+
+        Lampa.Listener.follow('full', function (event) {
+            fullResolveCache = {};
+            var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
+            scheduleAppendFull(activity);
+        });
+
+        Lampa.Listener.follow('activity', function () {
+            scheduleAppendFull(getActiveActivity());
+        });
+
+        setInterval(function () {
+            var page = fullPage();
+            if (!page.length) return;
+            if (page.find('.shikimori-full-list-button').length) return;
+
+            scheduleAppendFull(getActiveActivity());
+        }, 1800);
+    }
+
+    function extractMalId(answer) {
+        if (!answer) return '';
+
+        if (answer.mal || answer.mal_id || answer.myanimelist) {
+            return answer.mal || answer.mal_id || answer.myanimelist;
+        }
+
+        if (answer.ids && (answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist)) {
+            return answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist;
+        }
+
+        if (answer.sources && answer.sources.myanimelist) {
+            return answer.sources.myanimelist;
+        }
+
+        if (answer.length) {
+            for (var i = 0; i < answer.length; i++) {
+                if (answer[i] && (answer[i].myanimelist || answer[i].mal || answer[i].mal_id)) {
+                    return answer[i].myanimelist || answer[i].mal || answer[i].mal_id;
+                }
+            }
+        }
+
+        return '';
+    }
+
+    function createShikimoriFullListButton() {
+        return $(
+            '<div class="full-start__button full-start-new__button selector shikimori-full-list-button" title="Список Shikimori" aria-label="Список Shikimori" data-title="Список Shikimori">' +
+                '<svg viewBox="0 0 64 64" width="1.75em" height="1.75em" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                    '<path d="M18 14h24c3.3 0 6 2.7 6 6v28c0 1.9-2.1 3-3.7 2L32 42.5 19.7 50c-1.6 1-3.7-.1-3.7-2V20c0-3.3 2.7-6 6-6Z" stroke="currentColor" stroke-width="4" stroke-linejoin="round"/>' +
+                    '<path d="M25 25h14M25 33h14" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>' +
+                '</svg>' +
+                '<span class="shikimori-full-list-button__text">Список Shikimori</span>' +
+            '</div>'
+        );
+    }
+
+    function appendFull(activity, anime) {
+        var page = fullPage();
+
+        if (!anime || !anime.id || !page.length) return;
+
+        var score = anime.score && anime.score !== '0.0' ? anime.score : '—';
+
+        if (!page.find('.rate--shikimori').length) {
+            page.find('.full-start__rate-line, .full-start-new__rate-line').first().append(
+                '<div class="rate rate--shikimori"><div>★ ' + esc(score) + '</div><span>Shikimori</span></div>'
+            );
+        }
+
+        if (!page.find('.shikimori-full-list-button').length) {
+            var buttons = page.find(
+                '.full-start__buttons, ' +
+                '.full-start-new__buttons, ' +
+                '.full-start__buttons-line, ' +
+                '.full-start-new__buttons-line, ' +
+                '.full__buttons'
+            ).first();
+
+            var listBtn = createShikimoriFullListButton();
+
+            if (buttons.length) {
+                var children = buttons.children('.selector');
+
+                if (children.length) {
+                    children.last().before(listBtn);
+                } else {
+                    buttons.append(listBtn);
+                }
+            } else {
+                var fallbackPlace = page.find('.full-start__body, .full-start-new__body, .full').first();
+
+                if (fallbackPlace.length) fallbackPlace.append(listBtn);
+                else page.append(listBtn);
+            }
+
+            initShikimoriListButton(listBtn, anime);
+
+            setTimeout(function () {
+                try {
+                    if (window.Lampa && Lampa.Controller) {
+                        Lampa.Controller.collectionSet(page);
+                    }
+                } catch (e) {}
+            }, 100);
+        }
+    }
+
+    function addMenu() {
+        var menu = $('.menu .menu__list').eq(0);
+
+        if (!menu.length || $('.menu__item.selector[data-action="shikimori"]').length) return;
+
+        var button = $(
+            '<li class="menu__item selector" data-action="shikimori">' +
+                '<div class="menu__ico">' +
+                    '<svg viewBox="0 0 44 44" width="44" height="44">' +
+                        '<circle cx="22" cy="22" r="19" fill="#c83a4b"/>' +
+                        '<path d="M13 29c2 3 5 5 9 5 6 0 10-3 10-8 0-4-2-6-8-8l-3-1c-3-1-4-2-4-4s2-3 5-3c3 0 5 1 7 3l3-4c-2-3-6-4-10-4-6 0-10 3-10 8 0 4 3 7 8 8l3 1c3 1 4 2 4 4s-2 3-5 3c-3 0-6-2-8-4l-1 4z" fill="#fff"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="menu__text">Shikimori</div>' +
+            '</li>'
+        );
+
+        button.on('hover:enter click tap mouseup', function () {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Shikimori',
+                component: 'shikimori',
+                page: 1,
+                sort: readSettings().default_sort
+            });
+        });
+
+        menu.append(button);
+    }
+
+    function addStyles() {
+        if ($('#shikimori-style').length) return;
+
+        $('body').append(
+            '<style id="shikimori-style">' +
+                '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
+                '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
+                '.Shikimori-module .scroll__body{width:100%}' +
+                '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
+                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:1.5em;padding:.45em 1.05em;font-size:.95em}' +
+                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
+                '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
+                '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
+                '.Shikimori-active span{color:#e95a68;font-weight:600}' +
+                '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
+                '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+                '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
+                '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
+                '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#22252d}' +
+                '.Shikimori.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(200,58,75,.45)}' +
+                '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
+                '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
+                '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
+                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
+                '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
+                '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+                '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
+                '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
+                '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
+                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;overflow:visible!important}' +
+                '.shikimori-full-list-button svg{display:block;pointer-events:none;flex:0 0 auto}' +
+                '.shikimori-full-list-button__text{display:none;margin-left:.55em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
+                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.05em!important;padding-right:1.05em!important}' +
+                '.shikimori-full-list-button.focus .shikimori-full-list-button__text{display:inline-block}' +
+                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.16)!important;color:#fff!important}' +
+                '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
+            '</style>'
+        );
+    }
+
+    function start() {
+        if (!window.Lampa || !window.$) return;
+
+        addStyles();
+
+        Lampa.Component.add('shikimori', Catalog);
+
+        extendFull();
+
+        if (window.appready) {
+            addMenu();
+        } else {
+            Lampa.Listener.follow('app', function (e) {
+                if (e.type === 'ready') addMenu();
+            });
+        }
+    }
+
+    start();
+})();
