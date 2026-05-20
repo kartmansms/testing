@@ -1375,16 +1375,24 @@
         var meta = [];
 
         var loadingSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
-            '<rect width="100%" height="100%" fill="#22252d"/>' +
-            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Загрузка...</text>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440" viewBox="0 0 300 440">' +
+            '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">' +
+            '<stop offset="0%" stop-color="#1e2029"/>' +
+            '<stop offset="100%" stop-color="#12131a"/>' +
+            '</linearGradient></defs>' +
+            '<rect width="100%" height="100%" fill="url(#g)"/>' +
+            '<text x="50%" y="50%" fill="#555966" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">Загрузка...</text>' +
             '</svg>'
         );
 
         var noPosterSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
-            '<rect width="100%" height="100%" fill="#22252d"/>' +
-            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Нет постера</text>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440" viewBox="0 0 300 440">' +
+            '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">' +
+            '<stop offset="0%" stop-color="#1e2029"/>' +
+            '<stop offset="100%" stop-color="#12131a"/>' +
+            '</linearGradient></defs>' +
+            '<rect width="100%" height="100%" fill="url(#g)"/>' +
+            '<text x="50%" y="50%" fill="#555966" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">Нет постера</text>' +
             '</svg>'
         );
 
@@ -2577,36 +2585,39 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
-                '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
-                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:1.5em;padding:.45em 1.05em;font-size:.95em}' +
-                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
-                '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
-                '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
-                '.Shikimori-active span{color:#e95a68;font-weight:600}' +
-                '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
-                '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+                '.Shikimori-head,.Shikimori-quick{display:flex;flex-flow:row wrap;margin-bottom:1em}' +
+                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .6em .6em 0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:.5em 1.2em;font-size:.92em;transition:all 0.2s ease}' +
+                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#ff5263;box-shadow:0 4px 12px rgba(200,58,75,.4);transform:translateY(-1px)}' +
+                '.Shikimori-chip--active{background:rgba(200,58,75,.2);border-color:rgba(200,58,75,.6);color:#ff8a95}' +
+                '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.55);margin:.1em 0 1.2em;line-height:1.35}' +
+                '.Shikimori-active span{color:#ff5263;font-weight:600}' +
+                '.Shikimori-body{display:flex;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
+                '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.8em 0;position:relative}' +
                 '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
-                '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
+                '.Shikimori.card .card__view{background:#15171e;border-radius:8px;overflow:hidden;position:relative;padding-bottom:145%;transition:transform 0.22s ease, box-shadow 0.22s ease;box-shadow:0 4px 10px rgba(0,0,0,0.3)}' +
+                '.Shikimori.card .card__view::after{content:"";position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);pointer-events:none;z-index:1}' +
                 '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#22252d}' +
-                '.Shikimori.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(200,58,75,.45)}' +
-                '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
-                '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
-                '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
+                '.Shikimori.card.focus .card__view{transform:scale(1.04);box-shadow:0 10px 24px rgba(200,58,75,.4), 0 0 0 3px #fff;z-index:5}' +
+                '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.5em;padding:.25em .55em;border-radius:6px;font-size:.8em;font-weight:bold;line-height:1;color:#fff;z-index:2;backdrop-filter:blur(4px);box-shadow:0 2px 5px rgba(0,0,0,0.25)}' +
+                '.Shikimori-card__rating{left:.5em;background:rgba(21,23,30,.85);color:#ffca28;border:1px solid rgba(255,202,40,.2)}' +
+                '.Shikimori-card__badge{right:.5em;background:rgba(200,58,75,.88)}' +
                 '.Shikimori--anons .Shikimori-card__badge{background:rgba(230,126,34,.92)!important}' +
                 '.Shikimori--ongoing .Shikimori-card__badge{background:rgba(39,174,96,.92)!important}' +
-                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
-                '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
-                '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
-                '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
-                '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
-                '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
-                '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
-                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;overflow:visible!important}' +
+                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.5em;padding:.25em .55em;border-radius:6px;background:rgba(21,23,30,.85);font-size:.8em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.Shikimori.card .card__title{font-size:.95em;font-weight:500;line-height:1.3;max-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:.6em;color:#eee;transition:color 0.2s ease}' +
+                '.Shikimori.card.focus .card__title{color:#fff}' +
+                '.Shikimori-card__meta{font-size:.8em;line-height:1.25;color:rgba(255,255,255,.45);height:2.35em;overflow:hidden;margin-top:.3em;transition:color 0.2s ease}' +
+                '.Shikimori.card.focus .Shikimori-card__meta{color:rgba(255,255,255,.75)}' +
+                '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.6);padding:2.5em 0}' +
+                '.Shikimori-loader--more{width:100%;font-size:1em;padding:1.5em 0;color:rgba(255,255,255,.4)}' +
+                '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:1.5em}' +
+                '.shikimori-list-active{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.18);color:#fff}' +
+                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;border-radius:8px!important;transition:all 0.2s ease!important;overflow:visible!important}' +
                 '.shikimori-full-list-button svg{display:block;pointer-events:none;flex:0 0 auto}' +
-                '.shikimori-full-list-button__text{display:none;margin-left:.55em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
-                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.05em!important;padding-right:1.05em!important}' +
+                '.shikimori-full-list-button__text{display:none;margin-left:.6em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
+                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.1em!important;padding-right:1.1em!important;transform:scale(1.05);box-shadow:0 8px 16px rgba(0,0,0,0.3)}' +
                 '.shikimori-full-list-button.focus .shikimori-full-list-button__text{display:inline-block}' +
-                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.16)!important;color:#fff!important}' +
+                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.14)!important;color:#fff!important}' +
                 '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
             '</style>'
         );
