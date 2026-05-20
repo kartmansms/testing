@@ -1,3 +1,5 @@
+--- START OF FILE text/javascript ---
+
 (function () {
     'use strict';
 
@@ -2597,7 +2599,8 @@
                 '.Shikimori.card .card__view{background:#15171e;border-radius:8px;overflow:hidden;position:relative;padding-bottom:145%;transition:transform 0.22s ease;box-shadow:0 4px 10px rgba(0,0,0,0.3)}' +
                 '.Shikimori.card .card__view::after{content:"";position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);pointer-events:none;z-index:1}' +
                 '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#22252d}' +
-                '.Shikimori.card.focus .card__view{transform:scale(1.04);box-shadow:0 10px 24px rgba(200,58,75,.35);z-index:5}' +
+                '.Shikimori.card.focus::before,.Shikimori.card.focus::after,.Shikimori.card.focus .card__view::before,.Shikimori.card.focus .card__view::after{content:none!important;display:none!important;border:none!important;box-shadow:none!important}' +
+                '.Shikimori.card.focus .card__view{transform:scale(1.04);box-shadow:0 0 0 3px #ffffff, 0 10px 24px rgba(0,0,0,0.5)!important;z-index:5;border:none!important}' +
                 '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.5em;padding:.25em .55em;border-radius:6px;font-size:.8em;font-weight:bold;line-height:1;color:#fff;z-index:2;backdrop-filter:blur(4px);box-shadow:0 2px 5px rgba(0,0,0,0.25)}' +
                 '.Shikimori-card__rating{left:.5em;background:rgba(21,23,30,.85);color:#ffca28;border:1px solid rgba(255,202,40,.2)}' +
                 '.Shikimori-card__badge{right:.5em;background:rgba(200,58,75,.88)}' +
