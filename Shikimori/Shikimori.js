@@ -1,5 +1,3 @@
---- START OF FILE text/javascript ---
-
 (function () {
     'use strict';
 
