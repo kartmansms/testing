@@ -23,7 +23,9 @@
             title_language: 'original',
             hide_adult: true,
             default_sort: 'popularity',
-            card_size: 'normal'
+            card_size: 'normal',
+            proxy_tmdb: true,
+            proxy_url: 'http://cub.red/plugin/tmdb-proxy'
         };
     }
 
@@ -292,6 +294,16 @@
         }
     }
 
+    function getTmdbUrl(url) {
+        var settings = readSettings();
+        if (settings.proxy_tmdb && settings.proxy_url) {
+            var proxy = String(settings.proxy_url);
+            if (proxy.slice(-1) !== '/') proxy += '/';
+            return String(url).replace('https://api.themoviedb.org/', proxy);
+        }
+        return url;
+    }
+
     function apiGetJson(url, success, error) {
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
@@ -388,7 +400,7 @@
             '?api_key=' + apiKey +
             '&language=' + encodeURIComponent(tmdbLanguage());
 
-        apiGetJson(url, function (res) {
+        apiGetJson(getTmdbUrl(url), function (res) {
             var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
 
             if (poster) {
@@ -435,7 +447,7 @@
                 '&language=' + encodeURIComponent(tmdbLanguage()) +
                 '&query=' + encodeURIComponent(query);
 
-            apiGetJson(url, function (res) {
+            apiGetJson(getTmdbUrl(url), function (res) {
                 var results = res && res.results ? res.results : [];
                 var best = null;
 
@@ -854,7 +866,7 @@
                 }
             };
 
-            apiGetJson(url, handleSuccess, tryNextQuery);
+            apiGetJson(getTmdbUrl(url), handleSuccess, tryNextQuery);
         }
 
         notify('Поиск в базе...');
@@ -1942,6 +1954,10 @@
                     value: 'clear_tmdb_cache'
                 },
                 {
+                    title: 'Настройки прокси TMDB',
+                    value: 'proxy'
+                },
+                {
                     title: 'Авторизация: ' + authStatusTitle(),
                     value: 'auth'
                 }
@@ -1964,6 +1980,9 @@
                         storageSet(POSTER_CACHE_KEY, {});
                         notify('Кэш поиска очищен');
                         return;
+                    } else if (item.value === 'proxy') {
+                        openProxySettings();
+                        return;
                     } else if (item.value === 'auth') {
                         openAuthSettings();
                         return;
@@ -1981,6 +2000,43 @@
                 },
                 onBack: function () {
                     Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function openProxySettings() {
+            var settings = readSettings();
+
+            var items = [
+                {
+                    title: 'Использовать прокси: ' + (settings.proxy_tmdb ? 'Вкл' : 'Выкл'),
+                    value: 'toggle'
+                },
+                {
+                    title: 'Ссылка на прокси',
+                    subtitle: settings.proxy_url,
+                    value: 'edit'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'Настройки прокси TMDB',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'toggle') {
+                        settings.proxy_tmdb = !settings.proxy_tmdb;
+                        saveSettings(settings);
+                        openProxySettings();
+                    } else if (item.value === 'edit') {
+                        askText('Ссылка на прокси', settings.proxy_url, function (value) {
+                            settings.proxy_url = value || 'http://cub.red/plugin/tmdb-proxy';
+                            saveSettings(settings);
+                            openProxySettings();
+                        });
+                    }
+                },
+                onBack: function () {
+                    openSettings();
                 }
             });
         }
