@@ -11,7 +11,7 @@
     var AUTH_KEY = 'shikimori_auth_v1';
 
     // Используем актуальный домен, чтобы избежать 301 редиректа и ошибок CORS на ТВ
-    var SHIKI_HOST = 'https://shikimori.one';
+    var SHIKI_HOST = 'https://shikimori.io';
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
