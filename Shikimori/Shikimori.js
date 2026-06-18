@@ -10,7 +10,7 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    var SHIKI_HOST = 'https://shikimori.io';
+    var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
@@ -25,7 +25,7 @@
             default_sort: 'popularity',
             card_size: 'normal',
             proxy_tmdb: true,
-            proxy_url: 'http://cub.red/plugin/tmdb-proxy'
+            proxy_url: 'https://apitmdb.cub.red'
         };
     }
 
@@ -279,11 +279,19 @@
 
     function tmdbPosterUrl(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
-
         if (!path) return '';
-        if (/^https?:\/\//.test(path)) return path;
 
-        return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
+        var settings = readSettings();
+        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
+
+        if (/^https?:\/\//.test(path)) {
+            if (settings.proxy_tmdb) {
+                return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
+            }
+            return path;
+        }
+
+        return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
     }
 
     function tmdbLanguage() {
@@ -297,9 +305,11 @@
     function getTmdbUrl(url) {
         var settings = readSettings();
         if (settings.proxy_tmdb && settings.proxy_url) {
-            var proxy = String(settings.proxy_url);
-            if (proxy.slice(-1) !== '/') proxy += '/';
-            return String(url).replace('https://api.themoviedb.org/', proxy);
+            var proxy = String(settings.proxy_url).trim();
+            if (proxy.slice(-1) === '/') {
+                proxy = proxy.slice(0, -1);
+            }
+            return String(url).replace('https://api.themoviedb.org', proxy);
         }
         return url;
     }
@@ -2028,8 +2038,8 @@
                         saveSettings(settings);
                         openProxySettings();
                     } else if (item.value === 'edit') {
-                        askText('Ссылка на прокси', settings.proxy_url, function (value) {
-                            settings.proxy_url = value || 'http://cub.red/plugin/tmdb-proxy';
+                        askText('Ссылка на прокси API', settings.proxy_url, function (value) {
+                            settings.proxy_url = value || 'https://apitmdb.cub.red';
                             saveSettings(settings);
                             openProxySettings();
                         });
@@ -2601,7 +2611,7 @@
                 '<div class="menu__ico">' +
                     '<svg viewBox="0 0 44 44" width="44" height="44">' +
                         '<circle cx="22" cy="22" r="19" fill="#c83a4b"/>' +
-                        '<path d="M13 29c2 3 5 5 9 5 6 0 10-3 10-8 0-4-2-6-8-8l-3-1c-3-1-4-2-4-4s2-3 5-3c3 0 5 1 7 3l3-4c-2-3-6-4-10-4-6 0-10 3-10 8 0 4 3 7 8 8l3 1c3 1 4 2 4 4s-2 3-5 3c-3 0-6-2-8-4l-1 4z" fill="#fff"/>' +
+                        '<path d="M13 29c2 3 5 5 9 5 6 0 10-3 10-8 0-4-2-6-8-8l-3-1c-3-1-4-2-4-4s2-3 5-3c3 0 5 1 7 3l3-4c-2-3-6-4-10-4-6 0-10 3-10 8 0 4 3 7 8 8l3 1c3 1 4 2-4 4s-2 3-5 3c-3 0-6-2-8-4l-1 4z" fill="#fff"/>' +
                     '</svg>' +
                 '</div>' +
                 '<div class="menu__text">Shikimori</div>' +
