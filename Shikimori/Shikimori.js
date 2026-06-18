@@ -232,11 +232,14 @@
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
         
+        var cleanHost = SHIKI_HOST.replace(/^https?:\/\//, '');
+
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
+            // Заменяем заблокированные домены на актуальный SHIKI_HOST
+            return url.replace('shikimori.one', cleanHost).replace('shikimori.me', cleanHost);
         }
 
-        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
+        return SHIKI_HOST + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
