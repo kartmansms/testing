@@ -14,10 +14,7 @@
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
-    var adultGenres = { 
-        hentai: true, erotica: true, yaoi: true, yuri: true,
-        'хентай': true, 'эротика': true, 'яой': true, 'юри': true
-    };
+    var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
 
@@ -194,15 +191,6 @@
             released: 'вышло'
         };
 
-        return map[status] || status || '';
-    }
-
-    function statusAiringName(status) {
-        var map = {
-            anons: 'анонсы',
-            ongoing: 'онгоинги',
-            released: 'вышедшие'
-        };
         return map[status] || status || '';
     }
 
@@ -838,6 +826,8 @@
 
                                 var isValidYear = false;
                                 if (item.media_type === 'tv') {
+                                    // TMDB tv year is the start of Season 1.
+                                    // Shikimori season year will be >= TMDB year.
                                     if (!itemYear || (shikiYear >= itemYear - 2 && shikiYear <= itemYear + 20)) {
                                         isValidYear = true;
                                     }
@@ -1375,24 +1365,16 @@
         var meta = [];
 
         var loadingSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440" viewBox="0 0 300 440">' +
-            '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">' +
-            '<stop offset="0%" stop-color="#1e2029"/>' +
-            '<stop offset="100%" stop-color="#12131a"/>' +
-            '</linearGradient></defs>' +
-            '<rect width="100%" height="100%" fill="url(#g)"/>' +
-            '<text x="50%" y="50%" fill="#555966" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">Загрузка...</text>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
+            '<rect width="100%" height="100%" fill="#22252d"/>' +
+            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Загрузка...</text>' +
             '</svg>'
         );
 
         var noPosterSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
-            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440" viewBox="0 0 300 440">' +
-            '<defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">' +
-            '<stop offset="0%" stop-color="#1e2029"/>' +
-            '<stop offset="100%" stop-color="#12131a"/>' +
-            '</linearGradient></defs>' +
-            '<rect width="100%" height="100%" fill="url(#g)"/>' +
-            '<text x="50%" y="50%" fill="#555966" font-family="system-ui, -apple-system, sans-serif" font-size="16" font-weight="bold" text-anchor="middle">Нет постера</text>' +
+            '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="440">' +
+            '<rect width="100%" height="100%" fill="#22252d"/>' +
+            '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="22" text-anchor="middle">Нет постера</text>' +
             '</svg>'
         );
 
@@ -1404,20 +1386,14 @@
 
         if (data.status) meta.push(statusName(data.status));
 
-        var statusClass = '';
-        if (data.status === 'anons') statusClass = ' Shikimori--anons';
-        else if (data.status === 'ongoing') statusClass = ' Shikimori--ongoing';
-
-        var ratingHtml = score !== '—' ? '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' : '';
-
         this.data = data;
 
         this.render = function () {
             var element = $(
-                '<div class="card Shikimori selector' + compact + statusClass + '" data-id="' + esc(data.id) + '">' +
+                '<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                     '<div class="card__view">' +
                         '<img class="card__img" src="' + imgSrc + '" />' +
-                        ratingHtml +
+                        '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
                     '</div>' +
                     '<div class="card__title">' + esc(titleOf(data)) + '</div>' +
@@ -1537,7 +1513,7 @@
             quick.empty();
             active.empty();
 
-            addHeadButton('Главная', function () {
+            addHeadButton('Главная', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', function () {
                 openWith({
                     page: 1,
                     sort: readSettings().default_sort,
@@ -1551,27 +1527,57 @@
                 });
             });
 
-            if (isAuthorized()) addHeadButton('Профиль', openProfile);
+            if (isAuthorized()) {
+                addHeadButton('Профиль', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>', openProfile);
+            }
 
-            addHeadButton('Поиск', openSearch);
-            addHeadButton('Фильтры', openFilters);
-            addHeadButton('Сезоны', openSeasons);
-            addHeadButton('Настройки', openSettings);
+            addHeadButton('Поиск', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', openSearch);
+            addHeadButton('Фильтры', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>', openFilters);
+            addHeadButton('Сезоны', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', openSeasons);
+            addHeadButton('Настройки', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>', openSettings);
 
             addQuick('Популярное', {
-                sort: 'popularity'
+                sort: 'popularity',
+                status: '',
+                kind: '',
+                season: '',
+                genre: '',
+                genre_title: '',
+                search: '',
+                mylist: ''
             });
 
             addQuick('Онгоинги', {
-                status: 'ongoing'
+                status: 'ongoing',
+                sort: 'popularity',
+                kind: '',
+                season: '',
+                genre: '',
+                genre_title: '',
+                search: '',
+                mylist: ''
             });
 
             addQuick('Анонсы', {
-                status: 'anons'
+                status: 'anons',
+                sort: 'popularity',
+                kind: '',
+                season: '',
+                genre: '',
+                genre_title: '',
+                search: '',
+                mylist: ''
             });
 
             addQuick('Фильмы', {
-                kind: 'movie'
+                kind: 'movie',
+                sort: 'popularity',
+                status: '',
+                season: '',
+                genre: '',
+                genre_title: '',
+                search: '',
+                mylist: ''
             });
 
             if (
@@ -1630,8 +1636,8 @@
             });
         }
 
-        function addHeadButton(title, action) {
-            var btn = $('<div class="simple-button selector Shikimori-head__button">' + esc(title) + '</div>');
+        function addHeadButton(title, iconSvg, action) {
+            var btn = $('<div class="simple-button selector Shikimori-head__button">' + iconSvg + '<span>' + esc(title) + '</span></div>');
 
             btn.on('hover:focus nav_focus', function () {
                 last = btn[0];
@@ -1646,12 +1652,7 @@
 
             if (selected) {
                 for (var key in values) {
-                    var val = values[key];
-                    var currentVal = params[key];
-                    if (key === 'sort' && !currentVal) {
-                        currentVal = readSettings().default_sort;
-                    }
-                    if (String(currentVal || '') !== String(val || '')) {
+                    if (String(key === 'sort' ? (params[key] || readSettings().default_sort) : (params[key] || '')) !== String(values[key] || '')) {
                         selected = false;
                         break;
                     }
@@ -1665,20 +1666,7 @@
             });
 
             bindPress(btn, function () {
-                if (reset) {
-                    openWith(values);
-                    return;
-                }
-
-                if (selected) {
-                    var offValues = {};
-                    for (var key in values) {
-                        offValues[key] = '';
-                    }
-                    openWith(offValues);
-                } else {
-                    openWith(values);
-                }
+                openWith(values);
             });
 
             quick.append(btn);
@@ -1699,7 +1687,7 @@
             if (params.mylist) parts.push('список: ' + mylistMap[params.mylist]);
             if (params.search) parts.push('поиск: ' + params.search);
             if (params.kind) parts.push('тип: ' + kindName(params.kind));
-            if (params.status) parts.push('статус: ' + statusAiringName(params.status));
+            if (params.status) parts.push('статус: ' + statusName(params.status));
             if (params.season) parts.push('сезон: ' + seasonName(params.season));
             if (params.genre) parts.push('жанр: ' + (params.genre_title || params.genre));
             if (params.sort && params.sort !== readSettings().default_sort) parts.push('сортировка: ' + sortName(params.sort));
@@ -2440,7 +2428,7 @@
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
 
         Lampa.Listener.follow('full', function (event) {
-            fullResolveCache = {};
+            fullResolveCache = {}; // очищаем кэш при открытии новой full страницы
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
         });
@@ -2561,8 +2549,8 @@
                     '</svg>' +
                 '</div>' +
                 '<div class="menu__text">Shikimori</div>' +
-            '</li>' +
-        '');
+            '</li>'
+        );
 
         button.on('hover:enter click tap mouseup', function () {
             Lampa.Activity.push({
@@ -2585,40 +2573,49 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
-                '.Shikimori-head,.Shikimori-quick{display:flex;flex-flow:row wrap;margin-bottom:1em}' +
-                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .6em .6em 0;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:.5em 1.2em;font-size:.92em;transition:all 0.2s ease}' +
-                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#ff5263;box-shadow:0 4px 12px rgba(200,58,75,.4);transform:translateY(-1px)}' +
-                '.Shikimori-chip--active{background:rgba(200,58,75,.2);border-color:rgba(200,58,75,.6);color:#ff8a95}' +
-                '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.55);margin:.1em 0 1.2em;line-height:1.35}' +
-                '.Shikimori-active span{color:#ff5263;font-weight:600}' +
-                '.Shikimori-body{display:flex;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
-                '.Shikimori.card{flex:0 0 16.666%;max-width:16.666%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.8em 0;position:relative}' +
-                '.Shikimori.card.Shikimori--compact{flex:0 0 11.111%;max-width:11.111%}' +
-                '.Shikimori.card .card__view{background:#15171e;border-radius:8px;overflow:hidden;position:relative;padding-bottom:145%;transition:transform 0.22s ease;box-shadow:0 4px 10px rgba(0,0,0,0.3)}' +
-                '.Shikimori.card .card__view::after{content:"";position:absolute;bottom:0;left:0;right:0;height:35%;background:linear-gradient(to top, rgba(0,0,0,0.6), transparent);pointer-events:none;z-index:1}' +
+                '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em;}' +
+                '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em;}' +
+                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{' +
+                    'display:inline-flex!important;align-items:center!important;justify-content:center!important;' +
+                    'padding:0.65em 1.2em!important;height:auto!important;line-height:1!important;' +
+                    'background:rgba(255,255,255,0.06)!important;border:1px solid rgba(255,255,255,0.04)!important;' +
+                    'color:rgba(255,255,255,0.85);font-size:0.95em;font-weight:500;margin:0 0.3em 0.3em 0!important;' +
+                    'transition:all 0.2s ease-in-out;border-radius:0.5em!important;outline:none!important;box-shadow:none!important;' +
+                '}' +
+                '.Shikimori-chip{border-radius:1.5em!important;padding:0.5em 1.2em!important;font-size:0.88em;opacity:0.85;}' +
+                '.Shikimori-head__button svg{width:1.15em;height:1.15em;margin-right:0.45em;opacity:0.85;flex-shrink:0;transition:transform 0.2s;}' +
+                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{' +
+                    'background:#c83a4b!important;color:#fff!important;' +
+                    'border-color:#e95a68!important;transform:scale(1.05);' +
+                    'box-shadow:0 0.4em 1.2em rgba(200,58,75,0.35)!important;' +
+                '}' +
+                '.Shikimori-head__button.focus svg{transform:scale(1.1);opacity:1;}' +
+                '.Shikimori-chip--active{background:rgba(200,58,75,0.22)!important;border-color:rgba(200,58,75,0.55)!important;color:#ff8e9b!important;opacity:1;}' +
+                '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
+                '.Shikimori-active span{color:#e95a68;font-weight:600}' +
+                '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
+                '.Shikimori.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+                '.Shikimori.card.Shikimori--compact{flex:0 0 10%;max-width:10%}' +
+                '.Shikimori.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
                 '.Shikimori.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#22252d}' +
-                '.Shikimori.card.focus::before,.Shikimori.card.focus::after,.Shikimori.card.focus .card__view::before,.Shikimori.card.focus .card__view::after{content:none!important;display:none!important;border:none!important;box-shadow:none!important}' +
-                '.Shikimori.card.focus .card__view{transform:scale(1.04);box-shadow:0 0 0 3px #ffffff, 0 10px 24px rgba(0,0,0,0.5)!important;z-index:5;border:none!important}' +
-                '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.5em;padding:.25em .55em;border-radius:6px;font-size:.8em;font-weight:bold;line-height:1;color:#fff;z-index:2;backdrop-filter:blur(4px);box-shadow:0 2px 5px rgba(0,0,0,0.25)}' +
-                '.Shikimori-card__rating{left:.5em;background:rgba(21,23,30,.85);color:#ffca28;border:1px solid rgba(255,202,40,.2)}' +
-                '.Shikimori-card__badge{right:.5em;background:rgba(200,58,75,.88)}' +
-                '.Shikimori--anons .Shikimori-card__badge{background:rgba(230,126,34,.92)!important}' +
-                '.Shikimori--ongoing .Shikimori-card__badge{background:rgba(39,174,96,.92)!important}' +
-                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.5em;padding:.25em .55em;border-radius:6px;background:rgba(21,23,30,.85);font-size:.8em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
-                '.Shikimori.card .card__title{font-size:.95em;font-weight:500;line-height:1.3;max-height:2.6em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin-top:.6em;color:#eee;transition:color 0.2s ease}' +
-                '.Shikimori.card.focus .card__title{color:#fff}' +
-                '.Shikimori-card__meta{font-size:.8em;line-height:1.25;color:rgba(255,255,255,.45);height:2.35em;overflow:hidden;margin-top:.3em;transition:color 0.2s ease}' +
-                '.Shikimori.card.focus .Shikimori-card__meta{color:rgba(255,255,255,.75)}' +
-                '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.6);padding:2.5em 0}' +
-                '.Shikimori-loader--more{width:100%;font-size:1em;padding:1.5em 0;color:rgba(255,255,255,.4)}' +
-                '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:1.5em}' +
-                '.shikimori-list-active{background:rgba(255,255,255,.14);border-color:rgba(255,255,255,.18);color:#fff}' +
-                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;border-radius:8px!important;transition:all 0.2s ease!important;overflow:visible!important}' +
+                '.Shikimori.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(200,58,75,.45)}' +
+                '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
+                '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
+                '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
+                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
+                '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
+                '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+                '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
+                '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
+                '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
+
+                '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;overflow:visible!important}' +
                 '.shikimori-full-list-button svg{display:block;pointer-events:none;flex:0 0 auto}' +
-                '.shikimori-full-list-button__text{display:none;margin-left:.6em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
-                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.1em!important;padding-right:1.1em!important;transform:scale(1.05);box-shadow:0 8px 16px rgba(0,0,0,0.3)}' +
+                '.shikimori-full-list-button__text{display:none;margin-left:.55em;font-size:.95em;font-weight:500;line-height:1;white-space:nowrap}' +
+                '.full-start__button.shikimori-full-list-button.focus,.full-start-new__button.shikimori-full-list-button.focus,.shikimori-full-list-button.focus{background:#fff!important;color:#222!important;border-color:#fff!important;width:auto!important;min-width:0!important;padding-left:1.05em!important;padding-right:1.05em!important}' +
                 '.shikimori-full-list-button.focus .shikimori-full-list-button__text{display:inline-block}' +
-                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.14)!important;color:#fff!important}' +
+                '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.16)!important;color:#fff!important}' +
                 '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
             '</style>'
         );
