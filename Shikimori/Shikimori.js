@@ -10,8 +10,6 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    // Используем актуальный домен, чтобы избежать 301 редиректа и ошибок CORS на ТВ
-    var SHIKI_HOST = 'https://shikimori.io';
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
@@ -26,7 +24,8 @@
             default_sort: 'popularity',
             card_size: 'normal',
             proxy_tmdb: true,
-            proxy_url: 'https://apitmdb.cub.red'
+            proxy_url: 'https://apitmdb.cub.red',
+            shiki_host: 'https://shikimori.one'
         };
     }
 
@@ -84,6 +83,11 @@
 
     function saveSettings(settings) {
         storageSet(SETTINGS_KEY, settings || defaults());
+    }
+
+    function getShikiHost() {
+        var settings = readSettings();
+        return (settings.shiki_host || 'https://shikimori.one').replace(/\/$/, '');
     }
 
     function defaultAuth() {
@@ -232,14 +236,14 @@
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
         
-        var cleanHost = SHIKI_HOST.replace(/^https?:\/\//, '');
+        var shikiHost = getShikiHost();
+        var cleanHost = shikiHost.replace(/^https?:\/\//, '');
 
         if (/^https?:\/\//.test(url)) {
-            // Заменяем заблокированные домены на актуальный SHIKI_HOST
-            return url.replace('shikimori.one', cleanHost).replace('shikimori.me', cleanHost);
+            return url.replace('shikimori.one', cleanHost).replace('shikimori.me', cleanHost).replace('shikimori.io', cleanHost);
         }
 
-        return SHIKI_HOST + (url.indexOf('/') === 0 ? url : '/' + url);
+        return shikiHost + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -285,6 +289,15 @@
         path = path === undefined || path === null ? '' : String(path).trim();
         if (!path) return '';
 
+        if (window.Lampa) {
+            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+                return Lampa.Api.img(path);
+            }
+            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+                return Lampa.TMDB.image(path);
+            }
+        }
+
         var settings = readSettings();
         var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
 
@@ -308,23 +321,44 @@
 
     function getTmdbUrl(url) {
         var settings = readSettings();
-        if (settings.proxy_tmdb && settings.proxy_url) {
-            var proxy = String(settings.proxy_url).trim();
-            if (proxy.slice(-1) === '/') {
-                proxy = proxy.slice(0, -1);
+        var proxyUrl = '';
+
+        if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
+            if (Lampa.Storage.get('proxy_tmdb')) {
+                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link');
             }
-            return String(url).replace('https://api.themoviedb.org', proxy);
         }
+
+        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
+            proxyUrl = settings.proxy_url;
+        }
+
+        if (proxyUrl) {
+            proxyUrl = String(proxyUrl).trim();
+            if (proxyUrl.slice(-1) === '/') {
+                proxyUrl = proxyUrl.slice(0, -1);
+            }
+            return String(url).replace('https://api.themoviedb.org', proxyUrl);
+        }
+
         return url;
     }
 
-    function apiGetJson(url, success, error) {
+    function apiCall(options, success, error) {
+        var url = options.url;
+        var method = options.method || 'GET';
+        var headers = options.headers || {};
+        var data = options.data || null;
+
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
-                if (typeof network.timeout === 'function') network.timeout(15000); // увеличено для ТВ
+                if (typeof network.timeout === 'function') network.timeout(15000);
                 if (typeof network.silent === 'function') {
-                    network.silent(url, success, error || function () {});
+                    network.silent(url, success, error || function () {}, data, {
+                        headers: headers,
+                        method: method
+                    });
                     return;
                 }
             } catch (e) {}
@@ -333,14 +367,21 @@
         if (window.$) {
             $.ajax({
                 url: url,
+                method: method,
+                headers: headers,
+                data: data,
                 dataType: 'json',
-                timeout: 15000, // увеличено для ТВ
+                timeout: 15000,
                 success: success,
                 error: error || function () {}
             });
         } else {
-            console.error('Shikimori: no network method available');
+            if (error) error();
         }
+    }
+
+    function apiGetJson(url, success, error) {
+        apiCall({ url: url, method: 'GET' }, success, error);
     }
 
     function buildSmartQueries(value, queriesArray) {
@@ -664,7 +705,7 @@
             return;
         }
 
-        var url = SHIKI_HOST + '/api/genres';
+        var url = getShikiHost() + '/api/genres';
 
         var onSuccess = function (genres) {
             if (!genres || !genres.length) {
@@ -688,7 +729,7 @@
         var sort = params.sort || readSettings().default_sort;
 
         var doREST = function (token) {
-            var url = SHIKI_HOST + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
+            var url = getShikiHost() + '/api/animes?limit=' + PAGE_LIMIT + '&page=' + page + '&order=' + encodeURIComponent(sort);
 
             if (params.search) url += '&search=' + encodeURIComponent(params.search);
             if (params.kind) url += '&kind=' + encodeURIComponent(params.kind);
@@ -745,15 +786,11 @@
             };
 
             if (token) {
-                $.ajax({
+                apiCall({
                     url: url,
                     method: 'GET',
-                    headers: headers,
-                    dataType: 'json',
-                    timeout: 15000,
-                    success: onSuccess,
-                    error: onError
-                });
+                    headers: headers
+                }, onSuccess, onError);
             } else {
                 apiGetJson(url, onSuccess, onError);
             }
@@ -885,14 +922,25 @@
     }
 
     function openTmdb(item, shiki) {
+        var rawId = item.id || item.tmdb_id || item.themoviedb;
+        var movieId = parseInt(rawId, 10);
+
+        if (!movieId || isNaN(movieId)) {
+            openLampaSearch(shiki);
+            return;
+        }
+
         var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
+        if (type !== 'movie' && type !== 'tv') {
+            type = (shiki.kind === 'movie' || shiki.kind === 'special') ? 'movie' : 'tv';
+        }
 
         var mainTitle = titleOf(shiki) || item.title || item.name;
         var secTitle = originalTitleOf(shiki) || item.original_title || item.original_name || shiki.name;
         var shikiPoster = posterOf(shiki);
 
         var movie = {
-            id: item.id || item.tmdb_id || item.themoviedb,
+            id: movieId,
             title: mainTitle,
             original_title: secTitle,
             name: mainTitle,
@@ -904,17 +952,12 @@
             shikimori: shiki
         };
 
-        if (!movie.id) {
-            openLampaSearch(shiki);
-            return;
-        }
-
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
 
         if (!tmdbCache[shiki.id] || tmdbCache[shiki.id].id !== movie.id) {
             tmdbCache[shiki.id] = {
                 id: movie.id,
-                type: type === 'movie' ? 'movie' : 'tv'
+                type: type
             };
 
             storageSet(TMDB_CACHE_KEY, tmdbCache);
@@ -925,7 +968,7 @@
             title: movie.title,
             component: 'full',
             id: movie.id,
-            method: type === 'movie' ? 'movie' : 'tv',
+            method: type,
             card: movie,
             source: 'tmdb'
         });
@@ -936,7 +979,7 @@
 
         if (!auth.client_id || !auth.redirect_uri) return '';
 
-        return SHIKI_HOST +
+        return getShikiHost() +
             '/oauth/authorize?client_id=' + encodeURIComponent(auth.client_id) +
             '&redirect_uri=' + encodeURIComponent(auth.redirect_uri) +
             '&response_type=code&scope=user_rates';
@@ -950,25 +993,21 @@
             return;
         }
 
-        $.ajax({
-            url: SHIKI_HOST + '/oauth/token',
+        apiCall({
+            url: getShikiHost() + '/oauth/token',
             method: 'POST',
-            dataType: 'json',
-            timeout: 15000,
             data: {
                 grant_type: 'authorization_code',
                 client_id: auth.client_id,
                 client_secret: auth.client_secret,
                 code: code,
                 redirect_uri: auth.redirect_uri
-            },
-            success: function (answer) {
-                saveTokenAnswer(answer);
-                if (callback) callback();
-            },
-            error: function () {
-                notify('Shikimori: не удалось получить токен');
             }
+        }, function (answer) {
+            saveTokenAnswer(answer);
+            if (callback) callback();
+        }, function () {
+            notify('Shikimori: не удалось получить токен');
         });
     }
 
@@ -980,24 +1019,20 @@
             return;
         }
 
-        $.ajax({
-            url: SHIKI_HOST + '/oauth/token',
+        apiCall({
+            url: getShikiHost() + '/oauth/token',
             method: 'POST',
-            dataType: 'json',
-            timeout: 15000,
             data: {
                 grant_type: 'refresh_token',
                 client_id: auth.client_id,
                 client_secret: auth.client_secret,
                 refresh_token: auth.refresh_token
-            },
-            success: function (answer) {
-                saveTokenAnswer(answer);
-                if (callback) callback();
-            },
-            error: function () {
-                notify('Shikimori: не удалось обновить токен');
             }
+        }, function (answer) {
+            saveTokenAnswer(answer);
+            if (callback) callback();
+        }, function () {
+            notify('Shikimori: не удалось обновить токен');
         });
     }
 
@@ -1033,27 +1068,23 @@
 
     function loadWhoami() {
         withAccessToken(function (token) {
-            $.ajax({
-                url: SHIKI_HOST + '/api/users/whoami',
+            apiCall({
+                url: getShikiHost() + '/api/users/whoami',
                 method: 'GET',
-                dataType: 'json',
-                timeout: 12000,
                 headers: {
                     Authorization: 'Bearer ' + token
-                },
-                success: function (user) {
-                    var auth = readAuth();
-
-                    auth.id = user && user.id ? user.id : 0;
-                    auth.nickname = user && user.nickname ? user.nickname : '';
-
-                    saveAuth(auth);
-
-                    notify(auth.nickname ? 'Shikimori: ' + auth.nickname : 'Shikimori: профиль получен');
-                },
-                error: function () {
-                    notify('Shikimori: не удалось проверить профиль');
                 }
+            }, function (user) {
+                var auth = readAuth();
+
+                auth.id = user && user.id ? user.id : 0;
+                auth.nickname = user && user.nickname ? user.nickname : '';
+
+                saveAuth(auth);
+
+                notify(auth.nickname ? 'Shikimori: ' + auth.nickname : 'Shikimori: профиль получен');
+            }, function () {
+                notify('Shikimori: не удалось проверить профиль');
             });
         });
     }
@@ -1067,20 +1098,16 @@
         }
 
         withAccessToken(function (token) {
-            $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates?user_id=' + auth.id + '&target_id=' + animeId + '&target_type=Anime',
+            apiCall({
+                url: getShikiHost() + '/api/v2/user_rates?user_id=' + auth.id + '&target_id=' + animeId + '&target_type=Anime',
                 method: 'GET',
-                dataType: 'json',
-                timeout: 10000,
                 headers: {
                     Authorization: 'Bearer ' + token
-                },
-                success: function (res) {
-                    callback(res && res.length ? res[0] : null);
-                },
-                error: function () {
-                    callback(null);
                 }
+            }, function (res) {
+                callback(res && res.length ? res[0] : null);
+            }, function () {
+                callback(null);
             });
         });
     }
@@ -1099,24 +1126,20 @@
 
             for (var k in data) payload.user_rate[k] = data[k];
 
-            $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates' + (rateId ? '/' + rateId : ''),
+            apiCall({
+                url: getShikiHost() + '/api/v2/user_rates' + (rateId ? '/' + rateId : ''),
                 method: rateId ? 'PATCH' : 'POST',
-                dataType: 'json',
-                timeout: 10000,
                 headers: {
                     Authorization: 'Bearer ' + token
                 },
-                data: payload,
-                success: function (res) {
-                    callback(res);
-                },
-                error: function (xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка сохранения в список Shikimori');
-                    }
+                data: payload
+            }, function (res) {
+                callback(res);
+            }, function (xhr) {
+                if (xhr && (xhr.status === 403 || xhr.status === 401)) {
+                    notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                } else {
+                    notify('Ошибка сохранения в список Shikimori');
                 }
             });
         });
@@ -1124,22 +1147,19 @@
 
     function deleteUserRate(rateId, callback) {
         withAccessToken(function (token) {
-            $.ajax({
-                url: SHIKI_HOST + '/api/v2/user_rates/' + rateId,
+            apiCall({
+                url: getShikiHost() + '/api/v2/user_rates/' + rateId,
                 method: 'DELETE',
-                timeout: 10000,
                 headers: {
                     Authorization: 'Bearer ' + token
-                },
-                success: function () {
-                    callback();
-                },
-                error: function (xhr) {
-                    if (xhr.status === 403 || xhr.status === 401) {
-                        notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
-                    } else {
-                        notify('Ошибка удаления из Shikimori');
-                    }
+                }
+            }, function () {
+                callback();
+            }, function (xhr) {
+                if (xhr && (xhr.status === 403 || xhr.status === 401)) {
+                    notify('Ошибка прав! Выйдите из профиля и авторизуйтесь заново.');
+                } else {
+                    notify('Ошибка удаления из Shikimori');
                 }
             });
         });
@@ -1746,52 +1766,48 @@
                     return;
                 }
 
-                $.ajax({
-                    url: SHIKI_HOST + '/api/users/' + auth.id,
+                apiCall({
+                    url: getShikiHost() + '/api/users/' + auth.id,
                     method: 'GET',
-                    dataType: 'json',
-                    timeout: 12000,
                     headers: {
                         Authorization: 'Bearer ' + token
-                    },
-                    success: function (user) {
-                        var stats = (user.stats && user.stats.statuses && user.stats.statuses.anime) || [];
-                        var map = {};
-
-                        for (var i = 0; i < stats.length; i++) map[stats[i].name] = stats[i].size;
-
-                        var items = [
-                            { title: 'Смотрю (' + (map.watching || 0) + ')', value: 'watching' },
-                            { title: 'Запланировано (' + (map.planned || 0) + ')', value: 'planned' },
-                            { title: 'Пересматриваю (' + (map.rewatching || 0) + ')', value: 'rewatching' },
-                            { title: 'Просмотрено (' + (map.completed || 0) + ')', value: 'completed' },
-                            { title: 'Отложено (' + (map.on_hold || 0) + ')', value: 'on_hold' },
-                            { title: 'Брошено (' + (map.dropped || 0) + ')', value: 'dropped' }
-                        ];
-
-                        Lampa.Select.show({
-                            title: 'Профиль: ' + auth.nickname,
-                            items: items,
-                            onSelect: function (item) {
-                                openWith({
-                                    mylist: item.value,
-                                    page: 1,
-                                    search: '',
-                                    status: '',
-                                    kind: '',
-                                    season: '',
-                                    genre: '',
-                                    genre_title: ''
-                                });
-                            },
-                            onBack: function () {
-                                Lampa.Controller.toggle('content');
-                            }
-                        });
-                    },
-                    error: function () {
-                        notify('Shikimori: не удалось загрузить профиль');
                     }
+                }, function (user) {
+                    var stats = (user.stats && user.stats.statuses && user.stats.statuses.anime) || [];
+                    var map = {};
+
+                    for (var i = 0; i < stats.length; i++) map[stats[i].name] = stats[i].size;
+
+                    var items = [
+                        { title: 'Смотрю (' + (map.watching || 0) + ')', value: 'watching' },
+                        { title: 'Запланировано (' + (map.planned || 0) + ')', value: 'planned' },
+                        { title: 'Пересматриваю (' + (map.rewatching || 0) + ')', value: 'rewatching' },
+                        { title: 'Просмотрено (' + (map.completed || 0) + ')', value: 'completed' },
+                        { title: 'Отложено (' + (map.on_hold || 0) + ')', value: 'on_hold' },
+                        { title: 'Брошено (' + (map.dropped || 0) + ')', value: 'dropped' }
+                    ];
+
+                    Lampa.Select.show({
+                        title: 'Профиль: ' + auth.nickname,
+                        items: items,
+                        onSelect: function (item) {
+                            openWith({
+                                mylist: item.value,
+                                page: 1,
+                                search: '',
+                                status: '',
+                                kind: '',
+                                season: '',
+                                genre: '',
+                                genre_title: ''
+                            });
+                        },
+                        onBack: function () {
+                            Lampa.Controller.toggle('content');
+                        }
+                    });
+                }, function () {
+                    notify('Shikimori: не удалось загрузить профиль');
                 });
             });
         }
@@ -1946,6 +1962,10 @@
                     value: 'card_size'
                 },
                 {
+                    title: 'Домен Shikimori: ' + (settings.shiki_host || 'https://shikimori.one'),
+                    value: 'shiki_host'
+                },
+                {
                     title: 'Очистить кэш поиска TMDB',
                     value: 'clear_tmdb_cache'
                 },
@@ -1971,6 +1991,9 @@
                         settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                     } else if (item.value === 'card_size') {
                         settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
+                    } else if (item.value === 'shiki_host') {
+                        openShikiHostSettings();
+                        return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
@@ -1996,6 +2019,39 @@
                 },
                 onBack: function () {
                     Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function openShikiHostSettings() {
+            var settings = readSettings();
+            var items = [
+                { title: 'shikimori.one', value: 'https://shikimori.one' },
+                { title: 'shikimori.io', value: 'https://shikimori.io' },
+                { title: 'shikimori.me', value: 'https://shikimori.me' },
+                { title: 'Ввести вручную', value: 'custom' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Домен Shikimori',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'custom') {
+                        askText('Домен Shikimori (с https://)', settings.shiki_host, function (value) {
+                            if (value) {
+                                settings.shiki_host = value;
+                                saveSettings(settings);
+                            }
+                            openSettings();
+                        });
+                    } else {
+                        settings.shiki_host = item.value;
+                        saveSettings(settings);
+                        openSettings();
+                    }
+                },
+                onBack: function () {
+                    openSettings();
                 }
             });
         }
@@ -2327,7 +2383,7 @@
         }
 
         apiGetJson(
-            SHIKI_HOST + '/api/animes/' + encodeURIComponent(id),
+            getShikiHost() + '/api/animes/' + encodeURIComponent(id),
             function (anime) {
                 callback(anime && anime.id ? mapShikiAnime(anime) : null);
             },
@@ -2362,7 +2418,7 @@
             }
 
             var query = queries[index++];
-            var url = SHIKI_HOST + '/api/animes?limit=10&search=' + encodeURIComponent(query);
+            var url = getShikiHost() + '/api/animes?limit=10&search=' + encodeURIComponent(query);
 
             apiGetJson(url, function (list) {
                 var best = null;
@@ -2480,7 +2536,7 @@
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
 
         Lampa.Listener.follow('full', function (event) {
-            fullResolveCache = {}; // очищаем кэш при открытии новой full страницы
+            fullResolveCache = {};
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
         });
