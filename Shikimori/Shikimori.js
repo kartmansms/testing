@@ -10,7 +10,8 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    var SHIKI_HOST = 'https://shikimori.io';
+    // Используем актуальный домен, чтобы избежать 301 редиректа и ошибок CORS на ТВ
+    var SHIKI_HOST = 'https://shikimori.one';
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
@@ -318,7 +319,7 @@
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
-                if (typeof network.timeout === 'function') network.timeout(8000);
+                if (typeof network.timeout === 'function') network.timeout(15000); // увеличено для ТВ
                 if (typeof network.silent === 'function') {
                     network.silent(url, success, error || function () {});
                     return;
@@ -330,7 +331,7 @@
             $.ajax({
                 url: url,
                 dataType: 'json',
-                timeout: 8000,
+                timeout: 15000, // увеличено для ТВ
                 success: success,
                 error: error || function () {}
             });
@@ -676,26 +677,10 @@
             callback([]);
         };
 
-        if (window.Lampa && typeof Lampa.Reguest === 'function') {
-            try {
-                var network = new Lampa.Reguest();
-                network.timeout(12000);
-                network.silent(url, onSuccess, onError);
-            } catch (e) {
-                $.ajax({ url: url, dataType: 'json', timeout: 12000, success: onSuccess, error: onError });
-            }
-        } else {
-            $.ajax({
-                url: url,
-                dataType: 'json',
-                timeout: 12000,
-                success: onSuccess,
-                error: onError
-            });
-        }
+        apiGetJson(url, onSuccess, onError);
     }
 
-    function requestAnime(params, oncomplete, onerror) {
+    function requestAnime(params, oncomplete, onerror_cb) {
         var page = parseInt(params.page, 10) || 1;
         var sort = params.sort || readSettings().default_sort;
 
@@ -753,7 +738,7 @@
 
             var onError = function (xhr) {
                 notify('Shikimori: не удалось загрузить каталог');
-                if (onerror) onerror(xhr);
+                if (onerror_cb) onerror_cb(xhr);
             };
 
             if (token) {
@@ -848,8 +833,6 @@
 
                                 var isValidYear = false;
                                 if (item.media_type === 'tv') {
-                                    // TMDB tv year is the start of Season 1.
-                                    // Shikimori season year will be >= TMDB year.
                                     if (!itemYear || (shikiYear >= itemYear - 2 && shikiYear <= itemYear + 20)) {
                                         isValidYear = true;
                                     }
