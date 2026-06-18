@@ -23,7 +23,10 @@
             title_language: 'original',
             hide_adult: true,
             default_sort: 'popularity',
-            card_size: 'normal'
+            card_size: 'normal',
+            tmdb_proxy: 'auto', // 'auto', 'cub', 'custom', 'none'
+            tmdb_proxy_url: '',
+            tmdb_proxy_image_url: ''
         };
     }
 
@@ -275,13 +278,59 @@
         return list.length ? list[0] : '';
     }
 
+    function tmdbApiUrl(path) {
+        var settings = readSettings();
+        var base = 'https://api.themoviedb.org/3/';
+
+        if (settings.tmdb_proxy === 'cub') {
+            base = 'https://apitmdb.cub.red/3/';
+        } else if (settings.tmdb_proxy === 'custom' && settings.tmdb_proxy_url) {
+            base = settings.tmdb_proxy_url;
+            if (base.slice(-1) !== '/') base += '/';
+        } else if (settings.tmdb_proxy === 'auto') {
+            var lampaApiProxy = '';
+            try {
+                if (window.Lampa) {
+                    lampaApiProxy = Lampa.Storage.get('tmdb_proxy_api') || Lampa.Storage.get('proxy_tmdb_api') || '';
+                }
+            } catch (e) {}
+
+            if (lampaApiProxy) {
+                base = lampaApiProxy;
+                if (base.slice(-1) !== '/') base += '/';
+            }
+        }
+
+        return base + (path.indexOf('/') === 0 ? path.substring(1) : path);
+    }
+
     function tmdbPosterUrl(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
 
         if (!path) return '';
-        if (/^https?:\/\//.test(path)) return path;
 
-        return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
+        if (/^https?:\/\/image\.tmdb\.org\/t\/p\/w\d+/.test(path)) {
+            path = path.replace(/^https?:\/\/image\.tmdb\.org\/t\/p\/w\d+/, '');
+        }
+
+        var cleanPath = path.indexOf('/') === 0 ? path : '/' + path;
+
+        // 1. Попытка использовать встроенный в Lampa метод проксирования картинок
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image('t/p/w342' + cleanPath);
+        }
+
+        // 2. Использование ручных настроек прокси в плагине
+        var settings = readSettings();
+        if (settings.tmdb_proxy === 'cub') {
+            return 'https://imagetmdb.com/t/p/w342' + cleanPath;
+        } else if (settings.tmdb_proxy === 'custom' && settings.tmdb_proxy_image_url) {
+            var imgBase = settings.tmdb_proxy_image_url;
+            if (imgBase.slice(-1) !== '/') imgBase += '/';
+            return imgBase + 't/p/w342' + cleanPath;
+        }
+
+        return 'https://image.tmdb.org/t/p/w342' + cleanPath;
     }
 
     function tmdbLanguage() {
@@ -383,10 +432,9 @@
 
         type = type === 'movie' ? 'movie' : 'tv';
 
-        var url = 'https://api.themoviedb.org/3/' + type +
-            '/' + encodeURIComponent(tmdbId) +
+        var url = tmdbApiUrl(type + '/' + encodeURIComponent(tmdbId) +
             '?api_key=' + apiKey +
-            '&language=' + encodeURIComponent(tmdbLanguage());
+            '&language=' + encodeURIComponent(tmdbLanguage()));
 
         apiGetJson(url, function (res) {
             var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
@@ -431,9 +479,9 @@
 
             var query = queries[index++];
 
-            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + apiKey +
+            var url = tmdbApiUrl('search/multi?api_key=' + apiKey +
                 '&language=' + encodeURIComponent(tmdbLanguage()) +
-                '&query=' + encodeURIComponent(query);
+                '&query=' + encodeURIComponent(query));
 
             apiGetJson(url, function (res) {
                 var results = res && res.results ? res.results : [];
@@ -802,12 +850,10 @@
             var currentQuery = queries[currentIndex++];
             var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
             var lang = (window.Lampa && Lampa.Storage) ? Lampa.Storage.get('language', 'ru') : 'ru';
-            var baseUrl = 'https://api.themoviedb.org/3/';
 
-            var url = baseUrl +
-                'search/multi?api_key=' + apiKey +
+            var url = tmdbApiUrl('search/multi?api_key=' + apiKey +
                 '&language=' + lang +
-                '&query=' + encodeURIComponent(currentQuery);
+                '&query=' + encodeURIComponent(currentQuery));
 
             var handleSuccess = function (res) {
                 if (res && res.results && res.results.length > 0) {
@@ -1938,6 +1984,10 @@
                     value: 'card_size'
                 },
                 {
+                    title: 'Прокси TMDB: ' + (settings.tmdb_proxy === 'auto' ? 'авто' : (settings.tmdb_proxy === 'cub' ? 'CUB' : (settings.tmdb_proxy === 'custom' ? 'свой' : 'выкл'))),
+                    value: 'tmdb_proxy'
+                },
+                {
                     title: 'Очистить кэш поиска TMDB',
                     value: 'clear_tmdb_cache'
                 },
@@ -1959,6 +2009,27 @@
                         settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                     } else if (item.value === 'card_size') {
                         settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
+                    } else if (item.value === 'tmdb_proxy') {
+                        settings.tmdb_proxy = settings.tmdb_proxy === 'auto' ? 'cub' : (settings.tmdb_proxy === 'cub' ? 'custom' : (settings.tmdb_proxy === 'custom' ? 'none' : 'auto'));
+                        
+                        saveSettings(settings);
+                        
+                        if (settings.tmdb_proxy === 'custom') {
+                            askText('API Прокси URL (например, http://ip:9118/tmdb/)', settings.tmdb_proxy_url || 'https://apitmdb.cub.red/3/', function (urlVal) {
+                                if (urlVal) {
+                                    settings.tmdb_proxy_url = urlVal;
+                                    saveSettings(settings);
+                                }
+                                
+                                askText('Image Прокси URL (например, http://ip:9118/proxyimg/)', settings.tmdb_proxy_image_url || 'https://imagetmdb.com/', function (imgVal) {
+                                    if (imgVal) {
+                                        settings.tmdb_proxy_image_url = imgVal;
+                                        saveSettings(settings);
+                                    }
+                                    notify('Настройки прокси сохранены');
+                                });
+                            });
+                        }
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
@@ -1972,7 +2043,7 @@
                     saveSettings(settings);
                     notify('Настройки Shikimori сохранены');
 
-                    if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
+                    if (['title_language', 'hide_adult', 'default_sort', 'card_size', 'tmdb_proxy'].indexOf(item.value) !== -1) {
                         openWith({
                             page: 1,
                             sort: settings.default_sort
