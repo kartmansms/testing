@@ -722,6 +722,186 @@ function tmdbPosterUrl(path) {
         if (!urls.length) tryExternalPoster();
     }
 
+    function extractTmdbPosterPath(url) {
+        url = url === undefined || url === null ? '' : String(url).trim();
+
+        if (!url) return '';
+
+        var match = url.match(/\/t\/p\/(?:original|w\d+)(\/[^?#]+)/i);
+        if (match && match[1]) return match[1];
+
+        if (/^https?:\/\//i.test(url)) {
+            if (/image\.tmdb\.org|imagetmdb\./i.test(url)) {
+                var pathMatch = url.match(/^https?:\/\/[^\/]+(\/[^?#]+)/i);
+                return pathMatch && pathMatch[1] ? pathMatch[1] : '';
+            }
+            return '';
+        }
+
+        if (url.indexOf('/t/p/') === 0) {
+            return url.replace(/^\/t\/p\/(?:original|w\d+)/i, '') || '';
+        }
+
+        return url.indexOf('/') === 0 ? url : '/' + url;
+    }
+
+    function isTmdbPosterUrl(url) {
+        url = url === undefined || url === null ? '' : String(url);
+        return /image\.tmdb\.org|imagetmdb\.|\/t\/p\/(?:original|w\d+)/i.test(url);
+    }
+
+    function getTmdbImageBaseUrl() {
+        var settings = readSettings();
+        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
+        var proxyUrl = settings.proxy_url ? String(settings.proxy_url).trim() : '';
+
+        if (settings.proxy_tmdb && proxyUrl) {
+            proxyUrl = proxyUrl.replace(/\/+$/, '');
+
+            if (!/^https?:\/\//i.test(proxyUrl)) proxyUrl = 'https://' + proxyUrl;
+
+            if (/apitmdb\./i.test(proxyUrl)) {
+                baseUrl = proxyUrl.replace(/apitmdb\./i, 'imagetmdb.') + '/t/p/w342';
+            }
+        }
+
+        return baseUrl;
+    }
+
+    function normalizeExternalPosterUrl(url) {
+        url = url === undefined || url === null ? '' : String(url).trim();
+
+        if (!url) return '';
+        if (isTmdbPosterUrl(url)) return tmdbPosterUrl(url);
+
+        return url;
+    }
+
+    function tmdbPosterUrl(path) {
+        path = path === undefined || path === null ? '' : String(path).trim();
+        if (!path) return '';
+
+        var posterPath = extractTmdbPosterPath(path);
+
+        if (window.Lampa && posterPath) {
+            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+                return Lampa.TMDB.image(posterPath);
+            }
+            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+                return Lampa.Api.img(posterPath);
+            }
+        }
+
+        if (/^https?:\/\//i.test(path) && !isTmdbPosterUrl(path)) return path;
+        if (!posterPath) return '';
+
+        return getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath);
+    }
+
+    function saveResolvedPoster(animeId, posterUrl) {
+        var cache = storageGet(POSTER_CACHE_KEY, {});
+        var normalizedUrl = normalizeExternalPosterUrl(posterUrl);
+
+        if (normalizedUrl) cache[animeId] = normalizedUrl;
+        else delete cache[animeId];
+
+        storageSet(POSTER_CACHE_KEY, cache);
+    }
+
+    function finishPosterRequest(animeId, posterUrl) {
+        var callbacks = posterRequests[animeId] || [];
+        var normalizedUrl = normalizeExternalPosterUrl(posterUrl);
+
+        delete posterRequests[animeId];
+        saveResolvedPoster(animeId, normalizedUrl);
+
+        for (var i = 0; i < callbacks.length; i++) {
+            callbacks[i](normalizedUrl || '');
+        }
+    }
+
+    function resolveExternalPoster(data, callback) {
+        if (!data || !data.id) {
+            callback('');
+            return;
+        }
+
+        var posterCache = storageGet(POSTER_CACHE_KEY, {});
+        var cachedPoster = normalizeExternalPosterUrl(posterCache[data.id] || '');
+
+        if (cachedPoster) {
+            if (posterCache[data.id] !== cachedPoster) saveResolvedPoster(data.id, cachedPoster);
+            callback(cachedPoster);
+            return;
+        }
+
+        if (posterRequests[data.id]) {
+            posterRequests[data.id].push(callback);
+            return;
+        }
+
+        posterRequests[data.id] = [callback];
+
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+        var tmdbEntry = tmdbCache[data.id] || {};
+        var tmdbPoster = normalizeExternalPosterUrl(tmdbEntry.poster || '');
+
+        if (tmdbPoster) {
+            if (tmdbEntry.poster !== tmdbPoster) {
+                tmdbEntry.poster = tmdbPoster;
+                tmdbCache[data.id] = tmdbEntry;
+                storageSet(TMDB_CACHE_KEY, tmdbCache);
+            }
+
+            finishPosterRequest(data.id, tmdbPoster);
+            return;
+        }
+
+        if (tmdbEntry.id) {
+            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
+                if (poster) {
+                    finishPosterRequest(data.id, poster);
+                } else {
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
+                    });
+                }
+            });
+            return;
+        }
+
+        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
+            encodeURIComponent(data.id) +
+            '&include=themoviedb,myanimelist';
+
+        apiGetJson(armUrl, function (answer) {
+            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+            var type = answer && (answer.media_type || answer.type);
+
+            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+            if (tmdbId) {
+                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                    if (poster) {
+                        finishPosterRequest(data.id, poster);
+                    } else {
+                        resolvePosterByTmdbSearch(data, function (searchPoster) {
+                            finishPosterRequest(data.id, searchPoster);
+                        });
+                    }
+                });
+            } else {
+                resolvePosterByTmdbSearch(data, function (searchPoster) {
+                    finishPosterRequest(data.id, searchPoster);
+                });
+            }
+        }, function () {
+            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                finishPosterRequest(data.id, searchPoster);
+            });
+        });
+    }
+
     function isAdultGenre(genre) {
         var name = String((genre && (genre.name || genre.russian)) || '').toLowerCase();
         return !!adultGenres[name];
