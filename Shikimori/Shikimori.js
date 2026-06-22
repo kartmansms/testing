@@ -641,9 +641,7 @@ function tmdbPosterUrl(path) {
             return;
         }
 
-        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
+        var armUrl = buildAnimeIdsLookupUrl(data);
 
         apiGetJson(armUrl, function (answer) {
             var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
@@ -870,9 +868,7 @@ function tmdbPosterUrl(path) {
             return;
         }
 
-        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
+        var armUrl = buildAnimeIdsLookupUrl(data);
 
         apiGetJson(armUrl, function (answer) {
             var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
@@ -988,6 +984,7 @@ function tmdbPosterUrl(path) {
                         airedOn: {
                             year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
                         },
+                        mal_id: item.mal_id || item.myanimelist || item.mal || 0,
                         poster: {
                             originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
                             mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
@@ -1033,9 +1030,7 @@ function tmdbPosterUrl(path) {
             return;
         }
 
-        var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
+        var url = buildAnimeIdsLookupUrl(data);
 
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) openTmdb(answer, data);
@@ -3406,6 +3401,7 @@ function tmdbPosterUrl(path) {
             airedOn: {
                 year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
             },
+            mal_id: item.mal_id || item.myanimelist || item.mal || 0,
             poster: {
                 originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
                 mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
@@ -3619,6 +3615,21 @@ function tmdbPosterUrl(path) {
         }
 
         return '';
+    }
+
+    function buildAnimeIdsLookupUrl(data) {
+        var source = 'shikimori';
+        var id = data && data.id ? data.id : '';
+
+        if (data && (data.mal_id || data.myanimelist || data.mal)) {
+            source = 'myanimelist';
+            id = data.mal_id || data.myanimelist || data.mal;
+        }
+
+        return ARM_HOST + '/api/v2/ids?source=' +
+            encodeURIComponent(source) +
+            '&id=' + encodeURIComponent(id) +
+            '&include=themoviedb,myanimelist';
     }
 
     function createShikimoriFullListButton() {
