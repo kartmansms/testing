@@ -250,8 +250,8 @@ function normalizePosterUrl(url) {
         var settings = readSettings();
         // Если включено проксирование картинок Shikimori
         if (settings.proxy_shiki_poster) {
-            var cleanUrl = processedUrl.replace(/^https?:\/\//, '');
-            return 'https://images.weserv.nl/?url=' + encodeURIComponent(cleanUrl);
+            // Используем прокси DuckDuckGo, передавая полный URL картинки
+            return 'https://proxy.duckduckgo.com/iu/?u=' + encodeURIComponent(processedUrl);
         }
 
         return processedUrl;
