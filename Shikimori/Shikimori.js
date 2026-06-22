@@ -498,14 +498,16 @@ function tmdbPosterUrl(path) {
             '&language=' + encodeURIComponent(tmdbLanguage());
 
         apiGetJson(getTmdbUrl(url), function (res) {
-            var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
+            var posterPath = extractTmdbPosterPath(res && res.poster_path ? res.poster_path : '');
+            var poster = tmdbPosterUrl(posterPath);
 
             if (poster) {
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
                 tmdbCache[data.id] = {
                     id: tmdbId,
                     type: type,
-                    poster: poster
+                    poster: poster,
+                    poster_path: posterPath
                 };
                 storageSet(TMDB_CACHE_KEY, tmdbCache);
             }
@@ -581,13 +583,15 @@ function tmdbPosterUrl(path) {
                 }
 
                 if (best && best.poster_path) {
-                    var poster = tmdbPosterUrl(best.poster_path);
+                    var posterPath = extractTmdbPosterPath(best.poster_path);
+                    var poster = tmdbPosterUrl(posterPath);
                     var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
 
                     tmdbCache[data.id] = {
                         id: best.id,
                         type: best.media_type === 'movie' ? 'movie' : 'tv',
-                        poster: poster
+                        poster: poster,
+                        poster_path: posterPath
                     };
 
                     storageSet(TMDB_CACHE_KEY, tmdbCache);
@@ -677,6 +681,7 @@ function tmdbPosterUrl(path) {
 
         img.data('poster-index', 0);
         img.data('poster-external-tried', false);
+        img.data('poster-external-alt-tried', false);
         img.data('poster-fallback-done', false);
 
         function setFallback() {
@@ -684,6 +689,22 @@ function tmdbPosterUrl(path) {
 
             img.data('poster-fallback-done', true);
             img.attr('src', fallback);
+        }
+
+        function tryAlternativeExternalPoster() {
+            var currentUrl = String(img.attr('src') || '').trim();
+            var currentPath = extractTmdbPosterPath(currentUrl);
+            var fallbackPath = data && data.id ? getCachedTmdbPosterPath(data.id) : '';
+            var nextUrl = nextTmdbPosterCandidate(currentPath || fallbackPath || currentUrl);
+
+            if (!nextUrl || nextUrl === currentUrl) return false;
+
+            img.data('poster-external-alt-tried', true);
+
+            if (data && data.id) saveResolvedPoster(data.id, nextUrl);
+
+            img.attr('src', nextUrl);
+            return true;
         }
 
         function tryExternalPoster() {
@@ -713,6 +734,7 @@ function tmdbPosterUrl(path) {
             if (urls[index]) {
                 img.attr('src', urls[index]);
             } else {
+                if (img.data('poster-external-tried') && !img.data('poster-external-alt-tried') && tryAlternativeExternalPoster()) return;
                 tryExternalPoster();
             }
         });
@@ -775,25 +797,72 @@ function tmdbPosterUrl(path) {
         return url;
     }
 
+    function getCachedTmdbPosterPath(animeId) {
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+        var entry = animeId ? tmdbCache[animeId] : null;
+
+        if (!entry) return '';
+
+        return extractTmdbPosterPath(entry.poster_path || entry.poster || '');
+    }
+
+    function uniqueUrls(list) {
+        var result = [];
+
+        for (var i = 0; i < list.length; i++) {
+            var value = String(list[i] || '').trim();
+
+            if (!value) continue;
+            if (result.indexOf(value) === -1) result.push(value);
+        }
+
+        return result;
+    }
+
+    function tmdbPosterCandidates(path) {
+        path = path === undefined || path === null ? '' : String(path).trim();
+
+        var posterPath = extractTmdbPosterPath(path);
+        var candidates = [];
+
+        if (!posterPath) {
+            if (/^https?:\/\//i.test(path)) candidates.push(path);
+            return uniqueUrls(candidates);
+        }
+
+        if (window.Lampa) {
+            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') candidates.push(Lampa.TMDB.image(posterPath));
+            if (Lampa.Api && typeof Lampa.Api.img === 'function') candidates.push(Lampa.Api.img(posterPath));
+        }
+
+        candidates.push(getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+
+        return uniqueUrls(candidates);
+    }
+
+    function nextTmdbPosterCandidate(currentUrl) {
+        currentUrl = String(currentUrl || '').trim();
+
+        if (!currentUrl) return '';
+
+        var candidates = tmdbPosterCandidates(currentUrl);
+
+        for (var i = 0; i < candidates.length; i++) {
+            if (candidates[i] !== currentUrl) return candidates[i];
+        }
+
+        return '';
+    }
+
     function tmdbPosterUrl(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
         if (!path) return '';
 
-        var posterPath = extractTmdbPosterPath(path);
-
-        if (window.Lampa && posterPath) {
-            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-                return Lampa.TMDB.image(posterPath);
-            }
-            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
-                return Lampa.Api.img(posterPath);
-            }
-        }
-
         if (/^https?:\/\//i.test(path) && !isTmdbPosterUrl(path)) return path;
-        if (!posterPath) return '';
 
-        return getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath);
+        var candidates = tmdbPosterCandidates(path);
+        return candidates.length ? candidates[0] : '';
     }
 
     function saveResolvedPoster(animeId, posterUrl) {
