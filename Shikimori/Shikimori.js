@@ -232,7 +232,7 @@ function defaults() {
     }
 
 function normalizePosterUrl(url) {
-        url = url === undefined || url === null ? '' : String(url).trim();
+url = url === undefined || url === null ? '' : String(url).trim();
 
         if (!url) return '';
         if (/^\/\//.test(url)) url = 'https:' + url;
@@ -248,10 +248,9 @@ function normalizePosterUrl(url) {
         }
 
         var settings = readSettings();
-        // Если включено проксирование картинок Shikimori
+        // Использование стабильного прокси от Google
         if (settings.proxy_shiki_poster) {
-            // Используем прокси DuckDuckGo, передавая полный URL картинки
-            return 'https://proxy.duckduckgo.com/iu/?u=' + encodeURIComponent(processedUrl);
+            return 'https://images1-focus-opensocial.googleusercontent.com/gadgets/proxy?container=focus&refresh=2592000&url=' + encodeURIComponent(processedUrl);
         }
 
         return processedUrl;
