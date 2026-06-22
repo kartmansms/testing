@@ -25,7 +25,7 @@ function defaults() {
             card_size: 'normal',
             proxy_tmdb: true,
             proxy_url: 'https://apitmdb.cub.red',
-            shiki_host: 'https://shikimori.one',
+            shiki_host: 'https://shikimori.io',
             proxy_shiki_poster: true // Добавлено для автоматического проксирования
         };
     }
