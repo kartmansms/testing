@@ -17,7 +17,7 @@
     var posterRequests = {};
     var fullResolveCache = {};
 
-    function defaults() {
+function defaults() {
         return {
             title_language: 'original',
             hide_adult: true,
@@ -25,7 +25,8 @@
             card_size: 'normal',
             proxy_tmdb: true,
             proxy_url: 'https://apitmdb.cub.red',
-            shiki_host: 'https://shikimori.io'
+            shiki_host: 'https://shikimori.one',
+            proxy_shiki_poster: true // Добавлено для автоматического проксирования
         };
     }
 
@@ -230,20 +231,30 @@
         return data.name || data.english || '';
     }
 
-    function normalizePosterUrl(url) {
+function normalizePosterUrl(url) {
         url = url === undefined || url === null ? '' : String(url).trim();
 
         if (!url) return '';
-        if (/^\/\//.test(url)) return 'https:' + url;
+        if (/^\/\//.test(url)) url = 'https:' + url;
         
         var shikiHost = getShikiHost();
         var cleanHost = shikiHost.replace(/^https?:\/\//, '');
+        var processedUrl = '';
 
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.one', cleanHost).replace('shikimori.io', cleanHost);
+            processedUrl = url.replace('shikimori.one', cleanHost).replace('shikimori.io', cleanHost);
+        } else {
+            processedUrl = shikiHost + (url.indexOf('/') === 0 ? url : '/' + url);
         }
 
-        return shikiHost + (url.indexOf('/') === 0 ? url : '/' + url);
+        var settings = readSettings();
+        // Если включено проксирование картинок Shikimori
+        if (settings.proxy_shiki_poster) {
+            var cleanUrl = processedUrl.replace(/^https?:\/\//, '');
+            return 'https://images.weserv.nl/?url=' + encodeURIComponent(cleanUrl);
+        }
+
+        return processedUrl;
     }
 
     function isBadPosterUrl(url) {
@@ -1995,6 +2006,10 @@ function tmdbPosterUrl(path) {
                     title: 'Скрывать 18+: ' + (settings.hide_adult ? 'да' : 'нет'),
                     value: 'hide_adult'
                 },
+				{
+                    title: 'Проксировать картинки Shiki: ' + (settings.proxy_shiki_poster ? 'да' : 'нет'),
+                    value: 'proxy_shiki_poster'
+                },
                 {
                     title: 'Сортировка по умолчанию: ' + sortName(settings.default_sort),
                     value: 'default_sort'
@@ -2029,6 +2044,8 @@ function tmdbPosterUrl(path) {
                         settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
                     } else if (item.value === 'hide_adult') {
                         settings.hide_adult = !settings.hide_adult;
+					} else if (item.value === 'proxy_shiki_poster') {
+                        settings.proxy_shiki_poster = !settings.proxy_shiki_poster;
                     } else if (item.value === 'default_sort') {
                         settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                     } else if (item.value === 'card_size') {
@@ -2052,7 +2069,7 @@ function tmdbPosterUrl(path) {
                     saveSettings(settings);
                     notify('Настройки Shikimori сохранены');
 
-                    if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
+                    if (['title_language', 'hide_adult', 'proxy_shiki_poster', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
                         openWith({
                             page: 1,
                             sort: settings.default_sort
