@@ -285,31 +285,33 @@
         return list.length ? list[0] : '';
     }
 
-    function tmdbPosterUrl(path) {
-        path = path === undefined || path === null ? '' : String(path).trim();
-        if (!path) return '';
+function tmdbPosterUrl(path) {
+    path = path === undefined || path === null ? '' : String(path).trim();
+    if (!path) return '';
 
-        if (window.Lampa) {
-            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
-                return Lampa.Api.img(path);
-            }
-            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-                return Lampa.TMDB.image(path);
-            }
+    if (window.Lampa) {
+        // Приоритетно используем Lampa.TMDB.image, так как её переопределяет плагин "прокси.js"
+        // для распределения нагрузки по зеркалам картинок и добавления авторизационного email.
+        if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image(path);
         }
-
-        var settings = readSettings();
-        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
-
-        if (/^https?:\/\//.test(path)) {
-            if (settings.proxy_tmdb) {
-                return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
-            }
-            return path;
+        if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+            return Lampa.Api.img(path);
         }
-
-        return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
     }
+
+    var settings = readSettings();
+    var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
+
+    if (/^https?:\/\//.test(path)) {
+        if (settings.proxy_tmdb) {
+            return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
+        }
+        return path;
+    }
+
+    return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
+}
 
     function tmdbLanguage() {
         try {
@@ -320,12 +322,30 @@
     }
 
     function getTmdbUrl(url) {
+    // 1. Если доступен метод Lampa.TMDB.api, используем его.
+    // Это гарантирует полную совместимость с плагином "прокси.js",
+    // так как он автоматически добавит нужные токены (email) и выберет рабочий прокси-хост.
+    if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+        var match = url.match(/\/3\/(.+)$/);
+        if (match) {
+            return Lampa.TMDB.api(match[1]);
+        }
+    }
+
+    // 2. Резервный вариант: ручное проксирование из настроек плагина
     var settings = readSettings();
     var proxyUrl = '';
 
-    if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
-        if (Lampa.Storage.get('proxy_tmdb')) {
-            proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link');
+    if (window.Lampa && Lampa.Storage) {
+        var isProxyEnabled = false;
+        if (typeof Lampa.Storage.field === 'function') {
+            isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
+        } else if (typeof Lampa.Storage.get === 'function') {
+            isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
+        }
+
+        if (isProxyEnabled) {
+            proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
         }
     }
 
@@ -343,8 +363,24 @@
         if (!/^https?:\/\//i.test(proxyUrl)) {
             proxyUrl = 'https://' + proxyUrl;
         }
+        
         // Заменяем хост TMDB на прокси-адрес
-        return String(url).replace('https://api.themoviedb.org', proxyUrl);
+        var processedUrl = String(url).replace('https://api.themoviedb.org', proxyUrl);
+        
+        // Для CUB-прокси обязательно требуется передавать email аккаунта.
+        // Если параметр email отсутствует в URL, пробуем достать его из Lampa и добавить.
+        if (window.Lampa && Lampa.Storage && processedUrl.indexOf('email=') === -1) {
+            var account = Lampa.Storage.get('account', '{}');
+            if (typeof account === 'string') {
+                try { account = JSON.parse(account); } catch(e) {}
+            }
+            var email = account.email || '';
+            if (email) {
+                processedUrl += (processedUrl.indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
+            }
+        }
+        
+        return processedUrl;
     }
 
     return url;
