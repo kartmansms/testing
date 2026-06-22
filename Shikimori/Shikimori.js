@@ -1,9 +1,3 @@
-Ниже представлен измененный код плагина. В меню Фильтры и Настройки пункты со
-множественным выбором (такие как язык названий, скрытие взрослого контента,
-сортировка по умолчанию, размер карточек, а также категории фильтрации по типу,
-статусу и жанрам) теперь открываются в виде структурированных выпадающих списков
-(подменю).
-
 (function () {
     'use strict';
 
@@ -291,31 +285,33 @@
         return list.length ? list[0] : '';
     }
 
-    function tmdbPosterUrl(path) {
-        path = path === undefined || path === null ? '' : String(path).trim();
-        if (!path) return '';
+function tmdbPosterUrl(path) {
+    path = path === undefined || path === null ? '' : String(path).trim();
+    if (!path) return '';
 
-        if (window.Lampa) {
-            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-                return Lampa.TMDB.image(path);
-            }
-            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
-                return Lampa.Api.img(path);
-            }
+    if (window.Lampa) {
+        // Приоритетно используем Lampa.TMDB.image, так как её переопределяет плагин "прокси.js"
+        // для распределения нагрузки по зеркалам картинок и добавления авторизационного email.
+        if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image(path);
         }
-
-        var settings = readSettings();
-        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
-
-        if (/^https?:\/\//.test(path)) {
-            if (settings.proxy_tmdb) {
-                return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
-            }
-            return path;
+        if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+            return Lampa.Api.img(path);
         }
-
-        return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
     }
+
+    var settings = readSettings();
+    var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
+
+    if (/^https?:\/\//.test(path)) {
+        if (settings.proxy_tmdb) {
+            return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
+        }
+        return path;
+    }
+
+    return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
+}
 
     function tmdbLanguage() {
         try {
@@ -326,60 +322,69 @@
     }
 
     function getTmdbUrl(url) {
-        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
-            var match = url.match(/\/3\/(.+)$/);
-            if (match) {
-                return Lampa.TMDB.api(match[1]);
-            }
+    // 1. Если доступен метод Lampa.TMDB.api, используем его.
+    // Это гарантирует полную совместимость с плагином "прокси.js",
+    // так как он автоматически добавит нужные токены (email) и выберет рабочий прокси-хост.
+    if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+        var match = url.match(/\/3\/(.+)$/);
+        if (match) {
+            return Lampa.TMDB.api(match[1]);
         }
-
-        var settings = readSettings();
-        var proxyUrl = '';
-
-        if (window.Lampa && Lampa.Storage) {
-            var isProxyEnabled = false;
-            if (typeof Lampa.Storage.field === 'function') {
-                isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
-            } else if (typeof Lampa.Storage.get === 'function') {
-                isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
-            }
-
-            if (isProxyEnabled) {
-                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
-            }
-        }
-
-        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
-            proxyUrl = settings.proxy_url;
-        }
-
-        if (proxyUrl) {
-            proxyUrl = String(proxyUrl).trim();
-            if (proxyUrl.slice(-1) === '/') {
-                proxyUrl = proxyUrl.slice(0, -1);
-            }
-            if (!/^https?:\/\//i.test(proxyUrl)) {
-                proxyUrl = 'https://' + proxyUrl;
-            }
-            
-            var processedUrl = String(url).replace('https://api.themoviedb.org', proxyUrl);
-            
-            if (window.Lampa && Lampa.Storage && processedUrl.indexOf('email=') === -1) {
-                var account = Lampa.Storage.get('account', '{}');
-                if (typeof account === 'string') {
-                    try { account = JSON.parse(account); } catch(e) {}
-                }
-                var email = account.email || '';
-                if (email) {
-                    processedUrl += (processedUrl.indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
-                }
-            }
-            
-            return processedUrl;
-        }
-
-        return url;
     }
+
+    // 2. Резервный вариант: ручное проксирование из настроек плагина
+    var settings = readSettings();
+    var proxyUrl = '';
+
+    if (window.Lampa && Lampa.Storage) {
+        var isProxyEnabled = false;
+        if (typeof Lampa.Storage.field === 'function') {
+            isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
+        } else if (typeof Lampa.Storage.get === 'function') {
+            isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
+        }
+
+        if (isProxyEnabled) {
+            proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
+        }
+    }
+
+    if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
+        proxyUrl = settings.proxy_url;
+    }
+
+    if (proxyUrl) {
+        proxyUrl = String(proxyUrl).trim();
+        // Удаляем завершающий слеш
+        if (proxyUrl.slice(-1) === '/') {
+            proxyUrl = proxyUrl.slice(0, -1);
+        }
+        // Добавляем протокол, если отсутствует
+        if (!/^https?:\/\//i.test(proxyUrl)) {
+            proxyUrl = 'https://' + proxyUrl;
+        }
+        
+        // Заменяем хост TMDB на прокси-адрес
+        var processedUrl = String(url).replace('https://api.themoviedb.org', proxyUrl);
+        
+        // Для CUB-прокси обязательно требуется передавать email аккаунта.
+        // Если параметр email отсутствует в URL, пробуем достать его из Lampa и добавить.
+        if (window.Lampa && Lampa.Storage && processedUrl.indexOf('email=') === -1) {
+            var account = Lampa.Storage.get('account', '{}');
+            if (typeof account === 'string') {
+                try { account = JSON.parse(account); } catch(e) {}
+            }
+            var email = account.email || '';
+            if (email) {
+                processedUrl += (processedUrl.indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
+            }
+        }
+        
+        return processedUrl;
+    }
+
+    return url;
+}
 
     function apiCall(options, success, error) {
         var url = options.url;
@@ -1880,132 +1885,49 @@
         }
 
         function openFilters() {
-            var items = [
-                { title: 'Сортировка', value: 'sort' },
-                { title: 'Тип аниме', value: 'kind' },
-                { title: 'Статус аниме', value: 'status' },
-                { title: 'Жанры', value: 'genres' }
-            ];
-
-            Lampa.Select.show({
-                title: 'Фильтры',
-                items: items,
-                onSelect: function (item) {
-                    if (item.value === 'sort') {
-                        openSortFilter();
-                    } else if (item.value === 'kind') {
-                        openKindFilter();
-                    } else if (item.value === 'status') {
-                        openStatusFilter();
-                    } else if (item.value === 'genres') {
-                        openGenresFilter();
-                    }
-                },
-                onBack: function () {
-                    Lampa.Controller.toggle('content');
-                }
-            });
-        }
-
-        function openSortFilter() {
-            var items = [
-                { title: 'Популярность', value: 'popularity' },
-                { title: 'Рейтинг', value: 'ranked' },
-                { title: 'Дата выхода', value: 'aired_on' },
-                { title: 'Название', value: 'name' }
-            ];
-
-            Lampa.Select.show({
-                title: 'Сортировка',
-                items: items,
-                onSelect: function (sub) {
-                    openWith({ sort: sub.value });
-                },
-                onBack: function () {
-                    openFilters();
-                }
-            });
-        }
-
-        function openKindFilter() {
-            var items = [
-                { title: 'Все типы', value: '' },
-                { title: 'TV Series', value: 'tv' },
-                { title: 'Movie', value: 'movie' },
-                { title: 'OVA', value: 'ova' },
-                { title: 'ONA', value: 'ona' },
-                { title: 'Special', value: 'special' },
-                { title: 'Music', value: 'music' }
-            ];
-
-            Lampa.Select.show({
-                title: 'Тип аниме',
-                items: items,
-                onSelect: function (sub) {
-                    openWith({ kind: sub.value });
-                },
-                onBack: function () {
-                    openFilters();
-                }
-            });
-        }
-
-        function openStatusFilter() {
-            var items = [
-                { title: 'Все статусы', value: '' },
-                { title: 'Онгоинг', value: 'ongoing' },
-                { title: 'Анонс', value: 'anons' },
-                { title: 'Вышло', value: 'released' }
-            ];
-
-            Lampa.Select.show({
-                title: 'Статус аниме',
-                items: items,
-                onSelect: function (sub) {
-                    openWith({ status: sub.value });
-                },
-                onBack: function () {
-                    openFilters();
-                }
-            });
-        }
-
-        function openGenresFilter() {
             loadGenres(function (genres) {
-                var items = [];
-
-                items.push({ title: 'Все жанры', value: 'clear' });
+                var items = [
+                    { title: 'Сортировка: популярность', value: 'sort:popularity' },
+                    { title: 'Сортировка: рейтинг', value: 'sort:ranked' },
+                    { title: 'TV', value: 'kind:tv' },
+                    { title: 'Movie', value: 'kind:movie' },
+                    { title: 'OVA', value: 'kind:ova' },
+                    { title: 'Онгоинг', value: 'status:ongoing' },
+                    { title: 'Анонс', value: 'status:anons' },
+                    { title: 'Вышло', value: 'status:released' }
+                ];
 
                 for (var i = 0; i < genres.length; i++) {
                     if (genres[i] && genres[i].id) {
                         items.push({
-                            title: genres[i].russian || genres[i].name || String(genres[i].id),
-                            value: genres[i].id,
-                            genre_title: genres[i].russian || genres[i].name || String(genres[i].id)
+                            title: 'Жанр: ' + (genres[i].russian || genres[i].name || genres[i].id),
+                            value: 'genre:' + genres[i].id + ':' + (genres[i].russian || genres[i].name || genres[i].id)
                         });
                     }
                 }
 
-                if (!genres.length) {
-                    items.push({ title: 'Жанры недоступны', value: 'noop' });
-                }
+                if (!genres.length) items.push({
+                    title: 'Жанры недоступны',
+                    value: 'noop'
+                });
 
                 Lampa.Select.show({
-                    title: 'Жанры',
+                    title: 'Фильтры',
                     items: items,
-                    onSelect: function (sub) {
-                        if (sub.value === 'noop') return;
-                        if (sub.value === 'clear') {
-                            openWith({ genre: '', genre_title: '' });
-                        } else {
-                            openWith({
-                                genre: sub.value,
-                                genre_title: sub.genre_title
-                            });
-                        }
+                    onSelect: function (item) {
+                        if (item.value === 'noop') return;
+
+                        var parts = String(item.value).split(':');
+                        var out = {};
+
+                        out[parts[0]] = parts[1];
+
+                        if (parts[0] === 'genre') out.genre_title = parts.slice(2).join(':') || parts[1];
+
+                        openWith(out);
                     },
                     onBack: function () {
-                        openFilters();
+                        Lampa.Controller.toggle('content');
                     }
                 });
             });
@@ -2104,102 +2026,861 @@
                 items: items,
                 onSelect: function (item) {
                     if (item.value === 'title_language') {
-                        Lampa.Select.show({
-                            title: 'Язык названий',
-                            items: [
-                                { title: 'Оригинал', value: 'original' },
-                                { title: 'Английский', value: 'en' },
-                                { title: 'Русский', value: 'ru' }
-                            ],
-                            onSelect: function (sub) {
-                                settings.title_language = sub.value;
-                                saveSettings(settings);
-                                notify('Настройки Shikimori сохранены');
-                                openWith({
-                                    page: 1,
-                                    sort: settings.default_sort
-                                });
-                            },
-                            onBack: function () {
-                                openSettings();
-                            }
-                        });
+                        settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
                     } else if (item.value === 'hide_adult') {
-                        Lampa.Select.show({
-                            title: 'Скрывать 18+',
-                            items: [
-                                { title: 'Да', value: true },
-                                { title: 'Нет', value: false }
-                            ],
-                            onSelect: function (sub) {
-                                settings.hide_adult = sub.value;
-                                saveSettings(settings);
-                                notify('Настройки Shikimori сохранены');
-                                openWith({
-                                    page: 1,
-                                    sort: settings.default_sort
-                                });
-                            },
-                            onBack: function () {
-                                openSettings();
-                            }
-                        });
+                        settings.hide_adult = !settings.hide_adult;
                     } else if (item.value === 'default_sort') {
-                        Lampa.Select.show({
-                            title: 'Сортировка по умолчанию',
-                            items: [
-                                { title: 'Популярность', value: 'popularity' },
-                                { title: 'Рейтинг', value: 'ranked' },
-                                { title: 'Дата выхода', value: 'aired_on' }
-                            ],
-                            onSelect: function (sub) {
-                                settings.default_sort = sub.value;
-                                saveSettings(settings);
-                                notify('Настройки Shikimori сохранены');
-                                openWith({
-                                    page: 1,
-                                    sort: settings.default_sort
-                                });
-                            },
-                            onBack: function () {
-                                openSettings();
-                            }
-                        });
+                        settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
                     } else if (item.value === 'card_size') {
-                        Lampa.Select.show({
-                            title: 'Размер карточек',
-                            items: [
-                                { title: 'Обычный', value: 'normal' },
-                                { title: 'Компактный', value: 'compact' }
-                            ],
-                            onSelect: function (sub) {
-                                settings.card_size = sub.value;
-                                saveSettings(settings);
-                                notify('Настройки Shikimori сохранены');
-                                openWith({
-                                    page: 1,
-                                    sort: settings.default_sort
-                                });
-                            },
-                            onBack: function () {
-                                openSettings();
-                            }
-                        });
+                        settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
                     } else if (item.value === 'shiki_host') {
                         openShikiHostSettings();
+                        return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
                         notify('Кэш поиска очищен');
-                        openSettings();
+                        return;
                     } else if (item.value === 'proxy') {
                         openProxySettings();
+                        return;
                     } else if (item.value === 'auth') {
                         openAuthSettings();
+                        return;
+                    }
+
+                    saveSettings(settings);
+                    notify('Настройки Shikimori сохранены');
+
+                    if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
+                        openWith({
+                            page: 1,
+                            sort: settings.default_sort
+                        });
                     }
                 },
                 onBack: function () {
                     Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function titleLanguageName(value) {
+            if (value === 'original') return 'РѕСЂРёРіРёРЅР°Р»';
+            if (value === 'en') return 'Р°РЅРіР»РёР№СЃРєРёР№';
+            return 'СЂСѓСЃСЃРєРёР№';
+        }
+
+        function cardSizeName(value) {
+            return value === 'compact' ? 'РєРѕРјРїР°РєС‚РЅС‹Р№' : 'РѕР±С‹С‡РЅС‹Р№';
+        }
+
+        function selectedTitle(selected, title) {
+            return (selected ? '✓ ' : '') + title;
+        }
+
+        function hasFilterSelection() {
+            return !!(
+                params.kind ||
+                params.status ||
+                params.genre ||
+                (params.sort && params.sort !== readSettings().default_sort)
+            );
+        }
+
+        function applyFilter(values) {
+            openWith(values);
+        }
+
+        function saveVisualSetting(key, value) {
+            var settings = readSettings();
+            settings[key] = value;
+            saveSettings(settings);
+            notify('РќР°СЃС‚СЂРѕР№РєРё Shikimori СЃРѕС…СЂР°РЅРµРЅС‹');
+            openWith({
+                page: 1,
+                sort: settings.default_sort
+            });
+        }
+
+        function openFilters(genres) {
+            var show = function (list) {
+                var items = [
+                    {
+                        title: 'РЎРѕСЂС‚РёСЂРѕРІРєР°: ' + sortName(params.sort || readSettings().default_sort),
+                        value: 'sort'
+                    },
+                    {
+                        title: 'РўРёРї: ' + (params.kind ? kindName(params.kind) : 'Р»СЋР±РѕР№'),
+                        value: 'kind'
+                    },
+                    {
+                        title: 'РЎС‚Р°С‚СѓСЃ: ' + (params.status ? statusName(params.status) : 'Р»СЋР±РѕР№'),
+                        value: 'status'
+                    },
+                    {
+                        title: 'Р–Р°РЅСЂ: ' + (params.genre_title || 'Р»СЋР±РѕР№'),
+                        value: 'genre'
+                    }
+                ];
+
+                if (hasFilterSelection()) {
+                    items.push({
+                        title: 'РЎР±СЂРѕСЃРёС‚СЊ С„РёР»СЊС‚СЂС‹',
+                        value: 'reset'
+                    });
+                }
+
+                Lampa.Select.show({
+                    title: 'Р¤РёР»СЊС‚СЂС‹',
+                    items: items,
+                    onSelect: function (item) {
+                        if (item.value === 'sort') openFilterSortMenu(list);
+                        else if (item.value === 'kind') openFilterKindMenu(list);
+                        else if (item.value === 'status') openFilterStatusMenu(list);
+                        else if (item.value === 'genre') openFilterGenreMenu(list);
+                        else if (item.value === 'reset') {
+                            applyFilter({
+                                sort: readSettings().default_sort,
+                                kind: '',
+                                status: '',
+                                genre: '',
+                                genre_title: '',
+                                page: 1
+                            });
+                        }
+                    },
+                    onBack: function () {
+                        Lampa.Controller.toggle('content');
+                    }
+                });
+            };
+
+            if (genres) show(genres);
+            else loadGenres(show);
+        }
+
+        function openFilterSortMenu(genres) {
+            var current = params.sort || readSettings().default_sort;
+            var items = [
+                {
+                    title: selectedTitle(!params.sort || params.sort === readSettings().default_sort, 'РџРѕ СѓРјРѕР»С‡Р°РЅРёСЋ'),
+                    value: ''
+                },
+                {
+                    title: selectedTitle(current === 'popularity', 'РџРѕРїСѓР»СЏСЂРЅРѕСЃС‚СЊ'),
+                    value: 'popularity'
+                },
+                {
+                    title: selectedTitle(current === 'ranked', 'Р РµР№С‚РёРЅРі'),
+                    value: 'ranked'
+                },
+                {
+                    title: selectedTitle(current === 'aired_on', 'Р”Р°С‚Р° РІС‹С…РѕРґР°'),
+                    value: 'aired_on'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'РЎРѕСЂС‚РёСЂРѕРІРєР°',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        sort: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterKindMenu(genres) {
+            var current = params.kind || '';
+            var items = [
+                { title: selectedTitle(!current, 'Р›СЋР±РѕР№'), value: '' },
+                { title: selectedTitle(current === 'tv', 'TV'), value: 'tv' },
+                { title: selectedTitle(current === 'movie', 'Movie'), value: 'movie' },
+                { title: selectedTitle(current === 'ova', 'OVA'), value: 'ova' },
+                { title: selectedTitle(current === 'ona', 'ONA'), value: 'ona' },
+                { title: selectedTitle(current === 'special', 'Special'), value: 'special' }
+            ];
+
+            Lampa.Select.show({
+                title: 'РўРёРї',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        kind: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterStatusMenu(genres) {
+            var current = params.status || '';
+            var items = [
+                { title: selectedTitle(!current, 'Р›СЋР±РѕР№'), value: '' },
+                { title: selectedTitle(current === 'ongoing', 'РћРЅРіРѕРёРЅРі'), value: 'ongoing' },
+                { title: selectedTitle(current === 'anons', 'РђРЅРѕРЅСЃ'), value: 'anons' },
+                { title: selectedTitle(current === 'released', 'Р’С‹С€Р»Рѕ'), value: 'released' }
+            ];
+
+            Lampa.Select.show({
+                title: 'РЎС‚Р°С‚СѓСЃ',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        status: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterGenreMenu(genres) {
+            var items = [
+                {
+                    title: selectedTitle(!params.genre, 'Р›СЋР±РѕР№'),
+                    value: ''
+                }
+            ];
+
+            for (var i = 0; i < genres.length; i++) {
+                if (genres[i] && genres[i].id) {
+                    var genreTitle = genres[i].russian || genres[i].name || genres[i].id;
+
+                    items.push({
+                        title: selectedTitle(String(params.genre || '') === String(genres[i].id), genreTitle),
+                        value: String(genres[i].id),
+                        genre_title: genreTitle
+                    });
+                }
+            }
+
+            if (items.length === 1) {
+                items.push({
+                    title: 'Р–Р°РЅСЂС‹ РЅРµРґРѕСЃС‚СѓРїРЅС‹',
+                    value: 'noop'
+                });
+            }
+
+            Lampa.Select.show({
+                title: 'Р–Р°РЅСЂС‹',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'noop') return;
+
+                    applyFilter({
+                        genre: item.value,
+                        genre_title: item.genre_title || '',
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openSettings() {
+            var settings = readSettings();
+
+            var items = [
+                {
+                    title: 'РЇР·С‹Рє РЅР°Р·РІР°РЅРёР№: ' + titleLanguageName(settings.title_language),
+                    value: 'title_language'
+                },
+                {
+                    title: 'РЎРєСЂС‹РІР°С‚СЊ 18+: ' + (settings.hide_adult ? 'РґР°' : 'РЅРµС‚'),
+                    value: 'hide_adult'
+                },
+                {
+                    title: 'РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ: ' + sortName(settings.default_sort),
+                    value: 'default_sort'
+                },
+                {
+                    title: 'Р Р°Р·РјРµСЂ РєР°СЂС‚РѕС‡РµРє: ' + cardSizeName(settings.card_size),
+                    value: 'card_size'
+                },
+                {
+                    title: 'Р”РѕРјРµРЅ Shikimori: ' + (settings.shiki_host || 'https://shikimori.one'),
+                    value: 'shiki_host'
+                },
+                {
+                    title: 'РћС‡РёСЃС‚РёС‚СЊ РєСЌС€ РїРѕРёСЃРєР° TMDB',
+                    value: 'clear_tmdb_cache'
+                },
+                {
+                    title: 'РќР°СЃС‚СЂРѕР№РєРё РїСЂРѕРєСЃРё TMDB',
+                    value: 'proxy'
+                },
+                {
+                    title: 'РђРІС‚РѕСЂРёР·Р°С†РёСЏ: ' + authStatusTitle(),
+                    value: 'auth'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'РќР°СЃС‚СЂРѕР№РєРё Shikimori',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'title_language') {
+                        openTitleLanguageSettings();
+                        return;
+                    } else if (item.value === 'hide_adult') {
+                        openAdultSettings();
+                        return;
+                    } else if (item.value === 'default_sort') {
+                        openDefaultSortSettings();
+                        return;
+                    } else if (item.value === 'card_size') {
+                        openCardSizeSettings();
+                        return;
+                    } else if (item.value === 'shiki_host') {
+                        openShikiHostSettings();
+                        return;
+                    } else if (item.value === 'clear_tmdb_cache') {
+                        storageSet(TMDB_CACHE_KEY, {});
+                        storageSet(POSTER_CACHE_KEY, {});
+                        notify('РљСЌС€ РїРѕРёСЃРєР° РѕС‡РёС‰РµРЅ');
+                        return;
+                    } else if (item.value === 'proxy') {
+                        openProxySettings();
+                        return;
+                    } else if (item.value === 'auth') {
+                        openAuthSettings();
+                        return;
+                    }
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function openTitleLanguageSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.title_language === 'original', 'РћСЂРёРіРёРЅР°Р»'),
+                    value: 'original'
+                },
+                {
+                    title: selectedTitle(settings.title_language === 'en', 'РђРЅРіР»РёР№СЃРєРёР№'),
+                    value: 'en'
+                },
+                {
+                    title: selectedTitle(settings.title_language === 'ru', 'Р СѓСЃСЃРєРёР№'),
+                    value: 'ru'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'РЇР·С‹Рє РЅР°Р·РІР°РЅРёР№',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('title_language', item.value);
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openAdultSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.hide_adult, 'Р”Р°'),
+                    value: 'true'
+                },
+                {
+                    title: selectedTitle(!settings.hide_adult, 'РќРµС‚'),
+                    value: 'false'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'РЎРєСЂС‹РІР°С‚СЊ 18+',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('hide_adult', item.value === 'true');
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openDefaultSortSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.default_sort === 'popularity', 'РџРѕРїСѓР»СЏСЂРЅРѕСЃС‚СЊ'),
+                    value: 'popularity'
+                },
+                {
+                    title: selectedTitle(settings.default_sort === 'ranked', 'Р РµР№С‚РёРЅРі'),
+                    value: 'ranked'
+                },
+                {
+                    title: selectedTitle(settings.default_sort === 'aired_on', 'Р”Р°С‚Р° РІС‹С…РѕРґР°'),
+                    value: 'aired_on'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'РЎРѕСЂС‚РёСЂРѕРІРєР° РїРѕ СѓРјРѕР»С‡Р°РЅРёСЋ',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('default_sort', item.value);
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openCardSizeSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.card_size === 'normal', 'РћР±С‹С‡РЅС‹Р№'),
+                    value: 'normal'
+                },
+                {
+                    title: selectedTitle(settings.card_size === 'compact', 'РљРѕРјРїР°РєС‚РЅС‹Р№'),
+                    value: 'compact'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: 'Р Р°Р·РјРµСЂ РєР°СЂС‚РѕС‡РµРє',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('card_size', item.value);
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function titleLanguageName(value) {
+            if (value === 'original') return '\u043e\u0440\u0438\u0433\u0438\u043d\u0430\u043b';
+            if (value === 'en') return '\u0430\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0439';
+            return '\u0440\u0443\u0441\u0441\u043a\u0438\u0439';
+        }
+
+        function cardSizeName(value) {
+            return value === 'compact' ? '\u043a\u043e\u043c\u043f\u0430\u043a\u0442\u043d\u044b\u0439' : '\u043e\u0431\u044b\u0447\u043d\u044b\u0439';
+        }
+
+        function selectedTitle(selected, title) {
+            return (selected ? '\u2713 ' : '') + title;
+        }
+
+        function hasFilterSelection() {
+            return !!(
+                params.kind ||
+                params.status ||
+                params.genre ||
+                (params.sort && params.sort !== readSettings().default_sort)
+            );
+        }
+
+        function applyFilter(values) {
+            openWith(values);
+        }
+
+        function saveVisualSetting(key, value) {
+            var settings = readSettings();
+            settings[key] = value;
+            saveSettings(settings);
+            notify('\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 Shikimori \u0441\u043e\u0445\u0440\u0430\u043d\u0435\u043d\u044b');
+            openWith({
+                page: 1,
+                sort: settings.default_sort
+            });
+        }
+
+        function openFilters(genres) {
+            var show = function (list) {
+                var items = [
+                    {
+                        title: '\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430: ' + sortName(params.sort || readSettings().default_sort),
+                        value: 'sort'
+                    },
+                    {
+                        title: '\u0422\u0438\u043f: ' + (params.kind ? kindName(params.kind) : '\u043b\u044e\u0431\u043e\u0439'),
+                        value: 'kind'
+                    },
+                    {
+                        title: '\u0421\u0442\u0430\u0442\u0443\u0441: ' + (params.status ? statusName(params.status) : '\u043b\u044e\u0431\u043e\u0439'),
+                        value: 'status'
+                    },
+                    {
+                        title: '\u0416\u0430\u043d\u0440: ' + (params.genre_title || '\u043b\u044e\u0431\u043e\u0439'),
+                        value: 'genre'
+                    }
+                ];
+
+                if (hasFilterSelection()) {
+                    items.push({
+                        title: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b',
+                        value: 'reset'
+                    });
+                }
+
+                Lampa.Select.show({
+                    title: '\u0424\u0438\u043b\u044c\u0442\u0440\u044b',
+                    items: items,
+                    onSelect: function (item) {
+                        if (item.value === 'sort') openFilterSortMenu(list);
+                        else if (item.value === 'kind') openFilterKindMenu(list);
+                        else if (item.value === 'status') openFilterStatusMenu(list);
+                        else if (item.value === 'genre') openFilterGenreMenu(list);
+                        else if (item.value === 'reset') {
+                            applyFilter({
+                                sort: readSettings().default_sort,
+                                kind: '',
+                                status: '',
+                                genre: '',
+                                genre_title: '',
+                                page: 1
+                            });
+                        }
+                    },
+                    onBack: function () {
+                        Lampa.Controller.toggle('content');
+                    }
+                });
+            };
+
+            if (genres) show(genres);
+            else loadGenres(show);
+        }
+
+        function openFilterSortMenu(genres) {
+            var current = params.sort || readSettings().default_sort;
+            var items = [
+                {
+                    title: selectedTitle(!params.sort || params.sort === readSettings().default_sort, '\u041f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e'),
+                    value: ''
+                },
+                {
+                    title: selectedTitle(current === 'popularity', '\u041f\u043e\u043f\u0443\u043b\u044f\u0440\u043d\u043e\u0441\u0442\u044c'),
+                    value: 'popularity'
+                },
+                {
+                    title: selectedTitle(current === 'ranked', '\u0420\u0435\u0439\u0442\u0438\u043d\u0433'),
+                    value: 'ranked'
+                },
+                {
+                    title: selectedTitle(current === 'aired_on', '\u0414\u0430\u0442\u0430 \u0432\u044b\u0445\u043e\u0434\u0430'),
+                    value: 'aired_on'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        sort: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterKindMenu(genres) {
+            var current = params.kind || '';
+            var items = [
+                { title: selectedTitle(!current, '\u041b\u044e\u0431\u043e\u0439'), value: '' },
+                { title: selectedTitle(current === 'tv', 'TV'), value: 'tv' },
+                { title: selectedTitle(current === 'movie', 'Movie'), value: 'movie' },
+                { title: selectedTitle(current === 'ova', 'OVA'), value: 'ova' },
+                { title: selectedTitle(current === 'ona', 'ONA'), value: 'ona' },
+                { title: selectedTitle(current === 'special', 'Special'), value: 'special' }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0422\u0438\u043f',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        kind: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterStatusMenu(genres) {
+            var current = params.status || '';
+            var items = [
+                { title: selectedTitle(!current, '\u041b\u044e\u0431\u043e\u0439'), value: '' },
+                { title: selectedTitle(current === 'ongoing', '\u041e\u043d\u0433\u043e\u0438\u043d\u0433'), value: 'ongoing' },
+                { title: selectedTitle(current === 'anons', '\u0410\u043d\u043e\u043d\u0441'), value: 'anons' },
+                { title: selectedTitle(current === 'released', '\u0412\u044b\u0448\u043b\u043e'), value: 'released' }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0421\u0442\u0430\u0442\u0443\u0441',
+                items: items,
+                onSelect: function (item) {
+                    applyFilter({
+                        status: item.value,
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterGenreMenu(genres) {
+            var items = [
+                {
+                    title: selectedTitle(!params.genre, '\u041b\u044e\u0431\u043e\u0439'),
+                    value: ''
+                }
+            ];
+
+            for (var i = 0; i < genres.length; i++) {
+                if (genres[i] && genres[i].id) {
+                    var genreTitle = genres[i].russian || genres[i].name || genres[i].id;
+
+                    items.push({
+                        title: selectedTitle(String(params.genre || '') === String(genres[i].id), genreTitle),
+                        value: String(genres[i].id),
+                        genre_title: genreTitle
+                    });
+                }
+            }
+
+            if (items.length === 1) {
+                items.push({
+                    title: '\u0416\u0430\u043d\u0440\u044b \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u043d\u044b',
+                    value: 'noop'
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0416\u0430\u043d\u0440\u044b',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'noop') return;
+
+                    applyFilter({
+                        genre: item.value,
+                        genre_title: item.genre_title || '',
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openSettings() {
+            var settings = readSettings();
+
+            var items = [
+                {
+                    title: '\u042f\u0437\u044b\u043a \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0439: ' + titleLanguageName(settings.title_language),
+                    value: 'title_language'
+                },
+                {
+                    title: '\u0421\u043a\u0440\u044b\u0432\u0430\u0442\u044c 18+: ' + (settings.hide_adult ? '\u0434\u0430' : '\u043d\u0435\u0442'),
+                    value: 'hide_adult'
+                },
+                {
+                    title: '\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e: ' + sortName(settings.default_sort),
+                    value: 'default_sort'
+                },
+                {
+                    title: '\u0420\u0430\u0437\u043c\u0435\u0440 \u043a\u0430\u0440\u0442\u043e\u0447\u0435\u043a: ' + cardSizeName(settings.card_size),
+                    value: 'card_size'
+                },
+                {
+                    title: '\u0414\u043e\u043c\u0435\u043d Shikimori: ' + (settings.shiki_host || 'https://shikimori.one'),
+                    value: 'shiki_host'
+                },
+                {
+                    title: '\u041e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u043a\u044d\u0448 \u043f\u043e\u0438\u0441\u043a\u0430 TMDB',
+                    value: 'clear_tmdb_cache'
+                },
+                {
+                    title: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043f\u0440\u043e\u043a\u0441\u0438 TMDB',
+                    value: 'proxy'
+                },
+                {
+                    title: '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f: ' + authStatusTitle(),
+                    value: 'auth'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 Shikimori',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'title_language') {
+                        openTitleLanguageSettings();
+                        return;
+                    } else if (item.value === 'hide_adult') {
+                        openAdultSettings();
+                        return;
+                    } else if (item.value === 'default_sort') {
+                        openDefaultSortSettings();
+                        return;
+                    } else if (item.value === 'card_size') {
+                        openCardSizeSettings();
+                        return;
+                    } else if (item.value === 'shiki_host') {
+                        openShikiHostSettings();
+                        return;
+                    } else if (item.value === 'clear_tmdb_cache') {
+                        storageSet(TMDB_CACHE_KEY, {});
+                        storageSet(POSTER_CACHE_KEY, {});
+                        notify('\u041a\u044d\u0448 \u043f\u043e\u0438\u0441\u043a\u0430 \u043e\u0447\u0438\u0449\u0435\u043d');
+                        return;
+                    } else if (item.value === 'proxy') {
+                        openProxySettings();
+                        return;
+                    } else if (item.value === 'auth') {
+                        openAuthSettings();
+                        return;
+                    }
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function openTitleLanguageSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.title_language === 'original', '\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b'),
+                    value: 'original'
+                },
+                {
+                    title: selectedTitle(settings.title_language === 'en', '\u0410\u043d\u0433\u043b\u0438\u0439\u0441\u043a\u0438\u0439'),
+                    value: 'en'
+                },
+                {
+                    title: selectedTitle(settings.title_language === 'ru', '\u0420\u0443\u0441\u0441\u043a\u0438\u0439'),
+                    value: 'ru'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u042f\u0437\u044b\u043a \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0439',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('title_language', item.value);
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openAdultSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.hide_adult, '\u0414\u0430'),
+                    value: 'true'
+                },
+                {
+                    title: selectedTitle(!settings.hide_adult, '\u041d\u0435\u0442'),
+                    value: 'false'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0421\u043a\u0440\u044b\u0432\u0430\u0442\u044c 18+',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('hide_adult', item.value === 'true');
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openDefaultSortSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.default_sort === 'popularity', '\u041f\u043e\u043f\u0443\u043b\u044f\u0440\u043d\u043e\u0441\u0442\u044c'),
+                    value: 'popularity'
+                },
+                {
+                    title: selectedTitle(settings.default_sort === 'ranked', '\u0420\u0435\u0439\u0442\u0438\u043d\u0433'),
+                    value: 'ranked'
+                },
+                {
+                    title: selectedTitle(settings.default_sort === 'aired_on', '\u0414\u0430\u0442\u0430 \u0432\u044b\u0445\u043e\u0434\u0430'),
+                    value: 'aired_on'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0421\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('default_sort', item.value);
+                },
+                onBack: function () {
+                    openSettings();
+                }
+            });
+        }
+
+        function openCardSizeSettings() {
+            var settings = readSettings();
+            var items = [
+                {
+                    title: selectedTitle(settings.card_size === 'normal', '\u041e\u0431\u044b\u0447\u043d\u044b\u0439'),
+                    value: 'normal'
+                },
+                {
+                    title: selectedTitle(settings.card_size === 'compact', '\u041a\u043e\u043c\u043f\u0430\u043a\u0442\u043d\u044b\u0439'),
+                    value: 'compact'
+                }
+            ];
+
+            Lampa.Select.show({
+                title: '\u0420\u0430\u0437\u043c\u0435\u0440 \u043a\u0430\u0440\u0442\u043e\u0447\u0435\u043a',
+                items: items,
+                onSelect: function (item) {
+                    saveVisualSetting('card_size', item.value);
+                },
+                onBack: function () {
+                    openSettings();
                 }
             });
         }
