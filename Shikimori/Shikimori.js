@@ -830,13 +830,15 @@ function tmdbPosterUrl(path) {
             return uniqueUrls(candidates);
         }
 
+        candidates.push(getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        candidates.push('https://imagetmdb.cub.red/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        candidates.push('https://image.tmdb.org/t/p/original' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+
         if (window.Lampa) {
             if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') candidates.push(Lampa.TMDB.image(posterPath));
             if (Lampa.Api && typeof Lampa.Api.img === 'function') candidates.push(Lampa.Api.img(posterPath));
         }
-
-        candidates.push(getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
-        candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
 
         return uniqueUrls(candidates);
     }
