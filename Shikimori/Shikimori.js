@@ -320,29 +320,35 @@
     }
 
     function getTmdbUrl(url) {
-        var settings = readSettings();
-        var proxyUrl = '';
+    var settings = readSettings();
+    var proxyUrl = '';
 
-        if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
-            if (Lampa.Storage.get('proxy_tmdb')) {
-                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link');
-            }
+    if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
+        if (Lampa.Storage.get('proxy_tmdb')) {
+            proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link');
         }
-
-        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
-            proxyUrl = settings.proxy_url;
-        }
-
-        if (proxyUrl) {
-            proxyUrl = String(proxyUrl).trim();
-            if (proxyUrl.slice(-1) === '/') {
-                proxyUrl = proxyUrl.slice(0, -1);
-            }
-            return String(url).replace('https://api.themoviedb.org', proxyUrl);
-        }
-
-        return url;
     }
+
+    if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
+        proxyUrl = settings.proxy_url;
+    }
+
+    if (proxyUrl) {
+        proxyUrl = String(proxyUrl).trim();
+        // Удаляем завершающий слеш
+        if (proxyUrl.slice(-1) === '/') {
+            proxyUrl = proxyUrl.slice(0, -1);
+        }
+        // Добавляем протокол, если отсутствует
+        if (!/^https?:\/\//i.test(proxyUrl)) {
+            proxyUrl = 'https://' + proxyUrl;
+        }
+        // Заменяем хост TMDB на прокси-адрес
+        return String(url).replace('https://api.themoviedb.org', proxyUrl);
+    }
+
+    return url;
+}
 
     function apiCall(options, success, error) {
         var url = options.url;
