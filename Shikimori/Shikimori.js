@@ -929,40 +929,53 @@ function tmdbPosterUrl(path) {
                 if (poster) {
                     finishPosterRequest(data.id, poster);
                 } else {
-                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
+                    resolvePosterByShikiDetails(data, function (shikiPoster) {
+                        if (shikiPoster) {
+                            finishPosterRequest(data.id, shikiPoster);
+                        } else {
+                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster);
+                            });
+                        }
                     });
                 }
             });
             return;
         }
 
-        var armUrl = buildAnimeIdsLookupUrl(data);
+        resolvePosterByShikiDetails(data, function (shikiPoster) {
+            if (shikiPoster) {
+                finishPosterRequest(data.id, shikiPoster);
+                return;
+            }
 
-        apiGetJson(armUrl, function (answer) {
-            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-            var type = answer && (answer.media_type || answer.type);
+            var armUrl = buildAnimeIdsLookupUrl(data);
 
-            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+            apiGetJson(armUrl, function (answer) {
+                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                var type = answer && (answer.media_type || answer.type);
 
-            if (tmdbId) {
-                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
-                });
-            } else {
+                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                if (tmdbId) {
+                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                        if (poster) {
+                            finishPosterRequest(data.id, poster);
+                        } else {
+                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster);
+                            });
+                        }
+                    });
+                } else {
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
+                    });
+                }
+            }, function () {
                 resolvePosterByTmdbSearch(data, function (searchPoster) {
                     finishPosterRequest(data.id, searchPoster);
                 });
-            }
-        }, function () {
-            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
             });
         });
     }
@@ -3566,6 +3579,18 @@ function tmdbPosterUrl(path) {
         }
 
         next();
+    }
+
+    function resolvePosterByShikiDetails(data, callback) {
+        if (!data || !data.id) {
+            callback('');
+            return;
+        }
+
+        fetchShikiAnimeById(data.id, function (anime) {
+            var poster = anime ? posterOf(anime) : '';
+            callback(poster || '');
+        });
     }
 
     function resolveShikiAnimeForFull(activity, callback) {
