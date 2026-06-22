@@ -1,3 +1,9 @@
+Ниже представлен измененный код плагина. В меню Фильтры и Настройки пункты со
+множественным выбором (такие как язык названий, скрытие взрослого контента,
+сортировка по умолчанию, размер карточек, а также категории фильтрации по типу,
+статусу и жанрам) теперь открываются в виде структурированных выпадающих списков
+(подменю).
+
 (function () {
     'use strict';
 
@@ -285,33 +291,31 @@
         return list.length ? list[0] : '';
     }
 
-function tmdbPosterUrl(path) {
-    path = path === undefined || path === null ? '' : String(path).trim();
-    if (!path) return '';
+    function tmdbPosterUrl(path) {
+        path = path === undefined || path === null ? '' : String(path).trim();
+        if (!path) return '';
 
-    if (window.Lampa) {
-        // Приоритетно используем Lampa.TMDB.image, так как её переопределяет плагин "прокси.js"
-        // для распределения нагрузки по зеркалам картинок и добавления авторизационного email.
-        if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-            return Lampa.TMDB.image(path);
+        if (window.Lampa) {
+            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+                return Lampa.TMDB.image(path);
+            }
+            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+                return Lampa.Api.img(path);
+            }
         }
-        if (Lampa.Api && typeof Lampa.Api.img === 'function') {
-            return Lampa.Api.img(path);
+
+        var settings = readSettings();
+        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
+
+        if (/^https?:\/\//.test(path)) {
+            if (settings.proxy_tmdb) {
+                return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
+            }
+            return path;
         }
+
+        return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
     }
-
-    var settings = readSettings();
-    var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
-
-    if (/^https?:\/\//.test(path)) {
-        if (settings.proxy_tmdb) {
-            return path.replace('https://image.tmdb.org', 'https://imagetmdb.cub.red');
-        }
-        return path;
-    }
-
-    return baseUrl + (path.indexOf('/') === 0 ? path : '/' + path);
-}
 
     function tmdbLanguage() {
         try {
@@ -322,69 +326,60 @@ function tmdbPosterUrl(path) {
     }
 
     function getTmdbUrl(url) {
-    // 1. Если доступен метод Lampa.TMDB.api, используем его.
-    // Это гарантирует полную совместимость с плагином "прокси.js",
-    // так как он автоматически добавит нужные токены (email) и выберет рабочий прокси-хост.
-    if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
-        var match = url.match(/\/3\/(.+)$/);
-        if (match) {
-            return Lampa.TMDB.api(match[1]);
-        }
-    }
-
-    // 2. Резервный вариант: ручное проксирование из настроек плагина
-    var settings = readSettings();
-    var proxyUrl = '';
-
-    if (window.Lampa && Lampa.Storage) {
-        var isProxyEnabled = false;
-        if (typeof Lampa.Storage.field === 'function') {
-            isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
-        } else if (typeof Lampa.Storage.get === 'function') {
-            isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
-        }
-
-        if (isProxyEnabled) {
-            proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
-        }
-    }
-
-    if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
-        proxyUrl = settings.proxy_url;
-    }
-
-    if (proxyUrl) {
-        proxyUrl = String(proxyUrl).trim();
-        // Удаляем завершающий слеш
-        if (proxyUrl.slice(-1) === '/') {
-            proxyUrl = proxyUrl.slice(0, -1);
-        }
-        // Добавляем протокол, если отсутствует
-        if (!/^https?:\/\//i.test(proxyUrl)) {
-            proxyUrl = 'https://' + proxyUrl;
-        }
-        
-        // Заменяем хост TMDB на прокси-адрес
-        var processedUrl = String(url).replace('https://api.themoviedb.org', proxyUrl);
-        
-        // Для CUB-прокси обязательно требуется передавать email аккаунта.
-        // Если параметр email отсутствует в URL, пробуем достать его из Lampa и добавить.
-        if (window.Lampa && Lampa.Storage && processedUrl.indexOf('email=') === -1) {
-            var account = Lampa.Storage.get('account', '{}');
-            if (typeof account === 'string') {
-                try { account = JSON.parse(account); } catch(e) {}
-            }
-            var email = account.email || '';
-            if (email) {
-                processedUrl += (processedUrl.indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+            var match = url.match(/\/3\/(.+)$/);
+            if (match) {
+                return Lampa.TMDB.api(match[1]);
             }
         }
-        
-        return processedUrl;
-    }
 
-    return url;
-}
+        var settings = readSettings();
+        var proxyUrl = '';
+
+        if (window.Lampa && Lampa.Storage) {
+            var isProxyEnabled = false;
+            if (typeof Lampa.Storage.field === 'function') {
+                isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
+            } else if (typeof Lampa.Storage.get === 'function') {
+                isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
+            }
+
+            if (isProxyEnabled) {
+                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
+            }
+        }
+
+        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) {
+            proxyUrl = settings.proxy_url;
+        }
+
+        if (proxyUrl) {
+            proxyUrl = String(proxyUrl).trim();
+            if (proxyUrl.slice(-1) === '/') {
+                proxyUrl = proxyUrl.slice(0, -1);
+            }
+            if (!/^https?:\/\//i.test(proxyUrl)) {
+                proxyUrl = 'https://' + proxyUrl;
+            }
+            
+            var processedUrl = String(url).replace('https://api.themoviedb.org', proxyUrl);
+            
+            if (window.Lampa && Lampa.Storage && processedUrl.indexOf('email=') === -1) {
+                var account = Lampa.Storage.get('account', '{}');
+                if (typeof account === 'string') {
+                    try { account = JSON.parse(account); } catch(e) {}
+                }
+                var email = account.email || '';
+                if (email) {
+                    processedUrl += (processedUrl.indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
+                }
+            }
+            
+            return processedUrl;
+        }
+
+        return url;
+    }
 
     function apiCall(options, success, error) {
         var url = options.url;
@@ -1885,49 +1880,132 @@ function tmdbPosterUrl(path) {
         }
 
         function openFilters() {
+            var items = [
+                { title: 'Сортировка', value: 'sort' },
+                { title: 'Тип аниме', value: 'kind' },
+                { title: 'Статус аниме', value: 'status' },
+                { title: 'Жанры', value: 'genres' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Фильтры',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'sort') {
+                        openSortFilter();
+                    } else if (item.value === 'kind') {
+                        openKindFilter();
+                    } else if (item.value === 'status') {
+                        openStatusFilter();
+                    } else if (item.value === 'genres') {
+                        openGenresFilter();
+                    }
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('content');
+                }
+            });
+        }
+
+        function openSortFilter() {
+            var items = [
+                { title: 'Популярность', value: 'popularity' },
+                { title: 'Рейтинг', value: 'ranked' },
+                { title: 'Дата выхода', value: 'aired_on' },
+                { title: 'Название', value: 'name' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Сортировка',
+                items: items,
+                onSelect: function (sub) {
+                    openWith({ sort: sub.value });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openKindFilter() {
+            var items = [
+                { title: 'Все типы', value: '' },
+                { title: 'TV Series', value: 'tv' },
+                { title: 'Movie', value: 'movie' },
+                { title: 'OVA', value: 'ova' },
+                { title: 'ONA', value: 'ona' },
+                { title: 'Special', value: 'special' },
+                { title: 'Music', value: 'music' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Тип аниме',
+                items: items,
+                onSelect: function (sub) {
+                    openWith({ kind: sub.value });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openStatusFilter() {
+            var items = [
+                { title: 'Все статусы', value: '' },
+                { title: 'Онгоинг', value: 'ongoing' },
+                { title: 'Анонс', value: 'anons' },
+                { title: 'Вышло', value: 'released' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Статус аниме',
+                items: items,
+                onSelect: function (sub) {
+                    openWith({ status: sub.value });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openGenresFilter() {
             loadGenres(function (genres) {
-                var items = [
-                    { title: 'Сортировка: популярность', value: 'sort:popularity' },
-                    { title: 'Сортировка: рейтинг', value: 'sort:ranked' },
-                    { title: 'TV', value: 'kind:tv' },
-                    { title: 'Movie', value: 'kind:movie' },
-                    { title: 'OVA', value: 'kind:ova' },
-                    { title: 'Онгоинг', value: 'status:ongoing' },
-                    { title: 'Анонс', value: 'status:anons' },
-                    { title: 'Вышло', value: 'status:released' }
-                ];
+                var items = [];
+
+                items.push({ title: 'Все жанры', value: 'clear' });
 
                 for (var i = 0; i < genres.length; i++) {
                     if (genres[i] && genres[i].id) {
                         items.push({
-                            title: 'Жанр: ' + (genres[i].russian || genres[i].name || genres[i].id),
-                            value: 'genre:' + genres[i].id + ':' + (genres[i].russian || genres[i].name || genres[i].id)
+                            title: genres[i].russian || genres[i].name || String(genres[i].id),
+                            value: genres[i].id,
+                            genre_title: genres[i].russian || genres[i].name || String(genres[i].id)
                         });
                     }
                 }
 
-                if (!genres.length) items.push({
-                    title: 'Жанры недоступны',
-                    value: 'noop'
-                });
+                if (!genres.length) {
+                    items.push({ title: 'Жанры недоступны', value: 'noop' });
+                }
 
                 Lampa.Select.show({
-                    title: 'Фильтры',
+                    title: 'Жанры',
                     items: items,
-                    onSelect: function (item) {
-                        if (item.value === 'noop') return;
-
-                        var parts = String(item.value).split(':');
-                        var out = {};
-
-                        out[parts[0]] = parts[1];
-
-                        if (parts[0] === 'genre') out.genre_title = parts.slice(2).join(':') || parts[1];
-
-                        openWith(out);
+                    onSelect: function (sub) {
+                        if (sub.value === 'noop') return;
+                        if (sub.value === 'clear') {
+                            openWith({ genre: '', genre_title: '' });
+                        } else {
+                            openWith({
+                                genre: sub.value,
+                                genre_title: sub.genre_title
+                            });
+                        }
                     },
                     onBack: function () {
-                        Lampa.Controller.toggle('content');
+                        openFilters();
                     }
                 });
             });
@@ -2026,37 +2104,98 @@ function tmdbPosterUrl(path) {
                 items: items,
                 onSelect: function (item) {
                     if (item.value === 'title_language') {
-                        settings.title_language = settings.title_language === 'ru' ? 'original' : (settings.title_language === 'original' ? 'en' : 'ru');
+                        Lampa.Select.show({
+                            title: 'Язык названий',
+                            items: [
+                                { title: 'Оригинал', value: 'original' },
+                                { title: 'Английский', value: 'en' },
+                                { title: 'Русский', value: 'ru' }
+                            ],
+                            onSelect: function (sub) {
+                                settings.title_language = sub.value;
+                                saveSettings(settings);
+                                notify('Настройки Shikimori сохранены');
+                                openWith({
+                                    page: 1,
+                                    sort: settings.default_sort
+                                });
+                            },
+                            onBack: function () {
+                                openSettings();
+                            }
+                        });
                     } else if (item.value === 'hide_adult') {
-                        settings.hide_adult = !settings.hide_adult;
+                        Lampa.Select.show({
+                            title: 'Скрывать 18+',
+                            items: [
+                                { title: 'Да', value: true },
+                                { title: 'Нет', value: false }
+                            ],
+                            onSelect: function (sub) {
+                                settings.hide_adult = sub.value;
+                                saveSettings(settings);
+                                notify('Настройки Shikimori сохранены');
+                                openWith({
+                                    page: 1,
+                                    sort: settings.default_sort
+                                });
+                            },
+                            onBack: function () {
+                                openSettings();
+                            }
+                        });
                     } else if (item.value === 'default_sort') {
-                        settings.default_sort = settings.default_sort === 'popularity' ? 'ranked' : (settings.default_sort === 'ranked' ? 'aired_on' : 'popularity');
+                        Lampa.Select.show({
+                            title: 'Сортировка по умолчанию',
+                            items: [
+                                { title: 'Популярность', value: 'popularity' },
+                                { title: 'Рейтинг', value: 'ranked' },
+                                { title: 'Дата выхода', value: 'aired_on' }
+                            ],
+                            onSelect: function (sub) {
+                                settings.default_sort = sub.value;
+                                saveSettings(settings);
+                                notify('Настройки Shikimori сохранены');
+                                openWith({
+                                    page: 1,
+                                    sort: settings.default_sort
+                                });
+                            },
+                            onBack: function () {
+                                openSettings();
+                            }
+                        });
                     } else if (item.value === 'card_size') {
-                        settings.card_size = settings.card_size === 'normal' ? 'compact' : 'normal';
+                        Lampa.Select.show({
+                            title: 'Размер карточек',
+                            items: [
+                                { title: 'Обычный', value: 'normal' },
+                                { title: 'Компактный', value: 'compact' }
+                            ],
+                            onSelect: function (sub) {
+                                settings.card_size = sub.value;
+                                saveSettings(settings);
+                                notify('Настройки Shikimori сохранены');
+                                openWith({
+                                    page: 1,
+                                    sort: settings.default_sort
+                                });
+                            },
+                            onBack: function () {
+                                openSettings();
+                            }
+                        });
                     } else if (item.value === 'shiki_host') {
                         openShikiHostSettings();
-                        return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
                         notify('Кэш поиска очищен');
-                        return;
+                        openSettings();
                     } else if (item.value === 'proxy') {
                         openProxySettings();
-                        return;
                     } else if (item.value === 'auth') {
                         openAuthSettings();
-                        return;
-                    }
-
-                    saveSettings(settings);
-                    notify('Настройки Shikimori сохранены');
-
-                    if (['title_language', 'hide_adult', 'default_sort', 'card_size'].indexOf(item.value) !== -1) {
-                        openWith({
-                            page: 1,
-                            sort: settings.default_sort
-                        });
                     }
                 },
                 onBack: function () {
