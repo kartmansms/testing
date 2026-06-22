@@ -829,6 +829,13 @@ function tmdbPosterUrl(path) {
         return proxyUrl;
     }
 
+    function shouldUseProxyOnlyForTmdb() {
+        var settings = readSettings();
+
+        if (getTmdbApiProxyUrl()) return true;
+        return !!settings.proxy_tmdb;
+    }
+
     // Active TMDB request routing.
     // Priority: Lampa proxy plugin -> script proxy_url -> direct TMDB.
     function getTmdbUrl(url) {
@@ -882,6 +889,7 @@ function tmdbPosterUrl(path) {
 
         var posterPath = extractTmdbPosterPath(path);
         var candidates = [];
+        var proxyOnly = shouldUseProxyOnlyForTmdb();
 
         if (!posterPath) {
             if (/^https?:\/\//i.test(path)) candidates.push(path);
@@ -890,12 +898,22 @@ function tmdbPosterUrl(path) {
 
         candidates.push(getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
         candidates.push('https://imagetmdb.cub.red/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
-        candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
-        candidates.push('https://image.tmdb.org/t/p/original' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+
+        if (!proxyOnly) {
+            candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+            candidates.push('https://image.tmdb.org/t/p/original' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        }
 
         if (window.Lampa) {
-            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') candidates.push(Lampa.TMDB.image(posterPath));
-            if (Lampa.Api && typeof Lampa.Api.img === 'function') candidates.push(Lampa.Api.img(posterPath));
+            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+                var lampaTmdbImage = String(Lampa.TMDB.image(posterPath) || '').trim();
+                if (lampaTmdbImage && (!proxyOnly || !/image\.tmdb\.org/i.test(lampaTmdbImage))) candidates.push(lampaTmdbImage);
+            }
+
+            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
+                var lampaApiImage = String(Lampa.Api.img(posterPath) || '').trim();
+                if (lampaApiImage && (!proxyOnly || !/image\.tmdb\.org/i.test(lampaApiImage))) candidates.push(lampaApiImage);
+            }
         }
 
         return uniqueUrls(candidates);
