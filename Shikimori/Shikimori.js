@@ -25,7 +25,7 @@
             card_size: 'normal',
             proxy_tmdb: true,
             proxy_url: 'https://apitmdb.cub.red',
-            shiki_host: 'https://shikimori.one'
+            shiki_host: 'https://shikimori.io'
         };
     }
 
@@ -240,7 +240,7 @@
         var cleanHost = shikiHost.replace(/^https?:\/\//, '');
 
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.one', cleanHost).replace('shikimori.me', cleanHost).replace('shikimori.io', cleanHost);
+            return url.replace('shikimori.one', cleanHost).replace('shikimori.io', cleanHost);
         }
 
         return shikiHost + (url.indexOf('/') === 0 ? url : '/' + url);
@@ -2034,7 +2034,6 @@
             var items = [
                 { title: 'shikimori.one', value: 'https://shikimori.one' },
                 { title: 'shikimori.io', value: 'https://shikimori.io' },
-                { title: 'shikimori.me', value: 'https://shikimori.me' },
                 { title: 'Ввести вручную', value: 'custom' }
             ];
 
