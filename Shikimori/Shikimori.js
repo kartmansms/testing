@@ -788,6 +788,64 @@ function tmdbPosterUrl(path) {
         return baseUrl;
     }
 
+    function addTmdbAccountEmail(url) {
+        if (!window.Lampa || !Lampa.Storage || !url || String(url).indexOf('email=') !== -1) return url;
+
+        var account = Lampa.Storage.get('account', '{}');
+
+        if (typeof account === 'string') {
+            try { account = JSON.parse(account); } catch (e) {}
+        }
+
+        var email = account && account.email ? account.email : '';
+
+        if (!email) return url;
+
+        return url + (String(url).indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
+    }
+
+    function getTmdbApiProxyUrl() {
+        var settings = readSettings();
+        var proxyUrl = '';
+
+        if (window.Lampa && Lampa.Storage) {
+            var isProxyEnabled = false;
+
+            if (typeof Lampa.Storage.field === 'function') isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
+            else if (typeof Lampa.Storage.get === 'function') isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
+
+            if (isProxyEnabled) {
+                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
+            }
+        }
+
+        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) proxyUrl = settings.proxy_url;
+        if (!proxyUrl) return '';
+
+        proxyUrl = String(proxyUrl).trim().replace(/\/+$/, '');
+
+        if (!/^https?:\/\//i.test(proxyUrl)) proxyUrl = 'https://' + proxyUrl;
+
+        return proxyUrl;
+    }
+
+    // Active TMDB request routing.
+    // Priority: Lampa proxy plugin -> script proxy_url -> direct TMDB.
+    function getTmdbUrl(url) {
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+            var match = String(url).match(/\/3\/(.+)$/);
+            if (match && match[1]) return addTmdbAccountEmail(Lampa.TMDB.api(match[1]));
+        }
+
+        var proxyUrl = getTmdbApiProxyUrl();
+
+        if (proxyUrl) {
+            return addTmdbAccountEmail(String(url).replace('https://api.themoviedb.org', proxyUrl));
+        }
+
+        return url;
+    }
+
     function normalizeExternalPosterUrl(url) {
         url = url === undefined || url === null ? '' : String(url).trim();
 
