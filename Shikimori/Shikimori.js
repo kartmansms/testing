@@ -16,6 +16,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
+    var tmdbBlocked = false;
 
     function defaults() {
         return {
@@ -23,9 +24,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.io',
-            poster_size: 'auto',
-            poster_source: 'auto'
+            shiki_host: 'https://shikimori.io'
         };
     }
 
@@ -241,74 +240,33 @@
         if (list.indexOf(url) === -1) list.push(url);
     }
 
-    function posterSizeName(size) {
-        var names = { auto: 'Авто', original: 'Оригинал', preview: 'Превью', x96: 'Средний', x48: 'Маленький' };
-        return names[size] || 'Авто';
-    }
-
-    function posterSourceName(source) {
-        var names = { auto: 'Авто', shikimori: 'Shikimori', jikan: 'Jikan (MAL)' };
-        return names[source] || 'Авто';
-    }
-
-    function orderedPosterUrls(data, size) {
+    function posterUrls(data) {
+        var list = [];
         var poster = data && data.poster ? data.poster : {};
         var image = data && data.image ? data.image : {};
-        var list = [];
 
-        if (size === 'original') {
-            pushPosterUrl(list, poster.originalUrl || poster.original_url);
-            pushPosterUrl(list, image.original);
-            pushPosterUrl(list, poster.mainUrl || poster.main_url);
-            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-            pushPosterUrl(list, image.preview);
-            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
-            pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
-        } else if (size === 'preview') {
-            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-            pushPosterUrl(list, image.preview);
-            pushPosterUrl(list, poster.mainUrl || poster.main_url);
-            pushPosterUrl(list, poster.originalUrl || poster.original_url);
-            pushPosterUrl(list, image.original);
-            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
-            pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
-        } else if (size === 'x96') {
-            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
-            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-            pushPosterUrl(list, image.preview);
-            pushPosterUrl(list, poster.mainUrl || poster.main_url);
-            pushPosterUrl(list, poster.originalUrl || poster.original_url);
-            pushPosterUrl(list, image.original);
-            pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
-        } else if (size === 'x48') {
-            pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
-            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
-            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-            pushPosterUrl(list, image.preview);
-            pushPosterUrl(list, poster.mainUrl || poster.main_url);
-            pushPosterUrl(list, poster.originalUrl || poster.original_url);
-            pushPosterUrl(list, image.original);
-        } else {
-            pushPosterUrl(list, poster.mainUrl || poster.main_url);
-            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-            pushPosterUrl(list, image.preview);
-            pushPosterUrl(list, poster.originalUrl || poster.original_url);
-            pushPosterUrl(list, image.original);
-            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
-            pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
-        }
+        pushPosterUrl(list, poster.mainUrl || poster.main_url);
+        pushPosterUrl(list, poster.previewUrl || poster.preview_url);
+        pushPosterUrl(list, image.preview);
+        pushPosterUrl(list, poster.originalUrl || poster.original_url);
+        pushPosterUrl(list, image.original);
+        pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
+        pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
 
         return list;
-    }
-
-    function posterUrls(data) {
-        var settings = readSettings();
-        return orderedPosterUrls(data, settings.poster_size);
     }
 
     function posterOf(data) {
         var list = posterUrls(data);
         return list.length ? list[0] : '';
+    }
+
+    function tmdbLanguage() {
+        try {
+            return window.Lampa && Lampa.Storage ? Lampa.Storage.get('language', 'ru') : 'ru';
+        } catch (e) {
+            return 'ru';
+        }
     }
 
     function apiCall(options, success, error) {
@@ -370,6 +328,137 @@
         }
     }
 
+    function getAnimeYear(data) {
+        return data && data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
+    }
+
+    function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
+        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+
+        type = type === 'movie' ? 'movie' : 'tv';
+
+        var url = 'https://api.themoviedb.org/3/' + type +
+            '/' + encodeURIComponent(tmdbId) +
+            '?api_key=' + apiKey +
+            '&language=' + encodeURIComponent(tmdbLanguage());
+
+        apiGetJson(getTmdbUrl(url), function (res) {
+            var posterPath = extractTmdbPosterPath(res && res.poster_path ? res.poster_path : '');
+            var poster = tmdbPosterUrl(posterPath);
+
+            if (poster) {
+                var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+                tmdbCache[data.id] = {
+                    id: tmdbId,
+                    type: type,
+                    poster: poster,
+                    poster_path: posterPath
+                };
+                storageSet(TMDB_CACHE_KEY, tmdbCache);
+            }
+
+            callback(poster);
+        }, function () {
+            tmdbBlocked = true;
+            callback('');
+        });
+    }
+
+    function resolvePosterByTmdbSearch(data, callback) {
+        if (tmdbBlocked) {
+            callback('');
+            return;
+        }
+
+        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+        var queries = [];
+        var year = getAnimeYear(data);
+
+        buildSmartQueries(data.english, queries);
+        buildSmartQueries(data.name, queries);
+        buildSmartQueries(data.russian, queries);
+
+        if (!queries.length) {
+            callback('');
+            return;
+        }
+
+        var index = 0;
+
+        function next() {
+            if (index >= queries.length) {
+                callback('');
+                return;
+            }
+
+            var query = queries[index++];
+
+            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + apiKey +
+                '&language=' + encodeURIComponent(tmdbLanguage()) +
+                '&query=' + encodeURIComponent(query);
+
+            apiGetJson(getTmdbUrl(url), function (res) {
+                var results = res && res.results ? res.results : [];
+                var best = null;
+
+                for (var i = 0; i < results.length; i++) {
+                    var item = results[i];
+
+                    if ((item.media_type === 'tv' || item.media_type === 'movie') && item.poster_path) {
+                        if (!best) best = item;
+
+                        if (year) {
+                            var itemYear = item.first_air_date
+                                ? parseInt(item.first_air_date.substring(0, 4), 10)
+                                : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
+
+                            var isValidYear = false;
+                            if (item.media_type === 'tv') {
+                                if (!itemYear || (year >= itemYear - 2 && year <= itemYear + 20)) {
+                                    isValidYear = true;
+                                }
+                            } else {
+                                if (!itemYear || Math.abs(itemYear - year) <= 2) {
+                                    isValidYear = true;
+                                }
+                            }
+
+                            if (isValidYear) {
+                                best = item;
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                if (best && best.poster_path) {
+                    var posterPath = extractTmdbPosterPath(best.poster_path);
+                    var poster = tmdbPosterUrl(posterPath);
+                    var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+
+                    tmdbCache[data.id] = {
+                        id: best.id,
+                        type: best.media_type === 'movie' ? 'movie' : 'tv',
+                        poster: poster,
+                        poster_path: posterPath
+                    };
+
+                    storageSet(TMDB_CACHE_KEY, tmdbCache);
+                    callback(poster);
+                } else {
+                    next();
+                }
+            }, function () {
+                tmdbBlocked = true;
+                next();
+            });
+        }
+
+        next();
+    }
+
     function installPosterFallback(img, urls, fallback, data) {
         img = $(img);
         urls = urls || [];
@@ -378,7 +467,6 @@
         img.data('poster-external-tried', false);
         img.data('poster-external-alt-tried', false);
         img.data('poster-fallback-done', false);
-        img.data('poster-retry-done', false);
 
         function setFallback() {
             if (img.data('poster-fallback-done')) return;
@@ -417,31 +505,6 @@
             });
         }
 
-        function retryWithDelay() {
-            if (img.data('poster-retry-done')) {
-                setFallback();
-                return;
-            }
-
-            img.data('poster-retry-done', true);
-
-            setTimeout(function () {
-                if (img.data('poster-fallback-done')) return;
-
-                var retryUrls = posterUrls(data);
-                var currentSrc = String(img.attr('src') || '').trim();
-
-                for (var i = 0; i < retryUrls.length; i++) {
-                    if (retryUrls[i] && retryUrls[i] !== currentSrc) {
-                        img.attr('src', retryUrls[i]);
-                        return;
-                    }
-                }
-
-                tryExternalPoster();
-            }, 1500);
-        }
-
         img.on('error', function () {
             var index;
 
@@ -456,12 +519,6 @@
                 img.attr('src', urls[index]);
             } else {
                 if (img.data('poster-external-tried') && !img.data('poster-external-alt-tried') && tryAlternativeExternalPoster()) return;
-
-                if (!img.data('poster-retry-done')) {
-                    retryWithDelay();
-                    return;
-                }
-
                 tryExternalPoster();
             }
         });
@@ -654,38 +711,129 @@
 
         posterRequests[data.id] = [callback];
 
-        var settings = readSettings();
-        var source = settings.poster_source || 'auto';
-        var malId = data.mal_id || data.myanimelist || data.mal || 0;
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+        var tmdbEntry = tmdbCache[data.id] || {};
+        var tmdbPoster = normalizeExternalPosterUrl(tmdbEntry.poster || '');
 
-        function tryShikimori() {
-            resolvePosterByShikiDetails(data, function (shikiPoster) {
-                finishPosterRequest(data.id, shikiPoster || '');
-            });
+        if (tmdbPoster) {
+            if (tmdbEntry.poster !== tmdbPoster) {
+                tmdbEntry.poster = tmdbPoster;
+                tmdbCache[data.id] = tmdbEntry;
+                storageSet(TMDB_CACHE_KEY, tmdbCache);
+            }
+
+            finishPosterRequest(data.id, tmdbPoster);
+            return;
         }
 
-        function tryJikan() {
-            if (!malId) {
-                tryShikimori();
+        if (!tmdbBlocked && tmdbEntry.id) {
+            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
+                if (poster) {
+                    finishPosterRequest(data.id, poster);
+                } else {
+                    resolvePosterByShikiDetails(data, function (shikiPoster) {
+                        if (shikiPoster) {
+                            finishPosterRequest(data.id, shikiPoster);
+                        } else {
+                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster);
+                            });
+                        }
+                    });
+                }
+            });
+            return;
+        }
+
+        resolvePosterByShikiDetails(data, function (shikiPoster) {
+            if (shikiPoster) {
+                finishPosterRequest(data.id, shikiPoster);
                 return;
             }
 
-            fetchMalPoster(malId, function (malPoster) {
-                if (malPoster) {
-                    finishPosterRequest(data.id, malPoster);
-                } else {
-                    tryShikimori();
-                }
-            });
-        }
+            var malId = data.mal_id || data.myanimelist || data.mal || 0;
 
-        if (source === 'jikan') {
-            tryJikan();
-        } else if (source === 'shikimori') {
-            tryShikimori();
-        } else {
-            tryJikan();
-        }
+            if (malId) {
+                fetchMalPoster(malId, function (malPoster) {
+                    if (malPoster) {
+                        finishPosterRequest(data.id, malPoster);
+                    } else if (tmdbBlocked) {
+                        finishPosterRequest(data.id, '');
+                    } else {
+                        var armUrl = buildAnimeIdsLookupUrl(data);
+
+                        if (!armUrl) {
+                            finishPosterRequest(data.id, '');
+                        } else {
+                            apiGetJson(armUrl, function (answer) {
+                                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                                var type = answer && (answer.media_type || answer.type);
+
+                                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                                if (tmdbId) {
+                                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                                        if (poster) {
+                                            finishPosterRequest(data.id, poster);
+                                        } else {
+                                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                                finishPosterRequest(data.id, searchPoster);
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                        finishPosterRequest(data.id, searchPoster);
+                                    });
+                                }
+                            }, function () {
+                                tmdbBlocked = true;
+                                finishPosterRequest(data.id, '');
+                            });
+                        }
+                    }
+                });
+                return;
+            }
+
+            if (tmdbBlocked) {
+                finishPosterRequest(data.id, '');
+                return;
+            }
+
+            var armUrl = buildAnimeIdsLookupUrl(data);
+
+            if (!armUrl) {
+                finishPosterRequest(data.id, '');
+                return;
+            }
+
+            apiGetJson(armUrl, function (answer) {
+                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                var type = answer && (answer.media_type || answer.type);
+
+                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                if (tmdbId) {
+                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                        if (poster) {
+                            finishPosterRequest(data.id, poster);
+                        } else {
+                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster);
+                            });
+                        }
+                    });
+                } else {
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
+                    });
+                }
+            }, function () {
+                tmdbBlocked = true;
+                finishPosterRequest(data.id, '');
+            });
+        });
     }
 
     function isAdultGenre(genre) {
@@ -759,8 +907,31 @@
                 var mapped = [];
 
                 for (var i = 0; i < data.length; i++) {
-                    var mapped_item = mapShikiAnime(data[i]);
-                    if (mapped_item) mapped.push(mapped_item);
+                    var item = data[i];
+
+                    mapped.push({
+                        id: item.id,
+                        name: item.name,
+                        russian: item.russian,
+                        english: item.english || '',
+                        japanese: item.japanese || '',
+                        kind: item.kind,
+                        score: item.score,
+                        status: item.status,
+                        season: item.season || '',
+                        airedOn: {
+                            year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
+                        },
+                        mal_id: item.mal_id || item.myanimelist_id || item.myanimelist || item.mal || 0,
+                        poster: {
+                            originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
+                            mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
+                            previewUrl: (item.poster && (item.poster.previewUrl || item.poster.preview_url)) || (item.image && item.image.preview) || '',
+                            x96Url: (item.poster && (item.poster.x96Url || item.poster.x96_url)) || (item.image && item.image.x96) || '',
+                            x48Url: (item.poster && (item.poster.x48Url || item.poster.x48_url)) || (item.image && item.image.x48) || ''
+                        },
+                        image: item.image || null
+                    });
                 }
 
                 oncomplete(mapped);
@@ -1409,7 +1580,7 @@
             var element = $(
                 '<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                     '<div class="card__view">' +
-                        '<img class="card__img" loading="lazy" src="' + imgSrc + '" />' +
+                        '<img class="card__img" src="' + imgSrc + '" />' +
                         '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
                     '</div>' +
@@ -2128,14 +2299,6 @@
                     value: 'card_size'
                 },
                 {
-                    title: '\u0420\u0430\u0437\u043c\u0435\u0440 \u043f\u043e\u0441\u0442\u0435\u0440\u0430: ' + posterSizeName(settings.poster_size),
-                    value: 'poster_size'
-                },
-                {
-                    title: '\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a \u043f\u043e\u0441\u0442\u0435\u0440\u043e\u0432: ' + posterSourceName(settings.poster_source),
-                    value: 'poster_source'
-                },
-                {
                     title: '\u0414\u043e\u043c\u0435\u043d Shikimori: ' + (settings.shiki_host || 'https://shikimori.one'),
                     value: 'shiki_host'
                 },
@@ -2164,12 +2327,6 @@
                         return;
                     } else if (item.value === 'card_size') {
                         openCardSizeSettings();
-                        return;
-                    } else if (item.value === 'poster_size') {
-                        openPosterSizeSettings();
-                        return;
-                    } else if (item.value === 'poster_source') {
-                        openPosterSourceSettings();
                         return;
                     } else if (item.value === 'shiki_host') {
                         openShikiHostSettings();
@@ -2291,72 +2448,6 @@
                 items: items,
                 onSelect: function (item) {
                     saveVisualSetting('card_size', item.value);
-                },
-                onBack: function () {
-                    openSettings();
-                }
-            });
-        }
-
-        function openPosterSizeSettings() {
-            var settings = readSettings();
-            var items = [
-                {
-                    title: selectedTitle(settings.poster_size === 'auto', '\u0410\u0432\u0442\u043e'),
-                    value: 'auto'
-                },
-                {
-                    title: selectedTitle(settings.poster_size === 'original', '\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b'),
-                    value: 'original'
-                },
-                {
-                    title: selectedTitle(settings.poster_size === 'preview', '\u041f\u0440\u0435\u0432\u044c\u044e'),
-                    value: 'preview'
-                },
-                {
-                    title: selectedTitle(settings.poster_size === 'x96', '\u0421\u0440\u0435\u0434\u043d\u0438\u0439 (x96)'),
-                    value: 'x96'
-                },
-                {
-                    title: selectedTitle(settings.poster_size === 'x48', '\u041c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u0439 (x48)'),
-                    value: 'x48'
-                }
-            ];
-
-            Lampa.Select.show({
-                title: '\u0420\u0430\u0437\u043c\u0435\u0440 \u043f\u043e\u0441\u0442\u0435\u0440\u0430',
-                items: items,
-                onSelect: function (item) {
-                    saveVisualSetting('poster_size', item.value);
-                },
-                onBack: function () {
-                    openSettings();
-                }
-            });
-        }
-
-        function openPosterSourceSettings() {
-            var settings = readSettings();
-            var items = [
-                {
-                    title: selectedTitle(settings.poster_source === 'auto', '\u0410\u0432\u0442\u043e (\u0414\u0437\u0435\u0439\u043d\u0438\u043a \u041a\u043e\u043c\u043f\u0430\u043d\u0438\u044f)'),
-                    value: 'auto'
-                },
-                {
-                    title: selectedTitle(settings.poster_source === 'shikimori', 'Shikimori'),
-                    value: 'shikimori'
-                },
-                {
-                    title: selectedTitle(settings.poster_source === 'jikan', 'Jikan (MAL)'),
-                    value: 'jikan'
-                }
-            ];
-
-            Lampa.Select.show({
-                title: '\u0418\u0441\u0442\u043e\u0447\u043d\u0438\u043a \u043f\u043e\u0441\u0442\u0435\u0440\u043e\u0432',
-                items: items,
-                onSelect: function (item) {
-                    saveVisualSetting('poster_source', item.value);
                 },
                 onBack: function () {
                     openSettings();
@@ -2489,7 +2580,7 @@
         }
 
         function load(append) {
-            if ((loading || ended) && append) return;
+            if (loading || ended && append) return;
 
             loading = true;
 
@@ -2773,7 +2864,12 @@
         }
 
         fetchShikiAnimeById(data.id, function (anime) {
-            callback(anime ? posterOf(anime) : '');
+            var poster = anime ? posterOf(anime) : '';
+            if (isBadPosterUrl(poster)) {
+                callback('');
+            } else {
+                callback(poster || '');
+            }
         });
     }
 
