@@ -795,6 +795,32 @@
         }
     }
 
+    function fetchMalPoster(malId, callback) {
+        if (!malId) {
+            callback('');
+            return;
+        }
+
+        var url = 'https://api.jikan.moe/v4/anime/' + encodeURIComponent(malId);
+
+        apiGetJson(url, function (res) {
+            var entry = res && res.data ? res.data : null;
+
+            if (!entry) {
+                callback('');
+                return;
+            }
+
+            var images = entry.images || {};
+            var jpg = images.jpg || {};
+            var poster = jpg.large_image_url || jpg.image_url || '';
+
+            callback(poster);
+        }, function () {
+            callback('');
+        });
+    }
+
     function resolveExternalPoster(data, callback) {
         if (!data || !data.id) {
             callback('');
@@ -854,6 +880,47 @@
         resolvePosterByShikiDetails(data, function (shikiPoster) {
             if (shikiPoster) {
                 finishPosterRequest(data.id, shikiPoster);
+                return;
+            }
+
+            var malId = data.mal_id || data.myanimelist || data.mal || 0;
+
+            if (malId) {
+                fetchMalPoster(malId, function (malPoster) {
+                    if (malPoster) {
+                        finishPosterRequest(data.id, malPoster);
+                    } else if (tmdbBlocked) {
+                        finishPosterRequest(data.id, '');
+                    } else {
+                        var armUrl = buildAnimeIdsLookupUrl(data);
+
+                        apiGetJson(armUrl, function (answer) {
+                            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                            var type = answer && (answer.media_type || answer.type);
+
+                            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                            if (tmdbId) {
+                                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                                    if (poster) {
+                                        finishPosterRequest(data.id, poster);
+                                    } else {
+                                        resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                            finishPosterRequest(data.id, searchPoster);
+                                        });
+                                    }
+                                });
+                            } else {
+                                resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                    finishPosterRequest(data.id, searchPoster);
+                                });
+                            }
+                        }, function () {
+                            tmdbBlocked = true;
+                            finishPosterRequest(data.id, '');
+                        });
+                    }
+                });
                 return;
             }
 
