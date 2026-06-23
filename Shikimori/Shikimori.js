@@ -2060,6 +2060,17 @@
             return (isSelected ? '✓ ' : '   ') + title;
         }
 
+        function saveVisualSetting(key, value) {
+            var settings = readSettings();
+            settings[key] = value;
+            saveSettings(settings);
+            notify('Настройки Shikimori сохранены');
+            openWith({
+                page: 1,
+                sort: settings.default_sort
+            });
+        }
+
         function openSettings() {
             var settings = readSettings();
 
@@ -2141,9 +2152,7 @@
                 title: 'Язык названий',
                 items: items,
                 onSelect: function (item) {
-                    settings.title_language = item.value;
-                    saveSettings(settings);
-                    notify('Настройки Shikimori сохранены');
+                    saveVisualSetting('title_language', item.value);
                 },
                 onBack: function () {
                     openSettings();
@@ -2162,9 +2171,7 @@
                 title: 'Скрывать 18+',
                 items: items,
                 onSelect: function (item) {
-                    settings.hide_adult = item.value === 'true';
-                    saveSettings(settings);
-                    notify('Настройки Shikimori сохранены');
+                    saveVisualSetting('hide_adult', item.value === 'true');
                 },
                 onBack: function () {
                     openSettings();
@@ -2184,9 +2191,7 @@
                 title: 'Сортировка по умолчанию',
                 items: items,
                 onSelect: function (item) {
-                    settings.default_sort = item.value;
-                    saveSettings(settings);
-                    notify('Настройки Shikimori сохранены');
+                    saveVisualSetting('default_sort', item.value);
                 },
                 onBack: function () {
                     openSettings();
@@ -2205,9 +2210,7 @@
                 title: 'Размер карточек',
                 items: items,
                 onSelect: function (item) {
-                    settings.card_size = item.value;
-                    saveSettings(settings);
-                    notify('Настройки Shikimori сохранены');
+                    saveVisualSetting('card_size', item.value);
                 },
                 onBack: function () {
                     openSettings();
