@@ -211,14 +211,11 @@
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
         
-        var shikiHost = getShikiHost();
-        var cleanHost = shikiHost.replace(/^https?:\/\//, '');
-
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.one', cleanHost).replace('shikimori.io', cleanHost);
+            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
         }
 
-        return shikiHost + (url.indexOf('/') === 0 ? url : '/' + url);
+        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -284,7 +281,28 @@
     }
 
     function apiGetJson(url, success, error) {
-        apiCall({ url: url }, success, error);
+        if (window.Lampa && typeof Lampa.Reguest === 'function') {
+            try {
+                var network = new Lampa.Reguest();
+                if (typeof network.timeout === 'function') network.timeout(8000);
+                if (typeof network.silent === 'function') {
+                    network.silent(url, success, error || function () {});
+                    return;
+                }
+            } catch (e) {}
+        }
+
+        if (window.$) {
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                timeout: 8000,
+                success: success,
+                error: error || function () {}
+            });
+        } else {
+            console.error('Shikimori: no network method available');
+        }
     }
 
     function buildSmartQueries(value, queriesArray) {
@@ -341,17 +359,15 @@
             '?api_key=' + apiKey +
             '&language=' + encodeURIComponent(tmdbLanguage());
 
-        apiGetJson(getTmdbUrl(url), function (res) {
-            var posterPath = extractTmdbPosterPath(res && res.poster_path ? res.poster_path : '');
-            var poster = tmdbPosterUrl(posterPath);
+        apiGetJson(url, function (res) {
+            var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
 
             if (poster) {
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
                 tmdbCache[data.id] = {
                     id: tmdbId,
                     type: type,
-                    poster: poster,
-                    poster_path: posterPath
+                    poster: poster
                 };
                 storageSet(TMDB_CACHE_KEY, tmdbCache);
             }
@@ -427,15 +443,13 @@
                 }
 
                 if (best && best.poster_path) {
-                    var posterPath = extractTmdbPosterPath(best.poster_path);
-                    var poster = tmdbPosterUrl(posterPath);
+                    var poster = tmdbPosterUrl(best.poster_path);
                     var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
 
                     tmdbCache[data.id] = {
                         id: best.id,
                         type: best.media_type === 'movie' ? 'movie' : 'tv',
-                        poster: poster,
-                        poster_path: posterPath
+                        poster: poster
                     };
 
                     storageSet(TMDB_CACHE_KEY, tmdbCache);
@@ -443,9 +457,7 @@
                 } else {
                     next();
                 }
-            }, function () {
-                next();
-            });
+            }, next);
         }
 
         next();
@@ -606,13 +618,12 @@
     }
 
     function tmdbPosterUrl(path) {
+        path = path === undefined || path === null ? '' : String(path).trim();
+
         if (!path) return '';
-        path = String(path).trim();
+        if (/^https?:\/\//.test(path)) return path;
 
-        if (/^https?:\/\//i.test(path) && !isTmdbPosterUrl(path)) return path;
-
-        var candidates = tmdbPosterCandidates(path);
-        return candidates.length ? candidates[0] : '';
+        return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
     }
 
     function saveResolvedPoster(animeId, posterUrl) {
