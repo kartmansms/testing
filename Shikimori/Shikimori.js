@@ -260,14 +260,6 @@
         return list.length ? list[0] : '';
     }
 
-    function tmdbLanguage() {
-        try {
-            return window.Lampa && Lampa.Storage ? Lampa.Storage.get('language', 'ru') : 'ru';
-        } catch (e) {
-            return 'ru';
-        }
-    }
-
     function apiCall(options, success, error) {
         var network = new Lampa.Reguest();
         network.timeout(15000);
@@ -325,130 +317,6 @@
                 queriesArray.push(noDigitShort);
             }
         }
-    }
-
-    function getAnimeYear(data) {
-        return data && data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
-    }
-
-    function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
-        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
-
-        type = type === 'movie' ? 'movie' : 'tv';
-
-        var url = 'https://api.themoviedb.org/3/' + type +
-            '/' + encodeURIComponent(tmdbId) +
-            '?api_key=' + apiKey +
-            '&language=' + encodeURIComponent(tmdbLanguage());
-
-        apiGetJson(getTmdbUrl(url), function (res) {
-            var posterPath = extractTmdbPosterPath(res && res.poster_path ? res.poster_path : '');
-            var poster = tmdbPosterUrl(posterPath);
-
-            if (poster) {
-                var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-                tmdbCache[data.id] = {
-                    id: tmdbId,
-                    type: type,
-                    poster: poster,
-                    poster_path: posterPath
-                };
-                storageSet(TMDB_CACHE_KEY, tmdbCache);
-            }
-
-            callback(poster);
-        }, function () {
-            callback('');
-        });
-    }
-
-    function resolvePosterByTmdbSearch(data, callback) {
-        var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
-        var queries = [];
-        var year = getAnimeYear(data);
-
-        buildSmartQueries(data.english, queries);
-        buildSmartQueries(data.name, queries);
-        buildSmartQueries(data.russian, queries);
-
-        if (!queries.length) {
-            callback('');
-            return;
-        }
-
-        var index = 0;
-
-        function next() {
-            if (index >= queries.length) {
-                callback('');
-                return;
-            }
-
-            var query = queries[index++];
-
-            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + apiKey +
-                '&language=' + encodeURIComponent(tmdbLanguage()) +
-                '&query=' + encodeURIComponent(query);
-
-            apiGetJson(getTmdbUrl(url), function (res) {
-                var results = res && res.results ? res.results : [];
-                var best = null;
-
-                for (var i = 0; i < results.length; i++) {
-                    var item = results[i];
-
-                    if ((item.media_type === 'tv' || item.media_type === 'movie') && item.poster_path) {
-                        if (!best) best = item;
-
-                        if (year) {
-                            var itemYear = item.first_air_date
-                                ? parseInt(item.first_air_date.substring(0, 4), 10)
-                                : (item.release_date ? parseInt(item.release_date.substring(0, 4), 10) : 0);
-
-                            var isValidYear = false;
-                            if (item.media_type === 'tv') {
-                                if (!itemYear || (year >= itemYear - 2 && year <= itemYear + 20)) {
-                                    isValidYear = true;
-                                }
-                            } else {
-                                if (!itemYear || Math.abs(itemYear - year) <= 2) {
-                                    isValidYear = true;
-                                }
-                            }
-
-                            if (isValidYear) {
-                                best = item;
-                                break;
-                            }
-                        } else {
-                            break;
-                        }
-                    }
-                }
-
-                if (best && best.poster_path) {
-                    var posterPath = extractTmdbPosterPath(best.poster_path);
-                    var poster = tmdbPosterUrl(posterPath);
-                    var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-
-                    tmdbCache[data.id] = {
-                        id: best.id,
-                        type: best.media_type === 'movie' ? 'movie' : 'tv',
-                        poster: poster,
-                        poster_path: posterPath
-                    };
-
-                    storageSet(TMDB_CACHE_KEY, tmdbCache);
-                    callback(poster);
-                } else {
-                    next();
-                }
-            }, function () {
-                next();
-            });
-        }
-
-        next();
     }
 
     function installPosterFallback(img, urls, fallback, data) {
@@ -703,75 +571,24 @@
 
         posterRequests[data.id] = [callback];
 
-        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-        var tmdbEntry = tmdbCache[data.id] || {};
-        var tmdbPoster = normalizeExternalPosterUrl(tmdbEntry.poster || '');
+        var malId = data.mal_id || data.myanimelist || data.mal || 0;
 
-        if (tmdbPoster) {
-            if (tmdbEntry.poster !== tmdbPoster) {
-                tmdbEntry.poster = tmdbPoster;
-                tmdbCache[data.id] = tmdbEntry;
-                storageSet(TMDB_CACHE_KEY, tmdbCache);
-            }
+        if (malId) {
+            fetchMalPoster(malId, function (malPoster) {
+                if (malPoster) {
+                    finishPosterRequest(data.id, malPoster);
+                    return;
+                }
 
-            finishPosterRequest(data.id, tmdbPoster);
+                resolvePosterByShikiDetails(data, function (shikiPoster) {
+                    finishPosterRequest(data.id, shikiPoster || '');
+                });
+            });
             return;
         }
 
         resolvePosterByShikiDetails(data, function (shikiPoster) {
-            if (shikiPoster) {
-                finishPosterRequest(data.id, shikiPoster);
-                return;
-            }
-
-            var malId = data.mal_id || data.myanimelist || data.mal || 0;
-
-            if (malId) {
-                fetchMalPoster(malId, function (malPoster) {
-                    if (malPoster) {
-                        finishPosterRequest(data.id, malPoster);
-                    } else {
-                        tryArmAndTmdbFallback(data);
-                    }
-                });
-                return;
-            }
-
-            tryArmAndTmdbFallback(data);
-        });
-    }
-
-    function tryArmAndTmdbFallback(data) {
-        var armUrl = buildAnimeIdsLookupUrl(data);
-
-        if (!armUrl) {
-            finishPosterRequest(data.id, '');
-            return;
-        }
-
-        apiGetJson(armUrl, function (answer) {
-            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-            var type = answer && (answer.media_type || answer.type);
-
-            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-            if (tmdbId) {
-                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
-                });
-            } else {
-                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
-                });
-            }
-        }, function () {
-            finishPosterRequest(data.id, '');
+            finishPosterRequest(data.id, shikiPoster || '');
         });
     }
 
