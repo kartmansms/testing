@@ -760,37 +760,7 @@
                     } else if (tmdbBlocked) {
                         finishPosterRequest(data.id, '');
                     } else {
-                        var armUrl = buildAnimeIdsLookupUrl(data);
-
-                        if (!armUrl) {
-                            finishPosterRequest(data.id, '');
-                        } else {
-                            apiGetJson(armUrl, function (answer) {
-                                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-                                var type = answer && (answer.media_type || answer.type);
-
-                                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-                                if (tmdbId) {
-                                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                                        if (poster) {
-                                            finishPosterRequest(data.id, poster);
-                                        } else {
-                                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                                finishPosterRequest(data.id, searchPoster);
-                                            });
-                                        }
-                                    });
-                                } else {
-                                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                        finishPosterRequest(data.id, searchPoster);
-                                    });
-                                }
-                            }, function () {
-                                tmdbBlocked = true;
-                                finishPosterRequest(data.id, '');
-                            });
-                        }
+                        tryArmAndTmdbFallback(data);
                     }
                 });
                 return;
@@ -801,38 +771,42 @@
                 return;
             }
 
-            var armUrl = buildAnimeIdsLookupUrl(data);
+            tryArmAndTmdbFallback(data);
+        });
+    }
 
-            if (!armUrl) {
-                finishPosterRequest(data.id, '');
-                return;
+    function tryArmAndTmdbFallback(data) {
+        var armUrl = buildAnimeIdsLookupUrl(data);
+
+        if (!armUrl) {
+            finishPosterRequest(data.id, '');
+            return;
+        }
+
+        apiGetJson(armUrl, function (answer) {
+            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+            var type = answer && (answer.media_type || answer.type);
+
+            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+            if (tmdbId) {
+                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                    if (poster) {
+                        finishPosterRequest(data.id, poster);
+                    } else {
+                        resolvePosterByTmdbSearch(data, function (searchPoster) {
+                            finishPosterRequest(data.id, searchPoster);
+                        });
+                    }
+                });
+            } else {
+                resolvePosterByTmdbSearch(data, function (searchPoster) {
+                    finishPosterRequest(data.id, searchPoster);
+                });
             }
-
-            apiGetJson(armUrl, function (answer) {
-                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-                var type = answer && (answer.media_type || answer.type);
-
-                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-                if (tmdbId) {
-                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                        if (poster) {
-                            finishPosterRequest(data.id, poster);
-                        } else {
-                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                finishPosterRequest(data.id, searchPoster);
-                            });
-                        }
-                    });
-                } else {
-                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
-                    });
-                }
-            }, function () {
-                tmdbBlocked = true;
-                finishPosterRequest(data.id, '');
-            });
+        }, function () {
+            tmdbBlocked = true;
+            finishPosterRequest(data.id, '');
         });
     }
 
@@ -907,31 +881,8 @@
                 var mapped = [];
 
                 for (var i = 0; i < data.length; i++) {
-                    var item = data[i];
-
-                    mapped.push({
-                        id: item.id,
-                        name: item.name,
-                        russian: item.russian,
-                        english: item.english || '',
-                        japanese: item.japanese || '',
-                        kind: item.kind,
-                        score: item.score,
-                        status: item.status,
-                        season: item.season || '',
-                        airedOn: {
-                            year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
-                        },
-                        mal_id: item.mal_id || item.myanimelist_id || item.myanimelist || item.mal || 0,
-                        poster: {
-                            originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
-                            mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
-                            previewUrl: (item.poster && (item.poster.previewUrl || item.poster.preview_url)) || (item.image && item.image.preview) || '',
-                            x96Url: (item.poster && (item.poster.x96Url || item.poster.x96_url)) || (item.image && item.image.x96) || '',
-                            x48Url: (item.poster && (item.poster.x48Url || item.poster.x48_url)) || (item.image && item.image.x48) || ''
-                        },
-                        image: item.image || null
-                    });
+                    var mapped_item = mapShikiAnime(data[i]);
+                    if (mapped_item) mapped.push(mapped_item);
                 }
 
                 oncomplete(mapped);
@@ -2580,7 +2531,7 @@
         }
 
         function load(append) {
-            if (loading || ended && append) return;
+            if ((loading || ended) && append) return;
 
             loading = true;
 
