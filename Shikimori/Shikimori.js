@@ -16,7 +16,6 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
-    var tmdbBlocked = false;
 
     function defaults() {
         return {
@@ -359,17 +358,11 @@
 
             callback(poster);
         }, function () {
-            tmdbBlocked = true;
             callback('');
         });
     }
 
     function resolvePosterByTmdbSearch(data, callback) {
-        if (tmdbBlocked) {
-            callback('');
-            return;
-        }
-
         var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
         var queries = [];
         var year = getAnimeYear(data);
@@ -451,7 +444,6 @@
                     next();
                 }
             }, function () {
-                tmdbBlocked = true;
                 next();
             });
         }
@@ -739,39 +731,14 @@
                     if (malPoster) {
                         finishPosterRequest(data.id, malPoster);
                     } else {
-                        tryTmdbFallback(data);
+                        tryArmAndTmdbFallback(data);
                     }
                 });
                 return;
             }
 
-            tryTmdbFallback(data);
+            tryArmAndTmdbFallback(data);
         });
-    }
-
-    function tryTmdbFallback(data) {
-        if (tmdbBlocked) {
-            finishPosterRequest(data.id, '');
-            return;
-        }
-
-        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-        var tmdbEntry = tmdbCache[data.id] || {};
-
-        if (tmdbEntry.id) {
-            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
-                if (poster) {
-                    finishPosterRequest(data.id, poster);
-                } else {
-                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
-                    });
-                }
-            });
-            return;
-        }
-
-        tryArmAndTmdbFallback(data);
     }
 
     function tryArmAndTmdbFallback(data) {
@@ -804,7 +771,6 @@
                 });
             }
         }, function () {
-            tmdbBlocked = true;
             finishPosterRequest(data.id, '');
         });
     }
