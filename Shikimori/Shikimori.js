@@ -24,7 +24,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.io'
+            shiki_host: 'https://shikimori.one'
         };
     }
 
@@ -1834,52 +1834,169 @@
             }
         }
 
-        function openFilters() {
-            loadGenres(function (genres) {
+        function openFilters(genres) {
+            var show = function (list) {
                 var items = [
-                    { title: 'Сортировка: популярность', value: 'sort:popularity' },
-                    { title: 'Сортировка: рейтинг', value: 'sort:ranked' },
-                    { title: 'TV', value: 'kind:tv' },
-                    { title: 'Movie', value: 'kind:movie' },
-                    { title: 'OVA', value: 'kind:ova' },
-                    { title: 'Онгоинг', value: 'status:ongoing' },
-                    { title: 'Анонс', value: 'status:anons' },
-                    { title: 'Вышло', value: 'status:released' }
+                    {
+                        title: 'Сортировка: ' + sortName(params.sort || readSettings().default_sort),
+                        value: 'sort'
+                    },
+                    {
+                        title: 'Тип: ' + (params.kind ? kindName(params.kind) : 'любой'),
+                        value: 'kind'
+                    },
+                    {
+                        title: 'Статус: ' + (params.status ? statusName(params.status) : 'любой'),
+                        value: 'status'
+                    },
+                    {
+                        title: 'Жанр: ' + (params.genre_title || 'любой'),
+                        value: 'genre'
+                    }
                 ];
 
-                for (var i = 0; i < genres.length; i++) {
-                    if (genres[i] && genres[i].id) {
-                        items.push({
-                            title: 'Жанр: ' + (genres[i].russian || genres[i].name || genres[i].id),
-                            value: 'genre:' + genres[i].id + ':' + (genres[i].russian || genres[i].name || genres[i].id)
-                        });
-                    }
+                if (hasFilterSelection()) {
+                    items.push({
+                        title: 'Сбросить фильтры',
+                        value: 'reset'
+                    });
                 }
-
-                if (!genres.length) items.push({
-                    title: 'Жанры недоступны',
-                    value: 'noop'
-                });
 
                 Lampa.Select.show({
                     title: 'Фильтры',
                     items: items,
                     onSelect: function (item) {
-                        if (item.value === 'noop') return;
-
-                        var parts = String(item.value).split(':');
-                        var out = {};
-
-                        out[parts[0]] = parts[1];
-
-                        if (parts[0] === 'genre') out.genre_title = parts.slice(2).join(':') || parts[1];
-
-                        openWith(out);
+                        if (item.value === 'sort') openFilterSortMenu(list);
+                        else if (item.value === 'kind') openFilterKindMenu(list);
+                        else if (item.value === 'status') openFilterStatusMenu(list);
+                        else if (item.value === 'genre') openFilterGenreMenu(list);
+                        else if (item.value === 'reset') {
+                            openWith({
+                                sort: readSettings().default_sort,
+                                kind: '',
+                                status: '',
+                                genre: '',
+                                genre_title: '',
+                                page: 1
+                            });
+                        }
                     },
                     onBack: function () {
                         Lampa.Controller.toggle('content');
                     }
                 });
+            };
+
+            if (genres) show(genres);
+            else loadGenres(show);
+        }
+
+        function hasFilterSelection() {
+            return params.kind || params.status || params.genre ||
+                (params.sort && params.sort !== readSettings().default_sort);
+        }
+
+        function openFilterSortMenu(genres) {
+            var current = params.sort || readSettings().default_sort;
+            var items = [
+                { title: selectedTitle(!params.sort || params.sort === readSettings().default_sort, 'По умолчанию'), value: '' },
+                { title: selectedTitle(current === 'popularity', 'Популярность'), value: 'popularity' },
+                { title: selectedTitle(current === 'ranked', 'Рейтинг'), value: 'ranked' },
+                { title: selectedTitle(current === 'aired_on', 'Дата выхода'), value: 'aired_on' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Сортировка',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ sort: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterKindMenu(genres) {
+            var current = params.kind || '';
+            var items = [
+                { title: selectedTitle(!current, 'Любой'), value: '' },
+                { title: selectedTitle(current === 'tv', 'TV'), value: 'tv' },
+                { title: selectedTitle(current === 'movie', 'Movie'), value: 'movie' },
+                { title: selectedTitle(current === 'ova', 'OVA'), value: 'ova' },
+                { title: selectedTitle(current === 'ona', 'ONA'), value: 'ona' },
+                { title: selectedTitle(current === 'special', 'Special'), value: 'special' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Тип',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ kind: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterStatusMenu(genres) {
+            var current = params.status || '';
+            var items = [
+                { title: selectedTitle(!current, 'Любой'), value: '' },
+                { title: selectedTitle(current === 'ongoing', 'Онгоинг'), value: 'ongoing' },
+                { title: selectedTitle(current === 'anons', 'Анонс'), value: 'anons' },
+                { title: selectedTitle(current === 'released', 'Вышло'), value: 'released' }
+            ];
+
+            Lampa.Select.show({
+                title: 'Статус',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ status: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
+            });
+        }
+
+        function openFilterGenreMenu(genres) {
+            var items = [
+                { title: selectedTitle(!params.genre, 'Любой'), value: '' }
+            ];
+
+            for (var i = 0; i < genres.length; i++) {
+                if (genres[i] && genres[i].id) {
+                    var genreTitle = genres[i].russian || genres[i].name || genres[i].id;
+
+                    items.push({
+                        title: selectedTitle(String(params.genre || '') === String(genres[i].id), genreTitle),
+                        value: String(genres[i].id),
+                        genre_title: genreTitle
+                    });
+                }
+            }
+
+            if (items.length === 1) {
+                items.push({ title: 'Жанры недоступны', value: 'noop' });
+            }
+
+            Lampa.Select.show({
+                title: 'Жанры',
+                items: items,
+                onSelect: function (item) {
+                    if (item.value === 'noop') return;
+
+                    openWith({
+                        genre: item.value,
+                        genre_title: item.genre_title || '',
+                        page: 1
+                    });
+                },
+                onBack: function () {
+                    openFilters(genres);
+                }
             });
         }
 
