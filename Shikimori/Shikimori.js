@@ -726,25 +726,6 @@
             return;
         }
 
-        if (!tmdbBlocked && tmdbEntry.id) {
-            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
-                if (poster) {
-                    finishPosterRequest(data.id, poster);
-                } else {
-                    resolvePosterByShikiDetails(data, function (shikiPoster) {
-                        if (shikiPoster) {
-                            finishPosterRequest(data.id, shikiPoster);
-                        } else {
-                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                finishPosterRequest(data.id, searchPoster);
-                            });
-                        }
-                    });
-                }
-            });
-            return;
-        }
-
         resolvePosterByShikiDetails(data, function (shikiPoster) {
             if (shikiPoster) {
                 finishPosterRequest(data.id, shikiPoster);
@@ -757,22 +738,40 @@
                 fetchMalPoster(malId, function (malPoster) {
                     if (malPoster) {
                         finishPosterRequest(data.id, malPoster);
-                    } else if (tmdbBlocked) {
-                        finishPosterRequest(data.id, '');
                     } else {
-                        tryArmAndTmdbFallback(data);
+                        tryTmdbFallback(data);
                     }
                 });
                 return;
             }
 
-            if (tmdbBlocked) {
-                finishPosterRequest(data.id, '');
-                return;
-            }
-
-            tryArmAndTmdbFallback(data);
+            tryTmdbFallback(data);
         });
+    }
+
+    function tryTmdbFallback(data) {
+        if (tmdbBlocked) {
+            finishPosterRequest(data.id, '');
+            return;
+        }
+
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+        var tmdbEntry = tmdbCache[data.id] || {};
+
+        if (tmdbEntry.id) {
+            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
+                if (poster) {
+                    finishPosterRequest(data.id, poster);
+                } else {
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
+                    });
+                }
+            });
+            return;
+        }
+
+        tryArmAndTmdbFallback(data);
     }
 
     function tryArmAndTmdbFallback(data) {
@@ -2815,12 +2814,7 @@
         }
 
         fetchShikiAnimeById(data.id, function (anime) {
-            var poster = anime ? posterOf(anime) : '';
-            if (isBadPosterUrl(poster)) {
-                callback('');
-            } else {
-                callback(poster || '');
-            }
+            callback(anime ? posterOf(anime) : '');
         });
     }
 
