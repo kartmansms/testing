@@ -16,7 +16,6 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
-    var tmdbBlocked = false;
 
     function defaults() {
         return {
@@ -359,17 +358,11 @@
 
             callback(poster);
         }, function () {
-            tmdbBlocked = true;
             callback('');
         });
     }
 
     function resolvePosterByTmdbSearch(data, callback) {
-        if (tmdbBlocked) {
-            callback('');
-            return;
-        }
-
         var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
         var queries = [];
         var year = getAnimeYear(data);
@@ -451,7 +444,6 @@
                     next();
                 }
             }, function () {
-                tmdbBlocked = true;
                 next();
             });
         }
@@ -465,7 +457,6 @@
 
         img.data('poster-index', 0);
         img.data('poster-external-tried', false);
-        img.data('poster-external-alt-tried', false);
         img.data('poster-fallback-done', false);
 
         function setFallback() {
@@ -473,22 +464,6 @@
 
             img.data('poster-fallback-done', true);
             img.attr('src', fallback);
-        }
-
-        function tryAlternativeExternalPoster() {
-            var currentUrl = String(img.attr('src') || '').trim();
-            var currentPath = extractTmdbPosterPath(currentUrl);
-            var fallbackPath = data && data.id ? getCachedTmdbPosterPath(data.id) : '';
-            var nextUrl = nextTmdbPosterCandidate(currentPath || fallbackPath || currentUrl);
-
-            if (!nextUrl || nextUrl === currentUrl) return false;
-
-            img.data('poster-external-alt-tried', true);
-
-            if (data && data.id) saveResolvedPoster(data.id, nextUrl);
-
-            img.attr('src', nextUrl);
-            return true;
         }
 
         function tryExternalPoster() {
@@ -518,7 +493,6 @@
             if (urls[index]) {
                 img.attr('src', urls[index]);
             } else {
-                if (img.data('poster-external-tried') && !img.data('poster-external-alt-tried') && tryAlternativeExternalPoster()) return;
                 tryExternalPoster();
             }
         });
@@ -696,11 +670,9 @@
         }
 
         var posterCache = storageGet(POSTER_CACHE_KEY, {});
-        var cachedPoster = normalizeExternalPosterUrl(posterCache[data.id] || '');
 
-        if (cachedPoster) {
-            if (posterCache[data.id] !== cachedPoster) saveResolvedPoster(data.id, cachedPoster);
-            callback(cachedPoster);
+        if (posterCache.hasOwnProperty(data.id)) {
+            callback(posterCache[data.id] || '');
             return;
         }
 
@@ -712,126 +684,53 @@
         posterRequests[data.id] = [callback];
 
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-        var tmdbEntry = tmdbCache[data.id] || {};
-        var tmdbPoster = normalizeExternalPosterUrl(tmdbEntry.poster || '');
 
-        if (tmdbPoster) {
-            if (tmdbEntry.poster !== tmdbPoster) {
-                tmdbEntry.poster = tmdbPoster;
-                tmdbCache[data.id] = tmdbEntry;
-                storageSet(TMDB_CACHE_KEY, tmdbCache);
-            }
-
-            finishPosterRequest(data.id, tmdbPoster);
+        if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
+            finishPosterRequest(data.id, tmdbCache[data.id].poster);
             return;
         }
 
-        if (!tmdbBlocked && tmdbEntry.id) {
-            fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
+        if (tmdbCache[data.id] && tmdbCache[data.id].id) {
+            fetchTmdbDetailsPoster(data, tmdbCache[data.id].id, tmdbCache[data.id].type, function (poster) {
                 if (poster) {
                     finishPosterRequest(data.id, poster);
                 } else {
-                    resolvePosterByShikiDetails(data, function (shikiPoster) {
-                        if (shikiPoster) {
-                            finishPosterRequest(data.id, shikiPoster);
-                        } else {
-                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                finishPosterRequest(data.id, searchPoster);
-                            });
-                        }
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
                     });
                 }
             });
             return;
         }
 
-        resolvePosterByShikiDetails(data, function (shikiPoster) {
-            if (shikiPoster) {
-                finishPosterRequest(data.id, shikiPoster);
-                return;
-            }
+        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
+            encodeURIComponent(data.id) +
+            '&include=themoviedb,myanimelist';
 
-            var malId = data.mal_id || data.myanimelist || data.mal || 0;
+        apiGetJson(armUrl, function (answer) {
+            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+            var type = answer && (answer.media_type || answer.type);
 
-            if (malId) {
-                fetchMalPoster(malId, function (malPoster) {
-                    if (malPoster) {
-                        finishPosterRequest(data.id, malPoster);
-                    } else if (tmdbBlocked) {
-                        finishPosterRequest(data.id, '');
+            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+            if (tmdbId) {
+                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                    if (poster) {
+                        finishPosterRequest(data.id, poster);
                     } else {
-                        var armUrl = buildAnimeIdsLookupUrl(data);
-
-                        if (!armUrl) {
-                            finishPosterRequest(data.id, '');
-                        } else {
-                            apiGetJson(armUrl, function (answer) {
-                                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-                                var type = answer && (answer.media_type || answer.type);
-
-                                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-                                if (tmdbId) {
-                                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                                        if (poster) {
-                                            finishPosterRequest(data.id, poster);
-                                        } else {
-                                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                                finishPosterRequest(data.id, searchPoster);
-                                            });
-                                        }
-                                    });
-                                } else {
-                                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                        finishPosterRequest(data.id, searchPoster);
-                                    });
-                                }
-                            }, function () {
-                                tmdbBlocked = true;
-                                finishPosterRequest(data.id, '');
-                            });
-                        }
+                        resolvePosterByTmdbSearch(data, function (searchPoster) {
+                            finishPosterRequest(data.id, searchPoster);
+                        });
                     }
                 });
-                return;
+            } else {
+                resolvePosterByTmdbSearch(data, function (searchPoster) {
+                    finishPosterRequest(data.id, searchPoster);
+                });
             }
-
-            if (tmdbBlocked) {
-                finishPosterRequest(data.id, '');
-                return;
-            }
-
-            var armUrl = buildAnimeIdsLookupUrl(data);
-
-            if (!armUrl) {
-                finishPosterRequest(data.id, '');
-                return;
-            }
-
-            apiGetJson(armUrl, function (answer) {
-                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-                var type = answer && (answer.media_type || answer.type);
-
-                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-                if (tmdbId) {
-                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                        if (poster) {
-                            finishPosterRequest(data.id, poster);
-                        } else {
-                            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                finishPosterRequest(data.id, searchPoster);
-                            });
-                        }
-                    });
-                } else {
-                    resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
-                    });
-                }
-            }, function () {
-                tmdbBlocked = true;
-                finishPosterRequest(data.id, '');
+        }, function () {
+            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                finishPosterRequest(data.id, searchPoster);
             });
         });
     }
