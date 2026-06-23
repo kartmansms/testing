@@ -1037,11 +1037,6 @@
     }
 
     function fallbackSearch(data) {
-        if (tmdbBlocked) {
-            openLampaSearch(data);
-            return;
-        }
-
         var queries = [];
 
         buildSmartQueries(data.english, queries);
@@ -1115,10 +1110,7 @@
                 }
             };
 
-            apiGetJson(getTmdbUrl(url), handleSuccess, function () {
-                tmdbBlocked = true;
-                openLampaSearch(data);
-            });
+            apiGetJson(getTmdbUrl(url), handleSuccess, tryNextQuery);
         }
 
         notify('Поиск в базе...');
