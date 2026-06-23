@@ -1422,7 +1422,6 @@
         });
 
         var html = $('<div class="Shikimori-module"></div>');
-        var header = $('<div class="Shikimori-header"></div>');
         var head = $('<div class="Shikimori-head"></div>');
         var quick = $('<div class="Shikimori-quick"></div>');
         var active = $('<div class="Shikimori-active"></div>');
@@ -1442,7 +1441,7 @@
             if (!rendered) {
                 rendered = true;
 
-                html.append(header).append(head).append(quick).append(active).append(scroll.render());
+                html.append(head).append(quick).append(active).append(scroll.render());
                 scroll.append(body);
                 scroll.minus();
 
@@ -1519,17 +1518,6 @@
             head.empty();
             quick.empty();
             active.empty();
-
-            header.html(
-                '<div class="Shikimori-header__logo">' +
-                    '<svg viewBox="0 0 64 64" width="2em" height="2em" fill="none" xmlns="http://www.w3.org/2000/svg">' +
-                        '<circle cx="32" cy="32" r="30" stroke="#c83a4b" stroke-width="2"/>' +
-                        '<circle cx="32" cy="32" r="20" stroke="#c83a4b" stroke-width="2"/>' +
-                        '<circle cx="32" cy="32" r="10" fill="#c83a4b"/>' +
-                    '</svg>' +
-                '</div>' +
-                '<div class="Shikimori-header__title">Shikimori</div>'
-            );
 
             addHeadButton('Главная', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', function () {
                 openWith({
@@ -2838,9 +2826,6 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
-                '.Shikimori-header{display:flex;align-items:center;gap:0.6em;margin-bottom:0.8em;}' +
-                '.Shikimori-header__logo{display:flex;align-items:center;justify-content:center;}' +
-                '.Shikimori-header__title{font-size:1.5em;font-weight:600;color:#fff;}' +
                 '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em;}' +
                 '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em;}' +
                 '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{' +
