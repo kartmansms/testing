@@ -2706,10 +2706,24 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
-                '.Shikimori-head,.Shikimori-quick{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;margin-bottom:.75em}' +
-                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{margin:0 .55em .55em 0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08)}' +
-                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{background:#c83a4b;color:#fff;border-color:#e95a68}' +
-                '.Shikimori-chip--active{background:rgba(200,58,75,.28);border-color:rgba(200,58,75,.7)}' +
+                '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em;}' +
+                '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em;}' +
+                '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{' +
+                    'display:inline-flex!important;align-items:center!important;justify-content:center!important;' +
+                    'padding:0.65em 1.2em!important;height:auto!important;line-height:1!important;' +
+                    'background:rgba(255,255,255,0.06)!important;border:1px solid rgba(255,255,255,0.04)!important;' +
+                    'color:rgba(255,255,255,0.85);font-size:0.95em;font-weight:500;margin:0 0.3em 0.3em 0!important;' +
+                    'transition:all 0.2s ease-in-out;border-radius:0.5em!important;outline:none!important;box-shadow:none!important;' +
+                '}' +
+                '.Shikimori-chip{border-radius:1.5em!important;padding:0.5em 1.2em!important;font-size:0.88em;opacity:0.85;}' +
+                '.Shikimori-head__button svg{width:1.15em;height:1.15em;margin-right:0.45em;opacity:0.85;flex-shrink:0;transition:transform 0.2s;}' +
+                '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{' +
+                    'background:#c83a4b!important;color:#fff!important;' +
+                    'border-color:#e95a68!important;transform:scale(1.05);' +
+                    'box-shadow:0 0.4em 1.2em rgba(200,58,75,0.35)!important;' +
+                '}' +
+                '.Shikimori-head__button.focus svg{transform:scale(1.1);opacity:1;}' +
+                '.Shikimori-chip--active{background:rgba(200,58,75,0.22)!important;border-color:rgba(200,58,75,0.55)!important;color:#ff8e9b!important;opacity:1;}' +
                 '.Shikimori-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
                 '.Shikimori-active span{color:#e95a68;font-weight:600}' +
                 '.Shikimori-body{display:-webkit-box;display:-ms-flexbox;display:flex;-webkit-box-orient:horizontal;-webkit-box-direction:normal;-ms-flex-flow:row wrap;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
