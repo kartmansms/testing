@@ -16,6 +16,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
+    var tmdbBlocked = false;
 
     function defaults() {
         return {
@@ -404,11 +405,17 @@
 
             callback(poster);
         }, function () {
+            tmdbBlocked = true;
             callback('');
         });
     }
 
     function resolvePosterByTmdbSearch(data, callback) {
+        if (tmdbBlocked) {
+            callback('');
+            return;
+        }
+
         var apiKey = '4ef0d7355d9ffb5151e987764708ce96';
         var queries = [];
         var year = getAnimeYear(data);
@@ -489,7 +496,10 @@
                 } else {
                     next();
                 }
-            }, next);
+            }, function () {
+                tmdbBlocked = true;
+                next();
+            });
         }
 
         next();
@@ -822,7 +832,7 @@
             return;
         }
 
-        if (tmdbEntry.id) {
+        if (!tmdbBlocked && tmdbEntry.id) {
             fetchTmdbDetailsPoster(data, tmdbEntry.id, tmdbEntry.type, function (poster) {
                 if (poster) {
                     finishPosterRequest(data.id, poster);
@@ -844,6 +854,11 @@
         resolvePosterByShikiDetails(data, function (shikiPoster) {
             if (shikiPoster) {
                 finishPosterRequest(data.id, shikiPoster);
+                return;
+            }
+
+            if (tmdbBlocked) {
+                finishPosterRequest(data.id, '');
                 return;
             }
 
@@ -871,9 +886,8 @@
                     });
                 }
             }, function () {
-                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
-                });
+                tmdbBlocked = true;
+                finishPosterRequest(data.id, '');
             });
         });
     }
@@ -1023,6 +1037,11 @@
     }
 
     function fallbackSearch(data) {
+        if (tmdbBlocked) {
+            openLampaSearch(data);
+            return;
+        }
+
         var queries = [];
 
         buildSmartQueries(data.english, queries);
@@ -1096,7 +1115,10 @@
                 }
             };
 
-            apiGetJson(getTmdbUrl(url), handleSuccess, tryNextQuery);
+            apiGetJson(getTmdbUrl(url), handleSuccess, function () {
+                tmdbBlocked = true;
+                openLampaSearch(data);
+            });
         }
 
         notify('Поиск в базе...');
