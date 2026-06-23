@@ -24,48 +24,23 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            proxy_tmdb: true,
-            proxy_url: 'https://apitmdb.cub.red',
             shiki_host: 'https://shikimori.io'
         };
     }
 
     function storageGet(key, fallback) {
-        var value;
-
         try {
-            if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
-                value = Lampa.Storage.get(key, fallback);
-                return value === undefined || value === null ? fallback : value;
-            }
-        } catch (e) {}
-
-        try {
-            var raw = localStorage.getItem(key);
-            if (raw) {
-                try {
-                    return JSON.parse(raw);
-                } catch (e) {
-                    return fallback;
-                }
-            }
-            return fallback;
-        } catch (err) {
+            var value = Lampa.Storage.get(key, fallback);
+            return value === undefined || value === null ? fallback : value;
+        } catch (e) {
             return fallback;
         }
     }
 
     function storageSet(key, value) {
         try {
-            if (window.Lampa && Lampa.Storage && Lampa.Storage.set) {
-                Lampa.Storage.set(key, value);
-                return;
-            }
+            Lampa.Storage.set(key, value);
         } catch (e) {}
-
-        try {
-            localStorage.setItem(key, JSON.stringify(value));
-        } catch (err) {}
     }
 
     function readSettings() {
@@ -295,43 +270,22 @@
     }
 
     function apiCall(options, success, error) {
-        var url = options.url;
-        var method = options.method || 'GET';
-        var headers = options.headers || {};
-        var data = options.data || null;
-
-        if (window.Lampa && typeof Lampa.Reguest === 'function') {
-            try {
-                var network = new Lampa.Reguest();
-                if (typeof network.timeout === 'function') network.timeout(15000);
-                if (typeof network.silent === 'function') {
-                    network.silent(url, success, error || function () {}, data, {
-                        headers: headers,
-                        method: method
-                    });
-                    return;
-                }
-            } catch (e) {}
-        }
-
-        if (window.$) {
-            $.ajax({
-                url: url,
-                method: method,
-                headers: headers,
-                data: data,
-                dataType: 'json',
-                timeout: 15000,
-                success: success,
-                error: error || function () {}
-            });
-        } else {
-            if (error) error();
-        }
+        var network = new Lampa.Reguest();
+        network.timeout(15000);
+        network.silent(
+            options.url,
+            success || function () {},
+            error || function () {},
+            options.data || null,
+            {
+                headers: options.headers || {},
+                method: options.method || 'GET'
+            }
+        );
     }
 
     function apiGetJson(url, success, error) {
-        apiCall({ url: url, method: 'GET' }, success, error);
+        apiCall({ url: url }, success, error);
     }
 
     function buildSmartQueries(value, queriesArray) {
@@ -600,89 +554,6 @@
         return /image\.tmdb\.org|imagetmdb\.|\/t\/p\/(?:original|w\d+)/i.test(url);
     }
 
-    function getTmdbImageBaseUrl() {
-        var settings = readSettings();
-        var baseUrl = settings.proxy_tmdb ? 'https://imagetmdb.cub.red/t/p/w342' : 'https://image.tmdb.org/t/p/w342';
-        var proxyUrl = settings.proxy_url ? String(settings.proxy_url).trim() : '';
-
-        if (settings.proxy_tmdb && proxyUrl) {
-            proxyUrl = proxyUrl.replace(/\/+$/, '');
-
-            if (!/^https?:\/\//i.test(proxyUrl)) proxyUrl = 'https://' + proxyUrl;
-
-            if (/apitmdb\./i.test(proxyUrl)) {
-                baseUrl = proxyUrl.replace(/apitmdb\./i, 'imagetmdb.') + '/t/p/w342';
-            }
-        }
-
-        return baseUrl;
-    }
-
-    function addTmdbAccountEmail(url) {
-        if (!window.Lampa || !Lampa.Storage || !url || String(url).indexOf('email=') !== -1) return url;
-
-        var account = Lampa.Storage.get('account', '{}');
-
-        if (typeof account === 'string') {
-            try { account = JSON.parse(account); } catch (e) {}
-        }
-
-        var email = account && account.email ? account.email : '';
-
-        if (!email) return url;
-
-        return url + (String(url).indexOf('?') === -1 ? '?' : '&') + 'email=' + encodeURIComponent(email);
-    }
-
-    function getTmdbApiProxyUrl() {
-        var settings = readSettings();
-        var proxyUrl = '';
-
-        if (window.Lampa && Lampa.Storage) {
-            var isProxyEnabled = false;
-
-            if (typeof Lampa.Storage.field === 'function') isProxyEnabled = Lampa.Storage.field('proxy_tmdb');
-            else if (typeof Lampa.Storage.get === 'function') isProxyEnabled = Lampa.Storage.get('proxy_tmdb');
-
-            if (isProxyEnabled) {
-                proxyUrl = Lampa.Storage.get('proxy_api_link') || Lampa.Storage.get('proxy_tmdb_link') || Lampa.Storage.get('proxy_api');
-            }
-        }
-
-        if (!proxyUrl && settings.proxy_tmdb && settings.proxy_url) proxyUrl = settings.proxy_url;
-        if (!proxyUrl) return '';
-
-        proxyUrl = String(proxyUrl).trim().replace(/\/+$/, '');
-
-        if (!/^https?:\/\//i.test(proxyUrl)) proxyUrl = 'https://' + proxyUrl;
-
-        return proxyUrl;
-    }
-
-    function shouldUseProxyOnlyForTmdb() {
-        var settings = readSettings();
-
-        if (getTmdbApiProxyUrl()) return true;
-        return !!settings.proxy_tmdb;
-    }
-
-    // Active TMDB request routing.
-    // Priority: Lampa proxy plugin -> script proxy_url -> direct TMDB.
-    function getTmdbUrl(url) {
-        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
-            var match = String(url).match(/\/3\/(.+)$/);
-            if (match && match[1]) return addTmdbAccountEmail(Lampa.TMDB.api(match[1]));
-        }
-
-        var proxyUrl = getTmdbApiProxyUrl();
-
-        if (proxyUrl) {
-            return addTmdbAccountEmail(String(url).replace('https://api.themoviedb.org', proxyUrl));
-        }
-
-        return url;
-    }
-
     function normalizeExternalPosterUrl(url) {
         url = url === undefined || url === null ? '' : String(url).trim();
 
@@ -714,37 +585,34 @@
         return result;
     }
 
+    function getTmdbUrl(url) {
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+            var match = String(url).match(/\/3\/(.+)$/);
+            if (match && match[1]) return Lampa.TMDB.api(match[1]);
+        }
+        return url;
+    }
+
     function tmdbPosterCandidates(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
 
         var posterPath = extractTmdbPosterPath(path);
         var candidates = [];
-        var proxyOnly = shouldUseProxyOnlyForTmdb();
 
         if (!posterPath) {
             if (/^https?:\/\//i.test(path)) candidates.push(path);
             return uniqueUrls(candidates);
         }
 
-        candidates.push(getTmdbImageBaseUrl() + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
-        candidates.push('https://imagetmdb.cub.red/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        var suffix = posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath;
 
-        if (!proxyOnly) {
-            candidates.push('https://image.tmdb.org/t/p/w342' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
-            candidates.push('https://image.tmdb.org/t/p/original' + (posterPath.indexOf('/') === 0 ? posterPath : '/' + posterPath));
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            var lampaUrl = Lampa.TMDB.image(posterPath);
+            if (lampaUrl) candidates.push(lampaUrl);
         }
 
-        if (window.Lampa) {
-            if (Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
-                var lampaTmdbImage = String(Lampa.TMDB.image(posterPath) || '').trim();
-                if (lampaTmdbImage && (!proxyOnly || !/image\.tmdb\.org/i.test(lampaTmdbImage))) candidates.push(lampaTmdbImage);
-            }
-
-            if (Lampa.Api && typeof Lampa.Api.img === 'function') {
-                var lampaApiImage = String(Lampa.Api.img(posterPath) || '').trim();
-                if (lampaApiImage && (!proxyOnly || !/image\.tmdb\.org/i.test(lampaApiImage))) candidates.push(lampaApiImage);
-            }
-        }
+        candidates.push('https://imagetmdb.cub.red/t/p/w342' + suffix);
+        candidates.push('https://image.tmdb.org/t/p/w342' + suffix);
 
         return uniqueUrls(candidates);
     }
@@ -764,8 +632,8 @@
     }
 
     function tmdbPosterUrl(path) {
-        path = path === undefined || path === null ? '' : String(path).trim();
         if (!path) return '';
+        path = String(path).trim();
 
         if (/^https?:\/\//i.test(path) && !isTmdbPosterUrl(path)) return path;
 
@@ -894,31 +762,35 @@
                     } else {
                         var armUrl = buildAnimeIdsLookupUrl(data);
 
-                        apiGetJson(armUrl, function (answer) {
-                            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-                            var type = answer && (answer.media_type || answer.type);
-
-                            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-                            if (tmdbId) {
-                                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                                    if (poster) {
-                                        finishPosterRequest(data.id, poster);
-                                    } else {
-                                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                            finishPosterRequest(data.id, searchPoster);
-                                        });
-                                    }
-                                });
-                            } else {
-                                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                                    finishPosterRequest(data.id, searchPoster);
-                                });
-                            }
-                        }, function () {
-                            tmdbBlocked = true;
+                        if (!armUrl) {
                             finishPosterRequest(data.id, '');
-                        });
+                        } else {
+                            apiGetJson(armUrl, function (answer) {
+                                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                                var type = answer && (answer.media_type || answer.type);
+
+                                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                                if (tmdbId) {
+                                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                                        if (poster) {
+                                            finishPosterRequest(data.id, poster);
+                                        } else {
+                                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                                finishPosterRequest(data.id, searchPoster);
+                                            });
+                                        }
+                                    });
+                                } else {
+                                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                        finishPosterRequest(data.id, searchPoster);
+                                    });
+                                }
+                            }, function () {
+                                tmdbBlocked = true;
+                                finishPosterRequest(data.id, '');
+                            });
+                        }
                     }
                 });
                 return;
@@ -930,6 +802,11 @@
             }
 
             var armUrl = buildAnimeIdsLookupUrl(data);
+
+            if (!armUrl) {
+                finishPosterRequest(data.id, '');
+                return;
+            }
 
             apiGetJson(armUrl, function (answer) {
                 var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
@@ -1045,7 +922,7 @@
                         airedOn: {
                             year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
                         },
-                        mal_id: item.mal_id || item.myanimelist || item.mal || 0,
+                        mal_id: item.mal_id || item.myanimelist_id || item.myanimelist || item.mal || 0,
                         poster: {
                             originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
                             mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
@@ -1092,6 +969,11 @@
         }
 
         var url = buildAnimeIdsLookupUrl(data);
+
+        if (!url) {
+            fallbackSearch(data);
+            return;
+        }
 
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) openTmdb(answer, data);
@@ -2425,10 +2307,6 @@
                     value: 'clear_tmdb_cache'
                 },
                 {
-                    title: '\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0438 \u043f\u0440\u043e\u043a\u0441\u0438 TMDB',
-                    value: 'proxy'
-                },
-                {
                     title: '\u0410\u0432\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f: ' + authStatusTitle(),
                     value: 'auth'
                 }
@@ -2457,9 +2335,6 @@
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
                         notify('\u041a\u044d\u0448 \u043f\u043e\u0438\u0441\u043a\u0430 \u043e\u0447\u0438\u0449\u0435\u043d');
-                        return;
-                    } else if (item.value === 'proxy') {
-                        openProxySettings();
                         return;
                     } else if (item.value === 'auth') {
                         openAuthSettings();
@@ -2604,43 +2479,6 @@
                         settings.shiki_host = item.value;
                         saveSettings(settings);
                         openSettings();
-                    }
-                },
-                onBack: function () {
-                    openSettings();
-                }
-            });
-        }
-
-        function openProxySettings() {
-            var settings = readSettings();
-
-            var items = [
-                {
-                    title: 'Использовать прокси: ' + (settings.proxy_tmdb ? 'Вкл' : 'Выкл'),
-                    value: 'toggle'
-                },
-                {
-                    title: 'Ссылка на прокси',
-                    subtitle: settings.proxy_url,
-                    value: 'edit'
-                }
-            ];
-
-            Lampa.Select.show({
-                title: 'Настройки прокси TMDB',
-                items: items,
-                onSelect: function (item) {
-                    if (item.value === 'toggle') {
-                        settings.proxy_tmdb = !settings.proxy_tmdb;
-                        saveSettings(settings);
-                        openProxySettings();
-                    } else if (item.value === 'edit') {
-                        askText('Ссылка на прокси API', settings.proxy_url, function (value) {
-                            settings.proxy_url = value || 'https://apitmdb.cub.red';
-                            saveSettings(settings);
-                            openProxySettings();
-                        });
                     }
                 },
                 onBack: function () {
@@ -2921,7 +2759,7 @@
             airedOn: {
                 year: item.aired_on ? String(item.aired_on).substring(0, 4) : ''
             },
-            mal_id: item.mal_id || item.myanimelist || item.mal || 0,
+            mal_id: item.mal_id || item.myanimelist_id || item.myanimelist || item.mal || 0,
             poster: {
                 originalUrl: (item.poster && (item.poster.originalUrl || item.poster.original_url)) || (item.image && item.image.original) || '',
                 mainUrl: (item.poster && (item.poster.mainUrl || item.poster.main_url)) || '',
@@ -3027,7 +2865,11 @@
 
         fetchShikiAnimeById(data.id, function (anime) {
             var poster = anime ? posterOf(anime) : '';
-            callback(poster || '');
+            if (isBadPosterUrl(poster)) {
+                callback('');
+            } else {
+                callback(poster || '');
+            }
         });
     }
 
@@ -3150,18 +2992,13 @@
     }
 
     function buildAnimeIdsLookupUrl(data) {
-        var source = 'shikimori';
-        var id = data && data.id ? data.id : '';
+        var malId = data && (data.mal_id || data.myanimelist_id || data.myanimelist || data.mal);
 
-        if (data && (data.mal_id || data.myanimelist || data.mal)) {
-            source = 'myanimelist';
-            id = data.mal_id || data.myanimelist || data.mal;
-        }
+        if (!malId) return '';
 
-        return ARM_HOST + '/api/v2/ids?source=' +
-            encodeURIComponent(source) +
-            '&id=' + encodeURIComponent(id) +
-            '&include=themoviedb,myanimelist';
+        return ARM_HOST + '/api/v2/ids?source=myanimelist' +
+            '&id=' + encodeURIComponent(malId) +
+            '&include=themoviedb';
     }
 
     function createShikimoriFullListButton() {
