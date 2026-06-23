@@ -24,7 +24,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.one'
+            shiki_host: 'https://shikimori.io'
         };
     }
 
@@ -1422,6 +1422,7 @@
         });
 
         var html = $('<div class="Shikimori-module"></div>');
+        var header = $('<div class="Shikimori-header"></div>');
         var head = $('<div class="Shikimori-head"></div>');
         var quick = $('<div class="Shikimori-quick"></div>');
         var active = $('<div class="Shikimori-active"></div>');
@@ -1441,7 +1442,7 @@
             if (!rendered) {
                 rendered = true;
 
-                html.append(head).append(quick).append(active).append(scroll.render());
+                html.append(header).append(head).append(quick).append(active).append(scroll.render());
                 scroll.append(body);
                 scroll.minus();
 
@@ -1519,7 +1520,18 @@
             quick.empty();
             active.empty();
 
-            addHeadButton('Главная', function () {
+            header.html(
+                '<div class="Shikimori-header__logo">' +
+                    '<svg viewBox="0 0 64 64" width="2em" height="2em" fill="none" xmlns="http://www.w3.org/2000/svg">' +
+                        '<circle cx="32" cy="32" r="30" stroke="#c83a4b" stroke-width="2"/>' +
+                        '<circle cx="32" cy="32" r="20" stroke="#c83a4b" stroke-width="2"/>' +
+                        '<circle cx="32" cy="32" r="10" fill="#c83a4b"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="Shikimori-header__title">Shikimori</div>'
+            );
+
+            addHeadButton('Главная', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', function () {
                 openWith({
                     page: 1,
                     sort: readSettings().default_sort,
@@ -1533,12 +1545,12 @@
                 });
             });
 
-            if (isAuthorized()) addHeadButton('Профиль', openProfile);
+            if (isAuthorized()) addHeadButton('Профиль', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>', openProfile);
 
-            addHeadButton('Поиск', openSearch);
-            addHeadButton('Фильтры', openFilters);
-            addHeadButton('Сезоны', openSeasons);
-            addHeadButton('Настройки', openSettings);
+            addHeadButton('Поиск', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', openSearch);
+            addHeadButton('Фильтры', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>', openFilters);
+            addHeadButton('Сезоны', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>', openSeasons);
+            addHeadButton('Настройки', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>', openSettings);
 
             addQuick('Популярное', {
                 sort: 'popularity',
@@ -1640,8 +1652,8 @@
             });
         }
 
-        function addHeadButton(title, action) {
-            var btn = $('<div class="simple-button selector Shikimori-head__button">' + esc(title) + '</div>');
+        function addHeadButton(title, iconSvg, action) {
+            var btn = $('<div class="simple-button selector Shikimori-head__button">' + iconSvg + '<span>' + esc(title) + '</span></div>');
 
             btn.on('hover:focus nav_focus', function () {
                 last = btn[0];
@@ -2706,6 +2718,9 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
+                '.Shikimori-header{display:flex;align-items:center;gap:0.6em;margin-bottom:0.8em;}' +
+                '.Shikimori-header__logo{display:flex;align-items:center;justify-content:center;}' +
+                '.Shikimori-header__title{font-size:1.5em;font-weight:600;color:#fff;}' +
                 '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em;}' +
                 '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em;}' +
                 '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{' +
