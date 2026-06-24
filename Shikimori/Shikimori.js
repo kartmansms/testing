@@ -1,7 +1,8 @@
 /**
- * Shikimori Plugin for Lampa v3.1.0
- * Multi-proxy image support for bypassing poster loading blocks
- * TMDB proxy chain: direct → corsproxy.io → allorigins → dl.lampa.me
+ * Shikimori Plugin for Lampa v3.1.1
+ * Multi-proxy: images + API (TMDB, Shikimori mirror)
+ * Proxy chain: custom URL → corsproxy.io → allorigins → dl.lampa.me
+ * Fixed: normalizePosterUrl uses configured mirror, API calls proxied
  */
 (function () {
     'use strict';
@@ -43,8 +44,9 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.one',
-            image_proxy: 'auto'
+            shiki_host: 'https://shikimori.io',
+            image_proxy: 'on',
+            custom_proxy_url: ''
         };
     }
 
@@ -261,12 +263,14 @@
 
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
-        
+
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
+            var host = getShikiHost().replace(/\/$/, '');
+            var stripped = url.replace(/https?:\/\/(shikimori\.one|shikimori\.io|shikimori\.me)(.*)/, host + '$2');
+            return stripped;
         }
 
-        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
+        return getShikiHost() + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -300,8 +304,26 @@
 
     function buildProxiedUrl(url, proxyIndex) {
         if (!url) return '';
+        var settings = readSettings();
+
+        if (proxyIndex === 0 && settings.custom_proxy_url) {
+            var tpl = settings.custom_proxy_url.replace(/{url}/g, encodeURIComponent(url)).replace(/{URL}/g, encodeURIComponent(url));
+            if (tpl !== settings.custom_proxy_url) return tpl;
+            return settings.custom_proxy_url + encodeURIComponent(url);
+        }
+
         proxyIndex = proxyIndex || 0;
         return PROXY_LIST[proxyIndex] ? PROXY_LIST[proxyIndex].build(url) : url;
+    }
+
+    function buildApiProxyUrl(url) {
+        var settings = readSettings();
+        if (settings.custom_proxy_url) {
+            var tpl = settings.custom_proxy_url.replace(/{url}/g, encodeURIComponent(url)).replace(/{URL}/g, encodeURIComponent(url));
+            if (tpl !== settings.custom_proxy_url) return tpl;
+            return settings.custom_proxy_url + encodeURIComponent(url);
+        }
+        return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
     }
 
     function loadProxyHealth() {
@@ -371,11 +393,22 @@
     function buildFallbackUrls(directUrls) {
         var result = [];
         var seen = {};
+        var settings = readSettings();
+        var hasCustom = !!settings.custom_proxy_url;
 
         for (var d = 0; d < directUrls.length; d++) {
             var url = directUrls[d];
             if (!url || seen[url]) continue;
             seen[url] = true;
+
+            if (hasCustom) {
+                var customProxied = buildProxiedUrl(url, 0);
+                if (!seen[customProxied]) {
+                    seen[customProxied] = true;
+                    result.push(customProxied);
+                }
+            }
+
             result.push(url);
 
             if (isProxyEnabled()) {
@@ -414,6 +447,54 @@
     }
 
     function apiGetJson(url, success, error) {
+        var isTmdbApi = url.indexOf('api.themoviedb.org') !== -1;
+        var isTmdbImage = url.indexOf('image.tmdb.org') !== -1;
+        var needsProxy = (isTmdbApi || isTmdbImage) && isProxyEnabled();
+
+        if (needsProxy) {
+            var proxiedUrl = buildApiProxyUrl(url);
+
+            if (window.Lampa && typeof Lampa.Reguest === 'function') {
+                try {
+                    var net = new Lampa.Reguest();
+                    if (typeof net.timeout === 'function') net.timeout(12000);
+                    if (typeof net.silent === 'function') {
+                        net.silent(proxiedUrl, function (res) {
+                            markProxyHealth('api', true);
+                            success(res);
+                        }, function (err) {
+                            markProxyHealth('api', false);
+                            apiGetJsonDirect(url, success, error);
+                        });
+                        return;
+                    }
+                } catch (e) {}
+            }
+
+            if (window.$) {
+                $.ajax({
+                    url: proxiedUrl,
+                    dataType: 'json',
+                    timeout: 12000,
+                    success: function (res) {
+                        markProxyHealth('api', true);
+                        success(res);
+                    },
+                    error: function () {
+                        markProxyHealth('api', false);
+                        apiGetJsonDirect(url, success, error);
+                    }
+                });
+            } else {
+                apiGetJsonDirect(url, success, error);
+            }
+            return;
+        }
+
+        apiGetJsonDirect(url, success, error);
+    }
+
+    function apiGetJsonDirect(url, success, error) {
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
@@ -2242,6 +2323,10 @@
                     value: 'image_proxy'
                 },
                 {
+                    title: 'Свой прокси URL: ' + (settings.custom_proxy_url || 'не задан'),
+                    value: 'custom_proxy_url'
+                },
+                {
                     title: 'Очистить кэш прокси',
                     value: 'clear_proxy_cache'
                 },
@@ -2276,6 +2361,13 @@
                         return;
                     } else if (item.value === 'image_proxy') {
                         openImageProxySettings();
+                        return;
+                    } else if (item.value === 'custom_proxy_url') {
+                        askText('URL прокси (подставит URL картинки)', settings.custom_proxy_url || '', function (value) {
+                            settings.custom_proxy_url = value ? value.replace(/\/$/, '') : '';
+                            saveSettings(settings);
+                            notify(settings.custom_proxy_url ? 'Прокси URL сохранён' : 'Прокси URL очищен');
+                        });
                         return;
                     } else if (item.value === 'clear_proxy_cache') {
                         imgProxyHealth = {};
