@@ -2670,14 +2670,17 @@
             '<li class="menu__item selector" data-action="shikimori">' +
                 '<div class="menu__ico">' +
                     '<svg viewBox="0 0 44 44" width="44" height="44">' +
-                        '<circle cx="22" cy="22" r="19" fill="#c83a4b"/>' +
-                        '<path d="M15 15l4 7-3 8c0 0 2 3 6 3s6-3 6-3l-3-8 4-7c0 0-3-2-7-2s-7 2-7 2z" fill="#fff"/>' +
-                        '<path d="M15 15l-2-5c0 0 3-2 5 0" fill="#fff"/>' +
-                        '<path d="M29 15l2-5c0 0-3-2-5 0" fill="#fff"/>' +
-                        '<circle cx="19" cy="22" r="1.2" fill="#c83a4b"/>' +
-                        '<circle cx="25" cy="22" r="1.2" fill="#c83a4b"/>' +
-                        '<path d="M22 24.5v1.2" stroke="#c83a4b" stroke-width="0.8" stroke-linecap="round"/>' +
-                        '<path d="M20 26.5c1 1 3 1 4 0" stroke="#c83a4b" stroke-width="0.8" fill="none" stroke-linecap="round"/>' +
+                        '<circle cx="22" cy="22" r="19" fill="#1a1a2e"/>' +
+                        '<path d="M11 14c4-2 10-3 16-1 2 1 4 2 5 4-3-1-8-1-12 1-3 2-5 5-6 8-1-4-2-7-4-9 0 1 1 3 1 5" stroke="#e8e8e8" stroke-width="2.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/>' +
+                        '<path d="M14 24c2-1 5-2 8-1 2 1 3 3 3 5" stroke="#e8e8e8" stroke-width="2.5" fill="none" stroke-linecap="round"/>' +
+                        '<path d="M16 28c1 2 1 5 0 7" stroke="#e8e8e8" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+                        '<path d="M24 27c0 2-1 5-2 7" stroke="#e8e8e8" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+                        '<circle cx="33" cy="10" r="2" fill="#e84393"/>' +
+                        '<circle cx="35" cy="8" r="1.5" fill="#e84393"/>' +
+                        '<circle cx="31" cy="9" r="1.5" fill="#e84393"/>' +
+                        '<circle cx="34" cy="12" r="1.3" fill="#e84393"/>' +
+                        '<circle cx="32" cy="13" r="1.2" fill="#e84393"/>' +
+                        '<circle cx="33" cy="10" r="0.8" fill="#1a1a2e"/>' +
                     '</svg>' +
                 '</div>' +
                 '<div class="menu__text">Shikimori</div>' +
