@@ -2546,13 +2546,9 @@
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
 
         Lampa.Listener.follow('full', function (event) {
-            fullResolveCache = {}; // очищаем кэш при открытии новой full страницы
+            fullResolveCache = {};
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
-        });
-
-        Lampa.Listener.follow('activity', function () {
-            scheduleAppendFull(getActiveActivity());
         });
 
         fullPollId = setInterval(function () {
@@ -2642,14 +2638,6 @@
             }
 
             initShikimoriListButton(listBtn, anime);
-
-            setTimeout(function () {
-                try {
-                    if (window.Lampa && Lampa.Controller) {
-                        Lampa.Controller.collectionSet(page);
-                    }
-                } catch (e) {}
-            }, 100);
         }
     }
 
