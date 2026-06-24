@@ -25,7 +25,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.one'
+            shiki_host: 'https://shikimori.io'
         };
     }
 
