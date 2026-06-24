@@ -2234,7 +2234,7 @@
 
                 if (window.Lampa && Lampa.Controller) {
                     Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+                    if (!append) Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
                 }
             }, function () {
                 autoLoading = false;
