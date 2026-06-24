@@ -1,9 +1,3 @@
-/**
- * Shikimori Plugin for Lampa v3.1.4
- * Fix: when Shikimori API returns "missing" poster, construct URL from /system/animes/original/{id}.jpg
- * Multi-proxy: custom URL → corsproxy.io → allorigins → dl.lampa.me
- * Proxy ARM/TMDB API calls for Russia
- */
 (function () {
     'use strict';
 
@@ -20,23 +14,9 @@
     var ARM_HOST = 'https://arm.haglund.dev';
     var PAGE_LIMIT = 48;
 
-    var PROXY_CACHE_KEY = 'shikimori_proxy_health_v1';
-    var PROXY_HEALTH_TTL = 600000;
-    var imgProxyHealth = {};
-    var imgCacheHit = {};
+    var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
-    var _settingsCache = null;
-    var _settingsCacheTs = 0;
-
-    var PROXY_LIST = [
-        { key: 'direct', build: function (u) { return u; } },
-        { key: 'corsproxy', build: function (u) { return 'https://corsproxy.io/?' + encodeURIComponent(u); } },
-        { key: 'allorigins', build: function (u) { return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u); } },
-        { key: 'dlproxy', build: function (u) { return 'https://dl.lampa.me/proxy/image?url=' + encodeURIComponent(u); } }
-    ];
-
-    var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
 
     function defaults() {
         return {
@@ -44,9 +24,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.io',
-            image_proxy: 'on',
-            custom_proxy_url: ''
+            shiki_host: 'https://shikimori.one'
         };
     }
 
@@ -89,9 +67,6 @@
     }
 
     function readSettings() {
-        var now = Date.now();
-        if (_settingsCache && now - _settingsCacheTs < 2000) return _settingsCache;
-
         var base = defaults();
         var saved = storageGet(SETTINGS_KEY, {});
         var key;
@@ -102,15 +77,11 @@
             if (saved.hasOwnProperty(key)) base[key] = saved[key];
         }
 
-        _settingsCache = base;
-        _settingsCacheTs = now;
         return base;
     }
 
     function saveSettings(settings) {
         storageSet(SETTINGS_KEY, settings || defaults());
-        _settingsCache = null;
-        _settingsCacheTs = 0;
     }
 
     function getShikiHost() {
@@ -263,14 +234,12 @@
 
         if (!url) return '';
         if (/^\/\//.test(url)) return 'https:' + url;
-
+        
         if (/^https?:\/\//.test(url)) {
-            var host = getShikiHost().replace(/\/$/, '');
-            var stripped = url.replace(/https?:\/\/(shikimori\.one|shikimori\.io|shikimori\.me)(.*)/, host + '$2');
-            return stripped;
+            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
         }
 
-        return getShikiHost() + (url.indexOf('/') === 0 ? url : '/' + url);
+        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -291,84 +260,6 @@
         if (list.indexOf(url) === -1) list.push(url);
     }
 
-    function isProxyEnabled() {
-        var s = readSettings();
-        return s.image_proxy !== 'off';
-    }
-
-    function proxySettingName(val) {
-        if (val === 'on') return 'включён';
-        if (val === 'off') return 'выключен';
-        return 'авто';
-    }
-
-    function buildProxiedUrl(url, proxyIndex) {
-        if (!url) return '';
-        var settings = readSettings();
-
-        if (proxyIndex === 0 && settings.custom_proxy_url) {
-            var tpl = settings.custom_proxy_url.replace(/{url}/g, encodeURIComponent(url)).replace(/{URL}/g, encodeURIComponent(url));
-            if (tpl !== settings.custom_proxy_url) return tpl;
-            return settings.custom_proxy_url + encodeURIComponent(url);
-        }
-
-        proxyIndex = proxyIndex || 0;
-        return PROXY_LIST[proxyIndex] ? PROXY_LIST[proxyIndex].build(url) : url;
-    }
-
-    function buildApiProxyUrl(url) {
-        var settings = readSettings();
-        if (settings.custom_proxy_url) {
-            var tpl = settings.custom_proxy_url.replace(/{url}/g, encodeURIComponent(url)).replace(/{URL}/g, encodeURIComponent(url));
-            if (tpl !== settings.custom_proxy_url) return tpl;
-            return settings.custom_proxy_url + encodeURIComponent(url);
-        }
-        return 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url);
-    }
-
-    function loadProxyHealth() {
-        try {
-            var raw = storageGet(PROXY_CACHE_KEY, {});
-            if (raw && typeof raw === 'object') imgProxyHealth = raw;
-        } catch (e) {}
-    }
-
-    function saveProxyHealth() {
-        try {
-            storageSet(PROXY_CACHE_KEY, imgProxyHealth);
-        } catch (e) {}
-    }
-
-    function isProxyHealthy(key) {
-        if (!imgProxyHealth[key]) return true;
-        var entry = imgProxyHealth[key];
-        if (typeof entry === 'object' && entry.ts) {
-            if (Date.now() - entry.ts > PROXY_HEALTH_TTL) {
-                delete imgProxyHealth[key];
-                return true;
-            }
-            return !!entry.ok;
-        }
-        return true;
-    }
-
-    function markProxyHealth(key, ok) {
-        imgProxyHealth[key] = { ok: ok, ts: Date.now() };
-        saveProxyHealth();
-    }
-
-    function buildAllProxyUrls(url) {
-        if (!url) return [];
-        if (imgCacheHit[url]) return [imgCacheHit[url]];
-
-        var candidates = [];
-        for (var i = 0; i < PROXY_LIST.length; i++) {
-            if (!isProxyHealthy(PROXY_LIST[i].key)) continue;
-            candidates.push(buildProxiedUrl(url, i));
-        }
-        return candidates;
-    }
-
     function posterUrls(data) {
         var list = [];
         var poster = data && data.poster ? data.poster : {};
@@ -382,10 +273,6 @@
         pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
         pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
 
-        if (!list.length && data && data.id) {
-            pushPosterUrl(list, getShikiHost() + '/system/animes/original/' + data.id + '.jpg');
-        }
-
         return list;
     }
 
@@ -394,67 +281,13 @@
         return list.length ? list[0] : '';
     }
 
-    function bestPosterSrc(posterList) {
-        if (!posterList || !posterList.length) return '';
-        var settings = readSettings();
-
-        if (settings.custom_proxy_url) {
-            return buildProxiedUrl(posterList[0], 0);
-        }
-
-        if (isProxyEnabled()) {
-            return buildProxiedUrl(posterList[0], 1);
-        }
-
-        return posterList[0];
-    }
-
-    function buildFallbackUrls(directUrls) {
-        var result = [];
-        var seen = {};
-        var settings = readSettings();
-        var hasCustom = !!settings.custom_proxy_url;
-
-        for (var d = 0; d < directUrls.length; d++) {
-            var url = directUrls[d];
-            if (!url || seen[url]) continue;
-            seen[url] = true;
-
-            if (hasCustom) {
-                var customProxied = buildProxiedUrl(url, 0);
-                if (!seen[customProxied]) {
-                    seen[customProxied] = true;
-                    result.push(customProxied);
-                }
-            }
-
-            result.push(url);
-
-            if (isProxyEnabled()) {
-                for (var p = 0; p < PROXY_LIST.length; p++) {
-                    if (!isProxyHealthy(PROXY_LIST[p].key)) continue;
-                    var proxied = buildProxiedUrl(url, p);
-                    if (!seen[proxied]) {
-                        seen[proxied] = true;
-                        result.push(proxied);
-                    }
-                }
-            }
-        }
-
-        return result;
-    }
-
-    function tmdbPosterUrl(path, useProxy) {
+    function tmdbPosterUrl(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
 
         if (!path) return '';
-        var url;
-        if (/^https?:\/\//.test(path)) url = path;
-        else url = 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
+        if (/^https?:\/\//.test(path)) return path;
 
-        if (useProxy && isProxyEnabled()) return buildProxiedUrl(url, 0);
-        return url;
+        return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
     }
 
     function tmdbLanguage() {
@@ -466,55 +299,6 @@
     }
 
     function apiGetJson(url, success, error) {
-        var isTmdbApi = url.indexOf('api.themoviedb.org') !== -1;
-        var isTmdbImage = url.indexOf('image.tmdb.org') !== -1;
-        var isArmApi = url.indexOf('arm.haglund.dev') !== -1;
-        var needsProxy = (isTmdbApi || isTmdbImage || isArmApi) && isProxyEnabled();
-
-        if (needsProxy) {
-            var proxiedUrl = buildApiProxyUrl(url);
-
-            if (window.Lampa && typeof Lampa.Reguest === 'function') {
-                try {
-                    var net = new Lampa.Reguest();
-                    if (typeof net.timeout === 'function') net.timeout(12000);
-                    if (typeof net.silent === 'function') {
-                        net.silent(proxiedUrl, function (res) {
-                            markProxyHealth('api', true);
-                            success(res);
-                        }, function (err) {
-                            markProxyHealth('api', false);
-                            apiGetJsonDirect(url, success, error);
-                        });
-                        return;
-                    }
-                } catch (e) {}
-            }
-
-            if (window.$) {
-                $.ajax({
-                    url: proxiedUrl,
-                    dataType: 'json',
-                    timeout: 12000,
-                    success: function (res) {
-                        markProxyHealth('api', true);
-                        success(res);
-                    },
-                    error: function () {
-                        markProxyHealth('api', false);
-                        apiGetJsonDirect(url, success, error);
-                    }
-                });
-            } else {
-                apiGetJsonDirect(url, success, error);
-            }
-            return;
-        }
-
-        apiGetJsonDirect(url, success, error);
-    }
-
-    function apiGetJsonDirect(url, success, error) {
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
@@ -790,88 +574,49 @@
         img = $(img);
         urls = urls || [];
 
-        var allCandidates = buildFallbackUrls(urls);
-        var index = 0;
-        var externalTried = false;
-        var fallbackDone = false;
+        img.data('poster-index', 0);
+        img.data('poster-external-tried', false);
+        img.data('poster-fallback-done', false);
 
         function setFallback() {
-            if (fallbackDone) return;
-            fallbackDone = true;
+            if (img.data('poster-fallback-done')) return;
+
+            img.data('poster-fallback-done', true);
             img.attr('src', fallback);
         }
 
-        function tryNext() {
+        function tryExternalPoster() {
+            if (img.data('poster-external-tried')) {
+                setFallback();
+                return;
+            }
+
+            img.data('poster-external-tried', true);
+
+            resolveExternalPoster(data, function (url) {
+                if (url) img.attr('src', url);
+                else setFallback();
+            });
+        }
+
+        img.on('error', function () {
+            var index;
+
+            if (img.data('poster-fallback-done')) return;
+
+            index = parseInt(img.data('poster-index'), 10) || 0;
             index += 1;
 
-            if (index < allCandidates.length) {
-                img.attr('src', allCandidates[index]);
-                return;
-            }
+            img.data('poster-index', index);
 
-            if (!externalTried) {
-                externalTried = true;
-
-                resolveExternalPoster(data, function (extUrl) {
-                    if (extUrl) {
-                        var extCandidates = buildFallbackUrls([extUrl]);
-                        allCandidates = allCandidates.concat(extCandidates);
-                        tryNext();
-                    } else {
-                        setFallback();
-                    }
-                });
-                return;
-            }
-
-            setFallback();
-        }
-
-        img.off('error.shikimori_proxy');
-        img.on('error.shikimori_proxy', function () {
-            if (fallbackDone) return;
-
-            var currentSrc = img.attr('src') || '';
-
-            if (currentSrc) {
-                if (imgCacheHit[currentSrc] === undefined) imgCacheHit[currentSrc] = false;
-                if (currentSrc.indexOf('corsproxy') !== -1) markProxyHealth('corsproxy', false);
-                else if (currentSrc.indexOf('allorigins') !== -1) markProxyHealth('allorigins', false);
-                else if (currentSrc.indexOf('dl.lampa.me') !== -1) markProxyHealth('dlproxy', false);
-            }
-
-            tryNext();
-        });
-
-        img.off('load.shikimori_proxy');
-        img.on('load.shikimori_proxy', function () {
-            var currentSrc = img.attr('src') || '';
-            if (currentSrc && currentSrc !== fallback) {
-                imgCacheHit[currentSrc] = true;
-
-                if (currentSrc.indexOf('corsproxy') !== -1) markProxyHealth('corsproxy', true);
-                else if (currentSrc.indexOf('allorigins') !== -1) markProxyHealth('allorigins', true);
-                else if (currentSrc.indexOf('dl.lampa.me') !== -1) markProxyHealth('dlproxy', true);
-                else markProxyHealth('direct', true);
-            }
-        });
-
-        if (!allCandidates.length) {
-            if (data && data.id) {
-                externalTried = true;
-                resolveExternalPoster(data, function (extUrl) {
-                    if (extUrl) {
-                        allCandidates = buildFallbackUrls([extUrl]);
-                        index = -1;
-                        tryNext();
-                    } else {
-                        setFallback();
-                    }
-                });
+            if (urls[index]) {
+                img.attr('src', urls[index]);
             } else {
-                setFallback();
+                tryExternalPoster();
             }
-        }
+        });
+
+        if (!urls.length) tryExternalPoster();
     }
 
     function isAdultGenre(genre) {
@@ -1640,7 +1385,7 @@
         );
 
         var posterList = posterUrls(data);
-        var imgSrc = posterList.length ? esc(bestPosterSrc(posterList)) : loadingSVG;
+        var imgSrc = posterList.length ? esc(posterList[0]) : loadingSVG;
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
@@ -2062,6 +1807,8 @@
                     else openWith({
                         search: text
                     });
+
+                    Lampa.Controller.toggle('content');
                 });
             } else {
                 value = window.prompt('Поиск Shikimori', value);
@@ -2339,18 +2086,6 @@
                     value: 'shiki_host'
                 },
                 {
-                    title: 'Прокси изображений: ' + proxySettingName(settings.image_proxy),
-                    value: 'image_proxy'
-                },
-                {
-                    title: 'Свой прокси URL: ' + (settings.custom_proxy_url || 'не задан'),
-                    value: 'custom_proxy_url'
-                },
-                {
-                    title: 'Очистить кэш прокси',
-                    value: 'clear_proxy_cache'
-                },
-                {
                     title: 'Очистить кэш поиска TMDB',
                     value: 'clear_tmdb_cache'
                 },
@@ -2378,22 +2113,6 @@
                         return;
                     } else if (item.value === 'shiki_host') {
                         openShikiHostSettings();
-                        return;
-                    } else if (item.value === 'image_proxy') {
-                        openImageProxySettings();
-                        return;
-                    } else if (item.value === 'custom_proxy_url') {
-                        askText('URL прокси (подставит URL картинки)', settings.custom_proxy_url || '', function (value) {
-                            settings.custom_proxy_url = value ? value.replace(/\/$/, '') : '';
-                            saveSettings(settings);
-                            notify(settings.custom_proxy_url ? 'Прокси URL сохранён' : 'Прокси URL очищен');
-                        });
-                        return;
-                    } else if (item.value === 'clear_proxy_cache') {
-                        imgProxyHealth = {};
-                        imgCacheHit = {};
-                        storageSet(PROXY_CACHE_KEY, {});
-                        notify('Кэш прокси очищен');
                         return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
@@ -2521,27 +2240,6 @@
             });
         }
 
-        function openImageProxySettings() {
-            var settings = readSettings();
-            var current = settings.image_proxy || 'auto';
-            var items = [
-                { title: selectedTitle(current === 'auto', 'Авто'), value: 'auto' },
-                { title: selectedTitle(current === 'on', 'Включён'), value: 'on' },
-                { title: selectedTitle(current === 'off', 'Выключен'), value: 'off' }
-            ];
-
-            Lampa.Select.show({
-                title: 'Прокси изображений',
-                items: items,
-                onSelect: function (item) {
-                    saveVisualSetting('image_proxy', item.value);
-                },
-                onBack: function () {
-                    openSettings();
-                }
-            });
-        }
-
         function openAuthSettings() {
             var auth = readAuth();
 
@@ -2626,6 +2324,7 @@
                     free: true
                 }, function (text) {
                     callback(String(text || '').trim());
+                    Lampa.Controller.toggle('content');
                 });
             } else {
                 value = window.prompt(title, value || '');
@@ -3181,7 +2880,6 @@
     function start() {
         if (!window.Lampa || !window.$) return;
 
-        loadProxyHealth();
         addStyles();
 
         Lampa.Component.add('shikimori', Catalog);
