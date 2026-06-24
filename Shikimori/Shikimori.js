@@ -1,6 +1,6 @@
 /**
- * Shikimori Plugin for Lampa v3.1.3
- * Fix: when Shikimori poster is "missing" placeholder, load TMDB poster from cache
+ * Shikimori Plugin for Lampa v3.1.4
+ * Fix: when Shikimori API returns "missing" poster, construct URL from /system/animes/original/{id}.jpg
  * Multi-proxy: custom URL → corsproxy.io → allorigins → dl.lampa.me
  * Proxy ARM/TMDB API calls for Russia
  */
@@ -381,6 +381,10 @@
         pushPosterUrl(list, image.original);
         pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
         pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
+
+        if (!list.length && data && data.id) {
+            pushPosterUrl(list, getShikiHost() + '/system/animes/original/' + data.id + '.jpg');
+        }
 
         return list;
     }
@@ -1636,20 +1640,7 @@
         );
 
         var posterList = posterUrls(data);
-        var tmdbPoster = '';
-
-        if (!posterList.length && data && data.id) {
-            var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-            var posterCache = storageGet(POSTER_CACHE_KEY, {});
-
-            if (posterCache[data.id]) {
-                tmdbPoster = posterCache[data.id];
-            } else if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
-                tmdbPoster = tmdbCache[data.id].poster;
-            }
-        }
-
-        var imgSrc = posterList.length ? esc(bestPosterSrc(posterList)) : (tmdbPoster ? esc(bestPosterSrc([tmdbPoster])) : loadingSVG);
+        var imgSrc = posterList.length ? esc(bestPosterSrc(posterList)) : loadingSVG;
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
@@ -1671,8 +1662,7 @@
                 '</div>'
             );
 
-            var fallbackList = posterList.length ? posterList : (tmdbPoster ? [tmdbPoster] : []);
-            installPosterFallback(element.find('.card__img'), fallbackList, noPosterSVG, data);
+            installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
 
             return element;
         };
