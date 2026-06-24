@@ -1,8 +1,8 @@
 /**
- * Shikimori Plugin for Lampa v3.1.1
- * Multi-proxy: images + API (TMDB, Shikimori mirror)
- * Proxy chain: custom URL → corsproxy.io → allorigins → dl.lampa.me
- * Fixed: normalizePosterUrl uses configured mirror, API calls proxied
+ * Shikimori Plugin for Lampa v3.1.3
+ * Fix: when Shikimori poster is "missing" placeholder, load TMDB poster from cache
+ * Multi-proxy: custom URL → corsproxy.io → allorigins → dl.lampa.me
+ * Proxy ARM/TMDB API calls for Russia
  */
 (function () {
     'use strict';
@@ -390,6 +390,21 @@
         return list.length ? list[0] : '';
     }
 
+    function bestPosterSrc(posterList) {
+        if (!posterList || !posterList.length) return '';
+        var settings = readSettings();
+
+        if (settings.custom_proxy_url) {
+            return buildProxiedUrl(posterList[0], 0);
+        }
+
+        if (isProxyEnabled()) {
+            return buildProxiedUrl(posterList[0], 1);
+        }
+
+        return posterList[0];
+    }
+
     function buildFallbackUrls(directUrls) {
         var result = [];
         var seen = {};
@@ -449,7 +464,8 @@
     function apiGetJson(url, success, error) {
         var isTmdbApi = url.indexOf('api.themoviedb.org') !== -1;
         var isTmdbImage = url.indexOf('image.tmdb.org') !== -1;
-        var needsProxy = (isTmdbApi || isTmdbImage) && isProxyEnabled();
+        var isArmApi = url.indexOf('arm.haglund.dev') !== -1;
+        var needsProxy = (isTmdbApi || isTmdbImage || isArmApi) && isProxyEnabled();
 
         if (needsProxy) {
             var proxiedUrl = buildApiProxyUrl(url);
@@ -1620,7 +1636,20 @@
         );
 
         var posterList = posterUrls(data);
-        var imgSrc = posterList.length ? esc(posterList[0]) : loadingSVG;
+        var tmdbPoster = '';
+
+        if (!posterList.length && data && data.id) {
+            var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+            var posterCache = storageGet(POSTER_CACHE_KEY, {});
+
+            if (posterCache[data.id]) {
+                tmdbPoster = posterCache[data.id];
+            } else if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
+                tmdbPoster = tmdbCache[data.id].poster;
+            }
+        }
+
+        var imgSrc = posterList.length ? esc(bestPosterSrc(posterList)) : (tmdbPoster ? esc(bestPosterSrc([tmdbPoster])) : loadingSVG);
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
@@ -1642,7 +1671,8 @@
                 '</div>'
             );
 
-            installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
+            var fallbackList = posterList.length ? posterList : (tmdbPoster ? [tmdbPoster] : []);
+            installPosterFallback(element.find('.card__img'), fallbackList, noPosterSVG, data);
 
             return element;
         };
