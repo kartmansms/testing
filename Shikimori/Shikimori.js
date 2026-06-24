@@ -17,7 +17,6 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
-    var fullPollId = null;
 
     function defaults() {
         return {
@@ -1390,7 +1389,6 @@
         this.pause = function () {};
 
         this.destroy = function () {
-            if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
             html.off();
             scroll.render().off();
             scroll.destroy();
@@ -2232,8 +2230,10 @@
                 if (!ended) addMoreButton();
 
                 if (window.Lampa && Lampa.Controller) {
-                    Lampa.Controller.collectionSet(html);
-                    if (!append) Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+                    if (!append) {
+                        Lampa.Controller.collectionSet(html);
+                        Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+                    }
                 }
             }, function () {
                 autoLoading = false;
@@ -2549,14 +2549,6 @@
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
         });
-
-        fullPollId = setInterval(function () {
-            var page = fullPage();
-            if (!page.length) return;
-            if (page.find('.shikimori-full-list-button').length) return;
-
-            scheduleAppendFull(getActiveActivity());
-        }, 1800);
     }
 
     function extractMalId(answer) {
