@@ -2671,7 +2671,13 @@
                 '<div class="menu__ico">' +
                     '<svg viewBox="0 0 44 44" width="44" height="44">' +
                         '<circle cx="22" cy="22" r="19" fill="#c83a4b"/>' +
-                        '<path d="M13 29c2 3 5 5 9 5 6 0 10-3 10-8 0-4-2-6-8-8l-3-1c-3-1-4-2-4-4s2-3 5-3c3 0 5 1 7 3l3-4c-2-3-6-4-10-4-6 0-10 3-10 8 0 4 3 7 8 8l3 1c3 1 4 2 4 4s-2 3-5 3c-3 0-6-2-8-4l-1 4z" fill="#fff"/>' +
+                        '<path d="M15 15l4 7-3 8c0 0 2 3 6 3s6-3 6-3l-3-8 4-7c0 0-3-2-7-2s-7 2-7 2z" fill="#fff"/>' +
+                        '<path d="M15 15l-2-5c0 0 3-2 5 0" fill="#fff"/>' +
+                        '<path d="M29 15l2-5c0 0-3-2-5 0" fill="#fff"/>' +
+                        '<circle cx="19" cy="22" r="1.2" fill="#c83a4b"/>' +
+                        '<circle cx="25" cy="22" r="1.2" fill="#c83a4b"/>' +
+                        '<path d="M22 24.5v1.2" stroke="#c83a4b" stroke-width="0.8" stroke-linecap="round"/>' +
+                        '<path d="M20 26.5c1 1 3 1 4 0" stroke="#c83a4b" stroke-width="0.8" fill="none" stroke-linecap="round"/>' +
                     '</svg>' +
                 '</div>' +
                 '<div class="menu__text">Shikimori</div>' +
