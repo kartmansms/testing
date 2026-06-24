@@ -1621,7 +1621,7 @@
                     locked = false;
                 }, 280);
 
-                action();
+                action(element);
             };
 
             element.data('action', run);
@@ -1792,7 +1792,7 @@
             });
         }
 
-        function openSearch() {
+        function openSearch(btnElement) {
             var value = params.search || '';
 
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
@@ -1809,6 +1809,11 @@
                     });
 
                     Lampa.Controller.toggle('content');
+
+                    if (btnElement) {
+                        Lampa.Controller.collectionSet(html);
+                        Lampa.Controller.collectionFocus(btnElement, html);
+                    }
                 });
             } else {
                 value = window.prompt('Поиск Shikimori', value);
@@ -2061,7 +2066,7 @@
             });
         }
 
-        function openSettings() {
+        function openSettings(btnElement) {
             var settings = readSettings();
 
             var items = [
@@ -2112,7 +2117,7 @@
                         openCardSizeSettings();
                         return;
                     } else if (item.value === 'shiki_host') {
-                        openShikiHostSettings();
+                        openShikiHostSettings(btnElement);
                         return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
@@ -2120,7 +2125,7 @@
                         notify('Кэш поиска очищен');
                         return;
                     } else if (item.value === 'auth') {
-                        openAuthSettings();
+                        openAuthSettings(btnElement);
                         return;
                     }
                 },
@@ -2208,7 +2213,7 @@
             });
         }
 
-        function openShikiHostSettings() {
+        function openShikiHostSettings(btnElement) {
             var settings = readSettings();
             var items = [
                 { title: 'shikimori.one', value: 'https://shikimori.one' },
@@ -2227,7 +2232,7 @@
                                 saveSettings(settings);
                                 notify('Домен Shikimori изменён');
                             }
-                        });
+                        }, btnElement);
                     } else {
                         settings.shiki_host = item.value;
                         saveSettings(settings);
@@ -2240,7 +2245,7 @@
             });
         }
 
-        function openAuthSettings() {
+        function openAuthSettings(btnElement) {
             var auth = readAuth();
 
             var items = [
@@ -2263,19 +2268,19 @@
                             auth.client_id = value;
                             saveAuth(auth);
                             notify('Client ID сохранён');
-                        });
+                        }, btnElement);
                     } else if (item.value === 'client_secret') {
                         askText('Client Secret Shikimori', auth.client_secret, function (value) {
                             auth.client_secret = value;
                             saveAuth(auth);
                             notify('Client Secret сохранён');
-                        });
+                        }, btnElement);
                     } else if (item.value === 'redirect_uri') {
                         askText('Redirect URI', auth.redirect_uri, function (value) {
                             auth.redirect_uri = value || defaultAuth().redirect_uri;
                             saveAuth(auth);
                             notify('Redirect URI сохранён');
-                        });
+                        }, btnElement);
                     } else if (item.value === 'copy_url') {
                         var url = authUrl();
 
@@ -2294,7 +2299,7 @@
                     } else if (item.value === 'code') {
                         askText('Код авторизации', '', function (value) {
                             if (value) requestTokenByCode(value, loadWhoami);
-                        });
+                        }, btnElement);
                     } else if (item.value === 'refresh') {
                         refreshToken(loadWhoami);
                     } else if (item.value === 'whoami') {
@@ -2316,7 +2321,7 @@
             });
         }
 
-        function askText(title, value, callback) {
+        function askText(title, value, callback, btnElement) {
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
                 Lampa.Input.edit({
                     title: title,
@@ -2325,6 +2330,11 @@
                 }, function (text) {
                     callback(String(text || '').trim());
                     Lampa.Controller.toggle('content');
+
+                    if (btnElement) {
+                        Lampa.Controller.collectionSet(html);
+                        Lampa.Controller.collectionFocus(btnElement, html);
+                    }
                 });
             } else {
                 value = window.prompt(title, value || '');
