@@ -17,6 +17,7 @@
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
     var fullResolveCache = {};
+    var fullPollId = null;
 
     function defaults() {
         return {
@@ -1335,6 +1336,15 @@
                 scroll.append(body);
                 scroll.minus();
 
+                scroll.onWheel = function (step) {
+                    var enabledController = Lampa.Controller.enabled && Lampa.Controller.enabled();
+
+                    if (enabledController && enabledController.name !== 'content') Lampa.Controller.toggle('content');
+
+                    if (step > 0) Navigator.move('down');
+                    else Navigator.move('up');
+                };
+
                 scroll.onEnd = function () {
                     loadNextPage(true);
                 };
@@ -1389,6 +1399,7 @@
         this.pause = function () {};
 
         this.destroy = function () {
+            if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
             html.off();
             scroll.render().off();
             scroll.destroy();
@@ -2230,10 +2241,8 @@
                 if (!ended) addMoreButton();
 
                 if (window.Lampa && Lampa.Controller) {
-                    if (!append) {
-                        Lampa.Controller.collectionSet(html);
-                        Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
-                    }
+                    Lampa.Controller.collectionSet(html);
+                    Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
                 }
             }, function () {
                 autoLoading = false;
@@ -2549,6 +2558,18 @@
             var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
             scheduleAppendFull(activity);
         });
+
+        Lampa.Listener.follow('activity', function () {
+            scheduleAppendFull(getActiveActivity());
+        });
+
+        fullPollId = setInterval(function () {
+            var page = fullPage();
+            if (!page.length) return;
+            if (page.find('.shikimori-full-list-button').length) return;
+
+            scheduleAppendFull(getActiveActivity());
+        }, 1800);
     }
 
     function extractMalId(answer) {
@@ -2629,6 +2650,14 @@
             }
 
             initShikimoriListButton(listBtn, anime);
+
+            setTimeout(function () {
+                try {
+                    if (window.Lampa && Lampa.Controller) {
+                        Lampa.Controller.collectionSet(page);
+                    }
+                } catch (e) {}
+            }, 100);
         }
     }
 
