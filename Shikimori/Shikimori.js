@@ -25,7 +25,7 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.one'
+            shiki_host: 'https://shikimori.io'
         };
     }
 
@@ -87,7 +87,7 @@
 
     function getShikiHost() {
         var settings = readSettings();
-        return (settings.shiki_host || 'https://shikimori.one').replace(/\/$/, '');
+        return (settings.shiki_host || 'https://shikimori.io').replace(/\/$/, '');
     }
 
     function defaultAuth() {
@@ -237,10 +237,10 @@
         if (/^\/\//.test(url)) return 'https:' + url;
         
         if (/^https?:\/\//.test(url)) {
-            return url.replace('shikimori.io', 'shikimori.one').replace('shikimori.me', 'shikimori.one');
+            return url.replace('shikimori.one', 'shikimori.io').replace('shikimori.me', 'shikimori.io');
         }
 
-        return 'https://shikimori.one' + (url.indexOf('/') === 0 ? url : '/' + url);
+        return 'https://shikimori.io' + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
     function isBadPosterUrl(url) {
@@ -1970,7 +1970,7 @@
                     value: 'card_size'
                 },
                 {
-                    title: 'Домен Shikimori: ' + (settings.shiki_host || 'https://shikimori.one'),
+                    title: 'Домен Shikimori: ' + (settings.shiki_host || 'https://shikimori.io'),
                     value: 'shiki_host'
                 },
                 {
@@ -2068,7 +2068,6 @@
         function openShikiHostSettings(btnElement) {
             var settings = readSettings();
             var items = [
-                { title: 'shikimori.one', value: 'https://shikimori.one' },
                 { title: 'shikimori.io', value: 'https://shikimori.io' },
                 { title: 'Ввести вручную', value: 'custom' }
             ];
