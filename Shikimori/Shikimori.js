@@ -1,9 +1,8 @@
 /**
- * Shikimori Plugin for Lampa v3.1.2
- * Multi-proxy: images + API (TMDB, ARM, Shikimori mirror)
+ * Shikimori Plugin for Lampa v3.1.1
+ * Multi-proxy: images + API (TMDB, Shikimori mirror)
  * Proxy chain: custom URL → corsproxy.io → allorigins → dl.lampa.me
- * Fix: img src uses proxied URL from start (no onerror retry for initial load)
- * Fix: ARM API calls proxied, normalizePosterUrl uses mirror
+ * Fixed: normalizePosterUrl uses configured mirror, API calls proxied
  */
 (function () {
     'use strict';
@@ -391,21 +390,6 @@
         return list.length ? list[0] : '';
     }
 
-    function bestPosterSrc(posterList) {
-        if (!posterList || !posterList.length) return '';
-        var settings = readSettings();
-
-        if (settings.custom_proxy_url) {
-            return buildProxiedUrl(posterList[0], 0);
-        }
-
-        if (isProxyEnabled()) {
-            return buildProxiedUrl(posterList[0], 1);
-        }
-
-        return posterList[0];
-    }
-
     function buildFallbackUrls(directUrls) {
         var result = [];
         var seen = {};
@@ -465,8 +449,7 @@
     function apiGetJson(url, success, error) {
         var isTmdbApi = url.indexOf('api.themoviedb.org') !== -1;
         var isTmdbImage = url.indexOf('image.tmdb.org') !== -1;
-        var isArmApi = url.indexOf('arm.haglund.dev') !== -1;
-        var needsProxy = (isTmdbApi || isTmdbImage || isArmApi) && isProxyEnabled();
+        var needsProxy = (isTmdbApi || isTmdbImage) && isProxyEnabled();
 
         if (needsProxy) {
             var proxiedUrl = buildApiProxyUrl(url);
@@ -1637,7 +1620,7 @@
         );
 
         var posterList = posterUrls(data);
-        var imgSrc = posterList.length ? esc(bestPosterSrc(posterList)) : loadingSVG;
+        var imgSrc = posterList.length ? esc(posterList[0]) : loadingSVG;
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
