@@ -828,7 +828,6 @@
 
         var mainTitle = titleOf(shiki) || item.title || item.name;
         var secTitle = originalTitleOf(shiki) || item.original_title || item.original_name || shiki.name;
-        var shikiPoster = posterOf(shiki);
 
         var movie = {
             id: item.id || item.tmdb_id || item.themoviedb,
@@ -836,8 +835,8 @@
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: shikiPoster || item.poster_path || '',
-            img: shikiPoster || '',
+            poster_path: item.poster_path || '',
+            img: item.poster_path ? (window.Lampa && Lampa.TMDB && Lampa.TMDB.image ? Lampa.TMDB.image('t/p/w300' + item.poster_path) : '') : '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
             shikimori: shiki
