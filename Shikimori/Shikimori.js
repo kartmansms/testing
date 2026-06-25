@@ -10,8 +10,6 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    var ARM_HOST = 'https://arm.haglund.dev';
-    var TMDB_API_KEY = '4ef0d7355d9ffb5151e987764708ce96';
     var PAGE_LIMIT = 48;
 
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
@@ -282,10 +280,15 @@
         return list.length ? list[0] : '';
     }
 
-    function tmdbPosterUrl(path) {
+    function tmdbImage(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
 
         if (!path) return '';
+
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image(path);
+        }
+
         if (/^https?:\/\//.test(path)) return path;
 
         return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
@@ -293,10 +296,16 @@
 
     function tmdbLanguage() {
         try {
-            return window.Lampa && Lampa.Storage ? Lampa.Storage.get('language', 'ru') : 'ru';
-        } catch (e) {
-            return 'ru';
-        }
+            if (window.Lampa && Lampa.Storage && typeof Lampa.Storage.get === 'function') {
+                return Lampa.Storage.get('language', 'ru');
+            }
+        } catch (e) {}
+
+        try {
+            return window.localStorage.getItem('language') || 'ru';
+        } catch (e) {}
+
+        return 'ru';
     }
 
     function apiGetJson(url, success, error) {
@@ -380,26 +389,43 @@
         return Math.abs(itemYear - year) <= 2;
     }
 
+    function tmdbApiGet(path, success, error) {
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+            try {
+                Lampa.TMDB.api(path, success, error || function () {});
+                return;
+            } catch (e) {}
+        }
+
+        apiGetJson('https://api.themoviedb.org/3/' + path.replace(/^\//, ''), success, error);
+    }
+
     function searchTmdbMulti(queries, year, filterFn, onMatch, onDone) {
         var index = 0;
+
         function next() {
             if (index >= queries.length) { onDone(); return; }
+
             var query = queries[index++];
-            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + TMDB_API_KEY +
-                '&language=' + encodeURIComponent(tmdbLanguage()) +
+            var path = 'search/multi?language=' + encodeURIComponent(tmdbLanguage()) +
                 '&query=' + encodeURIComponent(query);
-            apiGetJson(url, function (res) {
+
+            tmdbApiGet(path, function (res) {
                 var results = res && res.results ? res.results : [];
+
                 for (var i = 0; i < results.length; i++) {
                     var item = results[i];
+
                     if ((item.media_type === 'tv' || item.media_type === 'movie') && filterFn(item) && tmdbYearMatch(item, year)) {
                         onMatch(item);
                         return;
                     }
                 }
+
                 next();
             }, next);
         }
+
         next();
     }
 
@@ -421,17 +447,13 @@
     }
 
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
-        var apiKey = TMDB_API_KEY;
-
         type = type === 'movie' ? 'movie' : 'tv';
 
-        var url = 'https://api.themoviedb.org/3/' + type +
-            '/' + encodeURIComponent(tmdbId) +
-            '?api_key=' + apiKey +
-            '&language=' + encodeURIComponent(tmdbLanguage());
+        var path = type + '/' + encodeURIComponent(tmdbId) +
+            '?language=' + encodeURIComponent(tmdbLanguage());
 
-        apiGetJson(url, function (res) {
-            var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
+        tmdbApiGet(path, function (res) {
+            var poster = tmdbImage(res && res.poster_path ? res.poster_path : '');
 
             if (poster) {
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
@@ -462,7 +484,7 @@
         searchTmdbMulti(queries, year,
             function (item) { return !!item.poster_path; },
             function (best) {
-                var poster = tmdbPosterUrl(best.poster_path);
+                var poster = tmdbImage(best.poster_path);
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
                 tmdbCache[data.id] = { id: best.id, type: best.media_type === 'movie' ? 'movie' : 'tv', poster: poster };
                 storageSet(TMDB_CACHE_KEY, tmdbCache);
@@ -512,35 +534,8 @@
             return;
         }
 
-        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
-
-        apiGetJson(armUrl, function (answer) {
-            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-            var type = answer && (answer.media_type || answer.type);
-
-            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-            if (tmdbId) {
-                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
-                });
-            } else {
-                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
-                });
-            }
-        }, function () {
-            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
-            });
+        resolvePosterByTmdbSearch(data, function (searchPoster) {
+            finishPosterRequest(data.id, searchPoster);
         });
     }
 
@@ -722,18 +717,7 @@
             return;
         }
 
-        var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
-
-        var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) openTmdb(answer, data);
-            else fallbackSearch(data);
-        };
-
-        apiGetJson(url, onSuccess, function () {
-            fallbackSearch(data);
-        });
+        fallbackSearch(data);
     }
 
     function fallbackSearch(data) {
@@ -2506,26 +2490,7 @@
             callback(anime || null);
         }
 
-        if (tmdbId) {
-            var url = ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(tmdbId);
-
-            apiGetJson(url, function (answer) {
-                var mal = extractMalId(answer);
-
-                if (mal) {
-                    fetchShikiAnimeById(mal, function (anime) {
-                        if (anime && anime.id) done(anime);
-                        else searchShikiAnimeByTitle(activity, done);
-                    });
-                } else {
-                    searchShikiAnimeByTitle(activity, done);
-                }
-            }, function () {
-                searchShikiAnimeByTitle(activity, done);
-            });
-        } else {
-            searchShikiAnimeByTitle(activity, done);
-        }
+        searchShikiAnimeByTitle(activity, done);
     }
 
     function scheduleAppendFull(activity) {
@@ -2570,32 +2535,6 @@
 
             scheduleAppendFull(getActiveActivity());
         }, 1800);
-    }
-
-    function extractMalId(answer) {
-        if (!answer) return '';
-
-        if (answer.mal || answer.mal_id || answer.myanimelist) {
-            return answer.mal || answer.mal_id || answer.myanimelist;
-        }
-
-        if (answer.ids && (answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist)) {
-            return answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist;
-        }
-
-        if (answer.sources && answer.sources.myanimelist) {
-            return answer.sources.myanimelist;
-        }
-
-        if (answer.length) {
-            for (var i = 0; i < answer.length; i++) {
-                if (answer[i] && (answer[i].myanimelist || answer[i].mal || answer[i].mal_id)) {
-                    return answer[i].myanimelist || answer[i].mal || answer[i].mal_id;
-                }
-            }
-        }
-
-        return '';
     }
 
     function createShikimoriFullListButton() {
