@@ -279,7 +279,15 @@
 
     function posterOf(data) {
         var list = posterUrls(data);
-        return list.length ? list[0] : '';
+        if (list.length) return list[0];
+
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+
+        if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
+            return tmdbCache[data.id].poster;
+        }
+
+        return '';
     }
 
     function tmdbPosterUrl(path) {
@@ -288,7 +296,13 @@
         if (!path) return '';
         if (/^https?:\/\//.test(path)) return path;
 
-        return 'https://image.tmdb.org/t/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
+        var sub = 't/p/w342' + (path.indexOf('/') === 0 ? path : '/' + path);
+
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
+            return Lampa.TMDB.image(sub);
+        }
+
+        return 'https://image.tmdb.org/' + sub;
     }
 
     function tmdbLanguage() {
@@ -383,14 +397,22 @@
         return Math.abs(itemYear - year) <= 2;
     }
 
+    function tmdbApiUrl(path) {
+        if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
+            return Lampa.TMDB.api(path);
+        }
+
+        return 'https://api.themoviedb.org/3/' + path;
+    }
+
     function searchTmdbMulti(queries, year, filterFn, onMatch, onDone) {
         var index = 0;
         function next() {
             if (index >= queries.length) { onDone(); return; }
             var query = queries[index++];
-            var url = 'https://api.themoviedb.org/3/search/multi?api_key=' + TMDB_API_KEY +
+            var url = tmdbApiUrl('search/multi?api_key=' + TMDB_API_KEY +
                 '&language=' + encodeURIComponent(tmdbLanguage()) +
-                '&query=' + encodeURIComponent(query);
+                '&query=' + encodeURIComponent(query));
             apiGetJson(url, function (res) {
                 var results = res && res.results ? res.results : [];
                 for (var i = 0; i < results.length; i++) {
@@ -426,10 +448,10 @@
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
         type = type === 'movie' ? 'movie' : 'tv';
 
-        var url = 'https://api.themoviedb.org/3/' + type +
+        var url = tmdbApiUrl(type +
             '/' + encodeURIComponent(tmdbId) +
             '?api_key=' + TMDB_API_KEY +
-            '&language=' + encodeURIComponent(tmdbLanguage());
+            '&language=' + encodeURIComponent(tmdbLanguage()));
 
         apiGetJson(url, function (res) {
             var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
@@ -512,7 +534,13 @@
                     finishPosterRequest(data.id, poster);
                 } else {
                     resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        finishPosterRequest(data.id, searchPoster);
+                        if (searchPoster) {
+                            finishPosterRequest(data.id, searchPoster);
+                        } else {
+                            resolvePosterByJikan(data, function (jikanPoster) {
+                                finishPosterRequest(data.id, jikanPoster);
+                            });
+                        }
                     });
                 }
             });
@@ -533,20 +561,74 @@
                         finishPosterRequest(data.id, poster);
                     } else {
                         resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
+                            if (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster);
+                            } else {
+                                resolvePosterByJikan(data, function (jikanPoster) {
+                                    finishPosterRequest(data.id, jikanPoster);
+                                });
+                            }
                         });
                     }
                 });
             } else {
                 resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
+                    if (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster);
+                    } else {
+                        resolvePosterByJikan(data, function (jikanPoster) {
+                            finishPosterRequest(data.id, jikanPoster);
+                        });
+                    }
                 });
             }
         }, function () {
             resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
+                if (searchPoster) {
+                    finishPosterRequest(data.id, searchPoster);
+                } else {
+                    resolvePosterByJikan(data, function (jikanPoster) {
+                        finishPosterRequest(data.id, jikanPoster);
+                    });
+                }
             });
         });
+    }
+
+    function resolvePosterByJikan(data, callback) {
+        var queries = [];
+        buildSmartQueries(data.english, queries);
+        buildSmartQueries(data.name, queries);
+        buildSmartQueries(data.russian, queries);
+
+        if (!queries.length) { callback(''); return; }
+
+        var index = 0;
+
+        function next() {
+            if (index >= queries.length) { callback(''); return; }
+
+            var query = queries[index++];
+            var url = 'https://api.jikan.moe/v4/anime?q=' + encodeURIComponent(query) + '&limit=5';
+
+            apiGetJson(url, function (res) {
+                var list = res && res.data ? res.data : [];
+
+                for (var i = 0; i < list.length; i++) {
+                    var item = list[i];
+                    var img = item.images && item.images.jpg ? item.images.jpg.image_url : '';
+
+                    if (img && img.indexOf('missing') === -1) {
+                        callback(img);
+                        return;
+                    }
+                }
+
+                next();
+            }, next);
+        }
+
+        next();
     }
 
     function installPosterFallback(img, urls, fallback, data) {
@@ -1279,7 +1361,7 @@
         );
 
         var posterList = posterUrls(data);
-        var imgSrc = posterList.length ? esc(posterList[0]) : loadingSVG;
+        var imgSrc = posterList.length ? esc(posterList[0]) : noPosterSVG;
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
