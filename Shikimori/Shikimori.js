@@ -365,7 +365,10 @@
     }
 
     function getAnimeYear(data) {
-        return data && data.airedOn && data.airedOn.year ? parseInt(data.airedOn.year, 10) : 0;
+        if (!data) return 0;
+        if (data.airedOn && data.airedOn.year) return parseInt(data.airedOn.year, 10);
+        if (data.aired_on) return parseInt(String(data.aired_on).substring(0, 4), 10);
+        return 0;
     }
 
     function tmdbYearMatch(item, year) {
@@ -421,13 +424,11 @@
     }
 
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
-        var apiKey = TMDB_API_KEY;
-
         type = type === 'movie' ? 'movie' : 'tv';
 
         var url = 'https://api.themoviedb.org/3/' + type +
             '/' + encodeURIComponent(tmdbId) +
-            '?api_key=' + apiKey +
+            '?api_key=' + TMDB_API_KEY +
             '&language=' + encodeURIComponent(tmdbLanguage());
 
         apiGetJson(url, function (res) {
@@ -472,6 +473,12 @@
         );
     }
 
+    function armLookupUrl(malId) {
+        return ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
+            encodeURIComponent(malId) +
+            '&include=themoviedb,myanimelist';
+    }
+
     function resolveExternalPoster(data, callback) {
         if (!data || !data.id) {
             callback('');
@@ -512,9 +519,7 @@
             return;
         }
 
-        var armUrl = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
+        var armUrl = armLookupUrl(data.id);
 
         apiGetJson(armUrl, function (answer) {
             var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
@@ -722,9 +727,7 @@
             return;
         }
 
-        var url = ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(data.id) +
-            '&include=themoviedb,myanimelist';
+        var url = armLookupUrl(data.id);
 
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) openTmdb(answer, data);
