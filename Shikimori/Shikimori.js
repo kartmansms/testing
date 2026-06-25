@@ -422,14 +422,38 @@
     }
 
     function tmdbApiGet(path, success, error) {
+        var url = null;
+
         if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
             try {
-                Lampa.TMDB.api(path, success, error || function () {});
+                url = Lampa.TMDB.api(path);
+            } catch (e) {}
+        }
+
+        if (!url) {
+            url = 'https://api.themoviedb.org/3/' + path.replace(/^\//, '');
+        }
+
+        if (window.Lampa && typeof Lampa.Reguest === 'function') {
+            try {
+                var network = new Lampa.Reguest();
+                network.timeout(12000);
+                network.silent(url, success, error || function () {});
                 return;
             } catch (e) {}
         }
 
-        apiGetJson('https://api.themoviedb.org/3/' + path.replace(/^\//, ''), success, error);
+        if (window.$) {
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                timeout: 12000,
+                success: success,
+                error: error || function () {}
+            });
+        } else if (error) {
+            error();
+        }
     }
 
     function searchTmdbMulti(queries, year, filterFn, onMatch, onDone) {
