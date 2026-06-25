@@ -434,6 +434,19 @@
             url = 'https://api.themoviedb.org/3/' + path.replace(/^\//, '');
         }
 
+        if (url.indexOf('api_key=') === -1) {
+            var apiKey = '';
+
+            if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.key === 'function') {
+                try { apiKey = Lampa.TMDB.key(); } catch (e) {}
+            }
+
+            if (!apiKey) apiKey = '4ef0d7355d9ffb5151e987764708ce96';
+
+            var sep = url.indexOf('?') === -1 ? '?' : '&';
+            url = url + sep + 'api_key=' + apiKey;
+        }
+
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
             try {
                 var network = new Lampa.Reguest();
