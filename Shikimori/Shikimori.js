@@ -2105,6 +2105,88 @@
             });
         }
 
+        function showQrAuth(btnElement) {
+            var auth = readAuth();
+            var url = authUrl();
+
+            if (!url) {
+                notify('Сначала введите Client ID');
+                return;
+            }
+
+            var qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?data=' +
+                encodeURIComponent(url) + '&size=250x250&format=png';
+
+            var overlay = $(
+                '<div class="shikimori-qr-overlay">' +
+                    '<div class="shikimori-qr-modal">' +
+                        '<div class="shikimori-qr-title">Авторизация по QR-коду</div>' +
+                        '<div class="shikimori-qr-desc">Отсканируйте QR-код телефоном и авторизуйтесь на сайте Shikimori</div>' +
+                        '<div class="shikimori-qr-image"><img src="' + esc(qrUrl) + '" width="250" height="250" /></div>' +
+                        '<div class="shikimori-qr-hint">После авторизации введите полученный код:</div>' +
+                        '<div class="shikimori-qr-input-wrap">' +
+                            '<input class="shikimori-qr-input" type="text" placeholder="Код авторизации" />' +
+                        '</div>' +
+                        '<div class="shikimori-qr-buttons">' +
+                            '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--ok">Готово</div>' +
+                            '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--cancel">Отмена</div>' +
+                        '</div>' +
+                    '</div>' +
+                '</div>'
+            );
+
+            $('body').append(overlay);
+
+            var input = overlay.find('.shikimori-qr-input');
+            var okBtn = overlay.find('.shikimori-qr-btn--ok');
+            var cancelBtn = overlay.find('.shikimori-qr-btn--cancel');
+
+            function close() {
+                overlay.remove();
+                if (btnElement) {
+                    try {
+                        Lampa.Controller.collectionSet(btnElement.closest('.Shikimori-module, .content'));
+                        Lampa.Controller.collectionFocus(btnElement);
+                    } catch (e) {}
+                }
+            }
+
+            cancelBtn.on('hover:enter click tap', function () {
+                close();
+            });
+
+            okBtn.on('hover:enter click tap', function () {
+                var code = String(input.val() || '').trim();
+
+                if (!code) {
+                    notify('Введите код авторизации');
+                    return;
+                }
+
+                close();
+                requestTokenByCode(code, loadWhoami);
+            });
+
+            overlay.on('click', function (e) {
+                if (e.target === overlay[0]) close();
+            });
+
+            try {
+                Lampa.Controller.add('shikimori_qr', {
+                    toggle: function () {
+                        Lampa.Controller.collectionSet(overlay);
+                        Lampa.Controller.collectionFocus(okBtn, overlay);
+                    },
+                    back: function () {
+                        close();
+                    }
+                });
+                Lampa.Controller.toggle('shikimori_qr');
+            } catch (e) {
+                input.focus();
+            }
+        }
+
         function openAuthSettings(btnElement) {
             var auth = readAuth();
 
@@ -2113,6 +2195,7 @@
                 { title: 'Ввести Client ID', value: 'client_id' },
                 { title: 'Ввести Client Secret', value: 'client_secret' },
                 { title: 'Redirect URI: ' + auth.redirect_uri, value: 'redirect_uri' },
+                { title: 'Авторизация по QR-коду', value: 'qr_auth' },
                 { title: 'Скопировать ссылку авторизации', value: 'copy_url' },
                 { title: 'Ввести код авторизации', value: 'code' },
                 { title: 'Обновить токен', value: 'refresh' },
@@ -2141,6 +2224,9 @@
                             saveAuth(auth);
                             notify('Redirect URI сохранён');
                         }, btnElement);
+                    } else if (item.value === 'qr_auth') {
+                        showQrAuth(btnElement);
+                        return;
                     } else if (item.value === 'copy_url') {
                         var url = authUrl();
 
@@ -2742,6 +2828,21 @@
                 '.shikimori-full-list-button.focus .shikimori-full-list-button__text{display:inline-block}' +
                 '.shikimori-full-list-button.shikimori-list-active:not(.focus){background:rgba(255,255,255,.16)!important;color:#fff!important}' +
                 '.shikimori-full-list-button.shikimori-list-loading{opacity:.75}' +
+
+                '.shikimori-qr-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.75);z-index:1000;display:flex;align-items:center;justify-content:center}' +
+                '.shikimori-qr-modal{background:#1b1d24;border-radius:.75em;padding:2em 2.5em;max-width:22em;width:90%;text-align:center;color:#fff;box-shadow:0 .5em 3em rgba(0,0,0,.6)}' +
+                '.shikimori-qr-title{font-size:1.35em;font-weight:600;margin-bottom:.5em}' +
+                '.shikimori-qr-desc{font-size:.92em;color:rgba(255,255,255,.6);margin-bottom:1.2em;line-height:1.4}' +
+                '.shikimori-qr-image{margin:0 auto 1.2em;display:flex;justify-content:center}' +
+                '.shikimori-qr-image img{border-radius:.5em;background:#fff;padding:.5em}' +
+                '.shikimori-qr-hint{font-size:.88em;color:rgba(255,255,255,.5);margin-bottom:.6em}' +
+                '.shikimori-qr-input-wrap{margin-bottom:1.2em}' +
+                '.shikimori-qr-input{width:100%;padding:.7em 1em;border-radius:.4em;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.08);color:#fff;font-size:1em;outline:none;box-sizing:border-box;text-align:center}' +
+                '.shikimori-qr-input:focus{border-color:#c83a4b}' +
+                '.shikimori-qr-buttons{display:flex;gap:.8em;justify-content:center}' +
+                '.shikimori-qr-btn{padding:.65em 1.8em;border-radius:.4em;font-size:.95em;cursor:pointer;background:rgba(255,255,255,.1)!important;border:1px solid rgba(255,255,255,.08)!important;color:rgba(255,255,255,.85)!important}' +
+                '.shikimori-qr-btn--ok{background:rgba(200,58,75,.35)!important;border-color:rgba(200,58,75,.5)!important;color:#ff8e9b!important}' +
+                '.shikimori-qr-btn.focus{background:#c83a4b!important;color:#fff!important;border-color:#e95a68!important}' +
             '</style>'
         );
     }
