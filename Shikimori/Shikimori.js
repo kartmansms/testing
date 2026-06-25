@@ -1525,6 +1525,8 @@
 
         if (data.status) meta.push(statusName(data.status));
 
+        var heartSvg = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+
         this.data = data;
 
         this.render = function () {
@@ -1534,6 +1536,8 @@
                         '<img class="card__img" src="' + imgSrc + '" />' +
                         '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
+                        '<div class="Shikimori-card__user-rate" style="display:none"></div>' +
+                        '<div class="Shikimori-card__heart" style="position:absolute;bottom:.45em;right:.45em;padding:.2em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:rgba(255,255,255,.3)">' + heartSvg + '</div>' +
                     '</div>' +
                     '<div class="card__title">' + esc(titleOf(data)) + '</div>' +
                     '<div class="Shikimori-card__meta">' + esc(meta.join(' • ')) + '</div>' +
@@ -1541,6 +1545,20 @@
             );
 
             installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
+
+            if (isAuthorized()) {
+                var auth = readAuth();
+                if (auth.id) {
+                    fetchUserRate(data.id, function (rate) {
+                        if (rate && rate.score) {
+                            element.find('.Shikimori-card__user-rate').text('★ ' + rate.score).show();
+                        }
+                        if (rate && rate.status) {
+                            element.find('.Shikimori-card__heart').css('color', '#e95a68');
+                        }
+                    });
+                }
+            }
 
             return element;
         };
