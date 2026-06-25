@@ -1,17 +1,17 @@
 /**
  * Shikimori Plugin for Lampa v3.2.0
  *
- * Shikimori anime database integration for Lampa media center.
- * Provides catalog browsing, search, filters, seasons, user lists, and full-page card views.
+ * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
+ * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
  *
- * Features:
- * - Shikimori API catalog with pagination, filters, and sorting
- * - Poster fallback chain: Shikimori → TMDB cache → ARM lookup → TMDB search
- * - TMDB proxy support via Lampa.TMDB.api() / Lampa.TMDB.image() for Russia
- * - OAuth authentication for user rate lists (watching, completed, etc.)
- * - Full-page Shikimori score rating and list button injection
- * - TV remote / D-pad navigation with focus management
- * - Customizable settings: language, card size, Shikimori domain
+ * Возможности:
+ * - Каталог Shikimori API с пагинацией, фильтрами и сортировкой
+ * - Цепочка постеров: Shikimori → кеш TMDB → ARM lookup → поиск TMDB
+ * - Поддержка TMDB прокси через Lampa.TMDB.api() / Lampa.TMDB.image() для РФ
+ * - OAuth авторизация для списков пользователя (смотрю, просмотрено и т.д.)
+ * - Внедрение оценки Shikimori и кнопки списка на полную страницу
+ * - Навигация ТВ-пулем с восстановлением фокуса
+ * - Настройки: язык, размер карточек, домен Shikimori
  *
  * @author kartmansms
  * @license MIT
@@ -51,10 +51,10 @@
     // ─── Storage Helpers ───────────────────────────────────────────────
 
     /**
-     * Read a value from Lampa.Storage with localStorage fallback.
-     * @param {string} key - Storage key
-     * @param {*} fallback - Default value if key not found
-     * @returns {*} Stored value or fallback
+     * Чтение значения из Lampa.Storage с fallback на localStorage.
+     * @param {string} key - Ключ хранилища
+     * @param {*} fallback - Значение по умолчанию
+     * @returns {*} Сохранённое значение или fallback
      */
     function storageGet(key, fallback) {
         var value;
@@ -82,9 +82,9 @@
     }
 
     /**
-     * Write a value to Lampa.Storage with localStorage fallback.
-     * @param {string} key - Storage key
-     * @param {*} value - Value to store
+     * Запись значения в Lampa.Storage с fallback на localStorage.
+     * @param {string} key - Ключ хранилища
+     * @param {*} value - Значение для сохранения
      */
     function storageSet(key, value) {
         try {
@@ -102,8 +102,8 @@
     // ─── Settings ──────────────────────────────────────────────────────
 
     /**
-     * Get merged settings (defaults + user overrides).
-     * @returns {Object} Settings object with title_language, hide_adult, default_sort, card_size, shiki_host
+     * Получить объединённые настройки (значения по умолчанию + пользовательские).
+     * @returns {Object} Объект настроек
      */
     function readSettings() {
         var base = defaults();
@@ -124,8 +124,8 @@
     }
 
     /**
-     * Get the configured Shikimori domain (default: https://shikimori.io).
-     * @returns {string} Domain URL without trailing slash
+     * Получить настроенный домен Shikimori (по умолчанию: https://shikimori.io).
+     * @returns {string} URL домена без завершающего слэша
      */
     function getShikiHost() {
         var settings = readSettings();
@@ -134,7 +134,7 @@
 
     // ─── Auth ──────────────────────────────────────────────────────────
 
-    /** Default (empty) auth state. */
+    /** Состояние авторизации по умолчанию (пустое). */
     function defaultAuth() {
         return {
             id: 0,
@@ -148,7 +148,7 @@
         };
     }
 
-    /** Read auth state from storage, merging with defaults. */
+    /** Чтение состояния авторизации из хранилища. */
     function readAuth() {
         var base = defaultAuth();
         var saved = storageGet(AUTH_KEY, {});
@@ -163,18 +163,18 @@
         return base;
     }
 
-    /** Save auth state to storage. */
+    /** Сохранение состояния авторизации в хранилище. */
     function saveAuth(auth) {
         storageSet(AUTH_KEY, auth || defaultAuth());
     }
 
-    /** Check if current access token is valid (not expired). */
+    /** Проверка: токен доступа действителен (не истёк). */
     function isAuthorized() {
         var auth = readAuth();
         return !!(auth.access_token && auth.expires_at && auth.expires_at > Date.now() + 60000);
     }
 
-    /** Human-readable auth status string for settings UI. */
+    /** Текст статуса авторизации для UI настроек. */
     function authStatusTitle() {
         var auth = readAuth();
 
@@ -187,13 +187,13 @@
 
     // ─── Utilities ─────────────────────────────────────────────────────
 
-    /** Show notification via Lampa.Noty or console.log fallback. */
+    /** Показать уведомление через Lampa.Noty или console.log. */
     function notify(message) {
         if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
         else if (window.console) console.log(message);
     }
 
-    /** Escape HTML entities in a string. */
+    /** Экранирование HTML-сущностей в строке. */
     function esc(value) {
         value = value === undefined || value === null ? '' : String(value);
 
@@ -208,7 +208,7 @@
         });
     }
 
-    /** Convert Shikimori season code (e.g. "winter_2024") to display name. */
+    /** Преобразование кода сезона Shikimori (напр. "winter_2024") в отображаемое название. */
     function seasonName(code) {
         var map = {
             winter: 'зима',
@@ -229,7 +229,7 @@
         return (map[parts[0]] || parts[0] || '') + (parts[1] ? ' ' + parts[1] : '');
     }
 
-    /** Map Shikimori kind slug to display name. */
+    /** Маппинг slug типа аниме Shikimori в отображаемое название. */
     function kindName(kind) {
         var map = {
             tv: 'TV',
@@ -246,7 +246,7 @@
         return map[kind] || (kind ? String(kind).toUpperCase() : 'Anime');
     }
 
-    /** Map Shikimori status slug to Russian display name. */
+    /** Маппинг slug статуса Shikimori в русское название. */
     function statusName(status) {
         var map = {
             anons: 'анонс',
@@ -257,7 +257,7 @@
         return map[status] || status || '';
     }
 
-    /** Map Shikimori sort key to Russian display name. */
+    /** Маппинг ключа сортировки Shikimori в русское название. */
     function sortName(sort) {
         var map = {
             popularity: 'популярность',
@@ -272,9 +272,9 @@
     // ─── Titles ────────────────────────────────────────────────────────
 
     /**
-     * Get display title based on language setting.
-     * @param {Object} data - Anime data with name, english, russian fields
-     * @returns {string} Title string
+     * Получить отображаемое название на основе настройки языка.
+     * @param {Object} data - Данные аниме с полями name, english, russian
+     * @returns {string} Строка названия
      */
     function titleOf(data) {
         var settings = readSettings();
@@ -285,7 +285,7 @@
         return data.russian || data.name || data.english || 'Shikimori';
     }
 
-    /** Get secondary (original) title based on language setting. */
+    /** Получить вторичное (оригинальное) название на основе настройки языка. */
     function originalTitleOf(data) {
         var settings = readSettings();
 
@@ -298,9 +298,9 @@
     // ─── Poster System ─────────────────────────────────────────────────
 
     /**
-     * Normalize a poster URL: handle protocol-relative, old domains, relative paths.
-     * @param {string} url - Raw poster URL from API
-     * @returns {string} Normalized absolute URL
+     * Нормализация URL постера: обработка protocol-relative, старых доменов, относительных путей.
+     * @param {string} url - Исходный URL постера из API
+     * @returns {string} Нормализованный абсолютный URL
      */
     function normalizePosterUrl(url) {
         url = url === undefined || url === null ? '' : String(url).trim();
@@ -316,9 +316,9 @@
     }
 
     /**
-     * Check if a poster URL is a placeholder/missing image.
-     * @param {string} url - Poster URL to check
-     * @returns {boolean} True if URL points to a missing/placeholder image
+     * Проверка: URL постера — заглушка/отсутствующее изображение.
+     * @param {string} url - URL постера для проверки
+     * @returns {boolean} True если URL указывает на заглушку
      */
     function isBadPosterUrl(url) {
         url = String(url || '').toLowerCase();
@@ -331,7 +331,7 @@
             url.indexOf('/images/missing') !== -1;
     }
 
-    /** Add a poster URL to the list if valid and not a duplicate. */
+    /** Добавить URL постера в список, если он валиден и не дубликат. */
     function pushPosterUrl(list, value) {
         var url = normalizePosterUrl(value);
 
@@ -340,10 +340,10 @@
     }
 
     /**
-     * Extract all valid poster URLs from anime data (Shikimori API response).
-     * Filters out placeholder/missing images.
-     * @param {Object} data - Mapped anime data with poster and image fields
-     * @returns {string[]} Array of valid poster URLs
+     * Извлечь все валидные URL постеров из данных аниме (ответ API Shikimori).
+     * Фильтрует заглушки/отсутствующие изображения.
+     * @param {Object} data - Маппинг данных аниме с полями poster и image
+     * @returns {string[]} Массив валидных URL постеров
      */
     function posterUrls(data) {
         var list = [];
@@ -362,9 +362,9 @@
     }
 
     /**
-     * Get the best poster URL for an anime: first valid Shikimori URL, or TMDB cache fallback.
-     * @param {Object} data - Mapped anime data
-     * @returns {string} Best available poster URL, or empty string
+     * Получить лучший URL постера: первый валидный Shikimori URL или fallback из кеша TMDB.
+     * @param {Object} data - Маппинг данных аниме
+     * @returns {string} Лучший доступный URL постера или пустая строка
      */
     function posterOf(data) {
         var list = posterUrls(data);
@@ -380,9 +380,9 @@
     }
 
     /**
-     * Build a TMDB image URL. Uses Lampa.TMDB.image() for proxy when available.
-     * @param {string} path - TMDB poster path (e.g. "/abc123.jpg") or full URL
-     * @returns {string} Complete image URL
+     * Построить URL изображения TMDB. Использует Lampa.TMDB.image() для прокси.
+     * @param {string} path - Путь постера TMDB (напр. "/abc123.jpg") или полный URL
+     * @returns {string} Полный URL изображения
      */
     function tmdbPosterUrl(path) {
         path = path === undefined || path === null ? '' : String(path).trim();
@@ -399,7 +399,7 @@
         return 'https://image.tmdb.org/' + sub;
     }
 
-    /** Get current Lampa language setting (default: 'ru'). */
+    /** Получить текущий язык Lampa (по умолчанию: 'ru'). */
     function tmdbLanguage() {
         try {
             return window.Lampa && Lampa.Storage ? Lampa.Storage.get('language', 'ru') : 'ru';
@@ -409,10 +409,10 @@
     }
 
     /**
-     * Universal JSON fetch helper. Uses Lampa.Reguest if available, falls back to $.ajax.
-     * @param {string} url - API endpoint URL
-     * @param {Function} success - Callback with parsed JSON response
-     * @param {Function} [error] - Error callback (optional)
+     * Универсальный хелпер для JSON-запросов. Использует Lampa.Reguest или $.ajax.
+     * @param {string} url - URL API
+     * @param {Function} success - Колбэк с распарсенным JSON
+     * @param {Function} [error] - Колбэк ошибки (опционально)
      */
     function apiGetJson(url, success, error) {
         if (window.Lampa && typeof Lampa.Reguest === 'function') {
@@ -440,10 +440,10 @@
     }
 
     /**
-     * Build smart search queries from an anime title.
-     * Strips season/part info, parenthesized text, and trailing numbers.
-     * @param {string} value - Original title string
-     * @param {string[]} queriesArray - Array to push generated queries into
+     * Построить умные поисковые запросы из названия аниме.
+     * Удаляет информацию о сезонах, текст в скобках, завершающие числа.
+     * @param {string} value - Исходная строка названия
+     * @param {string[]} queriesArray - Массив для добавления сгенерированных запросов
      */
     function buildSmartQueries(value, queriesArray) {
         if (!value) return;
@@ -486,9 +486,9 @@
     }
 
     /**
-     * Extract year from anime data (supports both mapped and raw API formats).
-     * @param {Object} data - Anime data with airedOn.year or aired_on
-     * @returns {number} Year or 0 if not found
+     * Извлечь год из данных аниме (поддерживает маппинг и raw API).
+     * @param {Object} data - Данные аниме с airedOn.year или aired_on
+     * @returns {number} Год или 0 если не найден
      */
     function getAnimeYear(data) {
         if (!data) return 0;
@@ -497,7 +497,7 @@
         return 0;
     }
 
-    /** Check if a TMDB item matches a target year (with tolerance for TV seasons). */
+    /** Проверка: элемент TMDB совпадает с целевым годом (с допуском для сезонов TV). */
     function tmdbYearMatch(item, year) {
         if (!year) return true;
         var itemYear = item.first_air_date
@@ -511,9 +511,9 @@
     }
 
     /**
-     * Build TMDB API URL. Uses Lampa.TMDB.api() for proxy when available.
-     * @param {string} path - API path (e.g. "search/multi?query=Naruto")
-     * @returns {string} Complete API URL
+     * Построить URL API TMDB. Использует Lampa.TMDB.api() для прокси.
+     * @param {string} path - Путь API (напр. "search/multi?query=Naruto")
+     * @returns {string} Полный URL API
      */
     function tmdbApiUrl(path) {
         if (window.Lampa && Lampa.TMDB && typeof Lampa.TMDB.api === 'function') {
@@ -524,12 +524,12 @@
     }
 
     /**
-     * Search TMDB multi endpoint sequentially with queries, year matching, and filtering.
-     * @param {string[]} queries - Search queries to try in order
-     * @param {number} year - Target year for matching (0 to skip)
-     * @param {Function} filterFn - Filter function for TMDB results
-     * @param {Function} onMatch - Called with first matching TMDB item
-     * @param {Function} onDone - Called when all queries exhausted with no match
+     * Последовательный поиск TMDB multi с запросами, матчем по годам и фильтрацией.
+     * @param {string[]} queries - Поисковые запросы по порядку
+     * @param {number} year - Целевой год для матча (0 — пропустить)
+     * @param {Function} filterFn - Функция фильтрации результатов TMDB
+     * @param {Function} onMatch - Вызывается с первым совпавшим элементом TMDB
+     * @param {Function} onDone - Вызывается когда все запросы исчерпаны без совпадения
      */
     function searchTmdbMulti(queries, year, filterFn, onMatch, onDone) {
         var index = 0;
@@ -554,14 +554,14 @@
         next();
     }
 
-    /** Cache a resolved poster URL for an anime ID. */
+    /** Кешировать разрешённый URL постера для ID аниме. */
     function saveResolvedPoster(animeId, posterUrl) {
         var cache = storageGet(POSTER_CACHE_KEY, {});
         cache[animeId] = posterUrl || '';
         storageSet(POSTER_CACHE_KEY, cache);
     }
 
-    /** Complete a pending poster request: save to cache and invoke all waiting callbacks. */
+    /** Завершить ожидающий запрос постера: сохранить в кеш и вызвать все ожидающие колбэки. */
     function finishPosterRequest(animeId, posterUrl) {
         var callbacks = posterRequests[animeId] || [];
         delete posterRequests[animeId];
@@ -574,11 +574,11 @@
     }
 
     /**
-     * Fetch poster from TMDB details endpoint via proxy.
-     * @param {Object} data - Anime data (for caching by data.id)
-     * @param {number|string} tmdbId - TMDB ID
-     * @param {string} type - 'tv' or 'movie'
-     * @param {Function} callback - Called with poster URL or empty string
+     * Получить постер через TMDB details endpoint через прокси.
+     * @param {Object} data - Данные аниме (для кеша по data.id)
+     * @param {number|string} tmdbId - ID TMDB
+     * @param {string} type - 'tv' или 'movie'
+     * @param {Function} callback - Вызывается с URL постера или пустой строкой
      */
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
         type = type === 'movie' ? 'movie' : 'tv';
@@ -608,9 +608,9 @@
     }
 
     /**
-     * Resolve poster by searching TMDB multi endpoint.
-     * @param {Object} data - Anime data with english/name/russian fields
-     * @param {Function} callback - Called with poster URL or empty string
+     * Разрешить постер через поиск TMDB multi.
+     * @param {Object} data - Данные аниме с полями english/name/russian
+     * @param {Function} callback - Вызывается с URL постера или пустой строкой
      */
     function resolvePosterByTmdbSearch(data, callback) {
         var queries = [];
@@ -635,7 +635,7 @@
         );
     }
 
-    /** Build ARM API URL for MAL→TMDB ID lookup. */
+    /** Построить URL ARM API для поиска MAL→TMDB ID. */
     function armLookupUrl(malId) {
         return ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
             encodeURIComponent(malId) +
@@ -643,11 +643,11 @@
     }
 
     /**
-     * Resolve poster from external sources (TMDB proxy).
-     * Chain: cache → TMDB cache → ARM lookup → TMDB details → TMDB search.
-     * Handles concurrent requests via posterRequests queue.
-     * @param {Object} data - Mapped anime data
-     * @param {Function} callback - Called with poster URL or empty string
+     * Разрешить постер из внешних источников (TMDB прокси).
+     * Цепочка: кеш → кеш TMDB → ARM lookup → TMDB details → поиск TMDB.
+     * Обрабатывает параллельные запросы через очередь posterRequests.
+     * @param {Object} data - Маппинг данных аниме
+     * @param {Function} callback - Вызывается с URL постера или пустой строкой
      */
     function resolveExternalPoster(data, callback) {
         if (!data || !data.id) {
@@ -724,12 +724,12 @@
     }
 
     /**
-     * Install poster fallback logic on an <img> element.
-     * Tries each URL in sequence, then resolves externally via TMDB proxy.
-     * @param {HTMLElement|jQuery} img - Image element
-     * @param {string[]} urls - Local poster URLs to try
-     * @param {string} fallback - Fallback SVG if all URLs fail
-     * @param {Object} data - Anime data for external resolution
+     * Установить логику fallback постера на элемент <img>.
+     * Пробует каждый URL по порядку, затем разрешает внешний через TMDB прокси.
+     * @param {HTMLElement|jQuery} img - Элемент изображения
+     * @param {string[]} urls - Локальные URL постеров для попыток
+     * @param {string} fallback - SVG fallback если все URL не сработали
+     * @param {Object} data - Данные аниме для внешнего разрешения
      */
     function installPosterFallback(img, urls, fallback, data) {
         img = $(img);
@@ -782,13 +782,13 @@
 
     // ─── Genres & API ──────────────────────────────────────────────────
 
-    /** Check if a genre is adult (hentai, erotica, yaoi, yuri). */
+    /** Проверка: жанр является взрослым (hentai, erotica, yaoi, yuri). */
     function isAdultGenre(genre) {
         var name = String((genre && (genre.name || genre.russian)) || '').toLowerCase();
         return !!adultGenres[name];
     }
 
-    /** Filter out adult and non-anime genres. */
+    /** Фильтрация взрослых и не-аниме жанров. */
     function filterGenres(genres) {
         var settings = readSettings();
         var result = [];
@@ -802,8 +802,8 @@
     }
 
     /**
-     * Load genres from Shikimori API (with local cache).
-     * @param {Function} callback - Called with filtered genre list
+     * Загрузить жанры из API Shikimori (с локальным кешем).
+     * @param {Function} callback - Вызывается с отфильтрованным списком жанров
      */
     function loadGenres(callback) {
         var cache = storageGet(GENRES_CACHE_KEY, []);
@@ -849,10 +849,10 @@
     }
 
     /**
-     * Fetch anime list from Shikimori API.
-     * @param {Object} params - Query params (page, sort, search, kind, status, season, genre, mylist)
-     * @param {Function} oncomplete - Called with mapped anime array
-     * @param {Function} [onerror] - Error callback
+     * Запрос списка аниме из API Shikimori.
+     * @param {Object} params - Параметры запроса (page, sort, search, kind, status, season, genre, mylist)
+     * @param {Function} oncomplete - Вызывается с массивом маппинга аниме
+     * @param {Function} [onerror] - Колбэк ошибки
      */
     function requestAnime(params, oncomplete, onerror) {
         var page = parseInt(params.page, 10) || 1;
@@ -915,8 +915,8 @@
     // ─── Navigation ────────────────────────────────────────────────────
 
     /**
-     * Open anime full page. Tries TMDB cache → ARM lookup → fallback search.
-     * @param {Object} data - Mapped anime data
+     * Открыть полную страницу аниме. Пробует кеш TMDB → ARM lookup → fallback поиск.
+     * @param {Object} data - Маппинг данных аниме
      */
     function openAnime(data) {
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
@@ -941,7 +941,7 @@
         });
     }
 
-    /** Search TMDB by title when ARM lookup fails. Opens TMDB full page or Lampa search. */
+    /** Поиск TMDB по названию при ошибке ARM lookup. Открывает полную страницу TMDB или поиск Lampa. */
     function fallbackSearch(data) {
         var queries = [];
 
@@ -961,7 +961,7 @@
         );
     }
 
-    /** Open Lampa's built-in search with the anime title as query. */
+    /** Открыть встроенный поиск Lampa с названием аниме в качестве запроса. */
     function openLampaSearch(shiki) {
         notify('Shikimori: Не найдено в TMDB, открыт ручной поиск');
 
@@ -978,9 +978,9 @@
     }
 
     /**
-     * Open TMDB full page for an anime.
-     * @param {Object} item - TMDB item with id, media_type
-     * @param {Object} shiki - Shikimori anime data
+     * Открыть полную страницу TMDB для аниме.
+     * @param {Object} item - Элемент TMDB с id, media_type
+     * @param {Object} shiki - Данные аниме Shikimori
      */
     function openTmdb(item, shiki) {
         var type = item.media_type || item.type || (shiki.kind === 'movie' ? 'movie' : 'tv');
@@ -1031,7 +1031,7 @@
 
     // ─── OAuth ─────────────────────────────────────────────────────────
 
-    /** Build OAuth authorization URL for Shikimori. */
+    /** Построить URL авторизации OAuth для Shikimori. */
     function authUrl() {
         var auth = readAuth();
 
@@ -1043,7 +1043,7 @@
             '&response_type=code&scope=user_rates';
     }
 
-    /** Exchange authorization code for access + refresh tokens. */
+    /** Обмен кода авторизации на access + refresh токены. */
     function requestTokenByCode(code, callback) {
         var auth = readAuth();
 
@@ -1074,7 +1074,7 @@
         });
     }
 
-    /** Refresh expired access token using refresh_token. */
+    /** Обновить истёкший access token через refresh_token. */
     function refreshToken(callback) {
         var auth = readAuth();
 
@@ -1104,7 +1104,7 @@
         });
     }
 
-    /** Parse token response and save auth state. */
+    /** Разобрать ответ токена и сохранить состояние авторизации. */
     function saveTokenAnswer(answer) {
         var auth = readAuth();
         var expires = parseInt(answer && answer.expires_in, 10) || 86400;
@@ -1118,9 +1118,9 @@
     }
 
     /**
-     * Execute a callback with a valid access token.
-     * Auto-refreshes token if expired. Shows auth notification if no credentials.
-     * @param {Function} callback - Called with access_token string or null
+     * Выполнить колбэк с действительным access token.
+     * Автоматически обновляет токен если истёк. Показывает уведомление если нет учётных данных.
+     * @param {Function} callback - Вызывается со строкой access_token или null
      */
     function withAccessToken(callback) {
         var auth = readAuth();
@@ -1141,7 +1141,7 @@
         callback(null);
     }
 
-    /** Fetch current user profile from Shikimori API. */
+    /** Загрузить профиль текущего пользователя из API Shikimori. */
     function loadWhoami() {
         withAccessToken(function (token) {
             $.ajax({
@@ -1171,7 +1171,7 @@
 
     // ─── User Rates (Lists) ────────────────────────────────────────────
 
-    /** Fetch user's rate entry for a specific anime. */
+    /** Получить запись оценки пользователя для конкретного аниме. */
     function fetchUserRate(animeId, callback) {
         var auth = readAuth();
 
@@ -1199,7 +1199,7 @@
         });
     }
 
-    /** Create or update user rate entry (status, score). */
+    /** Создать или обновить запись оценки пользователя (статус, оценка). */
     function saveUserRate(animeId, rateId, data, callback) {
         var auth = readAuth();
 
@@ -1238,7 +1238,7 @@
         });
     }
 
-    /** Delete a user rate entry. */
+    /** Удалить запись оценки пользователя. */
     function deleteUserRate(rateId, callback) {
         withAccessToken(function (token) {
             $.ajax({
@@ -1264,10 +1264,10 @@
     }
 
     /**
-     * Initialize the Shikimori list button on a full page.
-     * Handles auth check, rate loading, status/rate/delete menus.
-     * @param {jQuery} btn - Button element
-     * @param {Object} anime - Anime data with id
+     * Инициализация кнопки списка Shikimori на полной странице.
+     * Обрабатывает проверку авторизации, загрузку оценки, меню статуса/оценки/удаления.
+     * @param {jQuery} btn - Элемент кнопки
+     * @param {Object} anime - Данные аниме с id
      */
     function initShikimoriListButton(btn, anime) {
         var currentRate = null;
@@ -1491,9 +1491,9 @@
     // ─── Card & Catalog ────────────────────────────────────────────────
 
     /**
-     * Card constructor for a single anime entry in the catalog grid.
-     * Handles poster display, rating badge, title, and metadata.
-     * @param {Object} data - Mapped anime data
+     * Конструктор карточки для одного аниме в каталоге.
+     * Обрабатывает отображение постера, бейдж оценки, название и метаданные.
+     * @param {Object} data - Маппинг данных аниме
      */
     function Card(data) {
         var settings = readSettings();
@@ -1565,9 +1565,9 @@
     }
 
     /**
-     * Catalog component: scrollable grid of anime cards with header, filters, pagination.
-     * Registered as Lampa component 'shikimori'.
-     * @param {Object} object - Activity params (page, sort, search, kind, status, season, genre, mylist)
+     * Компонент каталога: прокручиваемая сетка карточек аниме с шапкой, фильтрами, пагинацией.
+     * Регистрируется как Lampa компонент 'shikimori'.
+     * @param {Object} object - Параметры активности (page, sort, search, kind, status, season, genre, mylist)
      */
     function Catalog(object) {
         var params = object || {};
@@ -2566,13 +2566,13 @@
 
     // ─── Full Page Integration ─────────────────────────────────────────
 
-    /** Find the active full page container element. */
+    /** Найти активный контейнер полной страницы. */
     function fullPage() {
         var page = $('.full-start-new, .full-start, .full').last();
         return page && page.length ? page : $();
     }
 
-    /** Unwrap Lampa activity object to get the inner activity. */
+    /** Распаковать объект активности Lampa для получения внутренней активности. */
     function normalizeActivity(activity) {
         if (!activity) return {};
         if (activity.activity) return activity.activity;
@@ -2580,7 +2580,7 @@
         return activity;
     }
 
-    /** Get the currently active Lampa activity object. */
+    /** Получить текущий активный объект активности Lampa. */
     function getActiveActivity() {
         var activity = null;
 
@@ -2605,7 +2605,7 @@
         return {};
     }
 
-    /** Extract the card/movie object from an activity. */
+    /** Извлечь объект карточки/фильма из активности. */
     function getFullCard(activity) {
         activity = normalizeActivity(activity || getActiveActivity());
 
@@ -2616,7 +2616,7 @@
         return card;
     }
 
-    /** Get the primary title from a TMDB card. */
+    /** Получить основное название из карточки TMDB. */
     function getCardTitle(card, activity) {
         activity = activity || {};
 
@@ -2629,7 +2629,7 @@
             '';
     }
 
-    /** Extract year from a TMDB card object. */
+    /** Извлечь год из объекта карточки TMDB. */
     function getCardYear(card) {
         var date = card.first_air_date || card.release_date || card.air_date || '';
         var year = 0;
@@ -2642,9 +2642,9 @@
     }
 
     /**
-     * Map raw Shikimori API response to normalized internal format.
-     * @param {Object} item - Raw Shikimori anime object
-     * @returns {Object|null} Mapped anime data or null
+     * Маппинг сырого ответа API Shikimori во внутренний нормализованный формат.
+     * @param {Object} item - Сырой объект аниме Shikimori
+     * @returns {Object|null} Маппинг данных аниме или null
      */
     function mapShikiAnime(item) {
         if (!item) return null;
@@ -2673,7 +2673,7 @@
         };
     }
 
-    /** Fetch anime from Shikimori by ID and map to internal format. */
+    /** Загрузить аниме из Shikimori по ID и маппинг во внутренний формат. */
     function fetchShikiAnimeById(id, callback) {
         if (!id) {
             callback(null);
@@ -2691,7 +2691,7 @@
         );
     }
 
-    /** Search Shikimori by title with year matching. Used for full-page resolution. */
+    /** Поиск Shikimori по названию с матчем по годам. Используется для разрешения полной страницы. */
     function searchShikiAnimeByTitle(activity, callback) {
         var card = getFullCard(activity);
         var year = getCardYear(card);
@@ -2762,10 +2762,10 @@
     }
 
     /**
-     * Resolve Shikimori anime for a full page.
-     * Chain: cached shikimori data → ARM lookup → title search.
-     * @param {Object} activity - Lampa activity
-     * @param {Function} callback - Called with mapped anime or null
+     * Разрешить аниме Shikimori для полной страницы.
+     * Цепочка: кешированные данные shikimori → ARM lookup → поиск по названию.
+     * @param {Object} activity - Активность Lampa
+     * @param {Function} callback - Вызывается с маппингом аниме или null
      */
     function resolveShikiAnimeForFull(activity, callback) {
         activity = normalizeActivity(activity || getActiveActivity());
@@ -2816,9 +2816,9 @@
     }
 
     /**
-     * Schedule full page append with retry delays.
-     * Tries at 300ms and 1500ms after page load.
-     * @param {Object} activity - Lampa activity
+     * Запланировать добавление на полную страницу с задержками для повторных попыток.
+     * Пробует на 300ms и 1500ms после загрузки страницы.
+     * @param {Object} activity - Активность Lampa
      */
     function scheduleAppendFull(activity) {
         var delays = [300, 1500];
@@ -2843,8 +2843,8 @@
     }
 
     /**
-     * Hook into Lampa lifecycle to inject Shikimori content on full pages.
-     * Listens to 'full' and 'activity' events. Polls every 1.8s for late-loading pages.
+     * Подписка на жизненный цикл Lampa для внедрения контента Shikimori на полных страницах.
+     * Слушает события 'full' и 'activity'. Опрашивает каждые 1.8с для поздно загружающихся страниц.
      */
     function extendFull() {
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
@@ -2871,7 +2871,7 @@
         });
     }
 
-    /** Extract MAL ID from ARM API response (supports multiple response formats). */
+    /** Извлечь MAL ID из ответа ARM API (поддерживает разные форматы ответов). */
     function extractMalId(answer) {
         if (!answer) return '';
 
@@ -2898,7 +2898,7 @@
         return '';
     }
 
-    /** Create the Shikimori list button element for full pages. */
+    /** Создать элемент кнопки списка Shikimori для полных страниц. */
     function createShikimoriFullListButton() {
         return $(
             '<div class="full-start__button full-start-new__button selector shikimori-full-list-button" title="Список Shikimori" aria-label="Список Shikimori" data-title="Список Shikimori">' +
@@ -2912,9 +2912,9 @@
     }
 
     /**
-     * Inject Shikimori score rating and list button into a full page.
-     * @param {Object} activity - Lampa activity
-     * @param {Object} anime - Mapped Shikimori anime data
+     * Внедрить оценку Shikimori и кнопку списка на полную страницу.
+     * @param {Object} activity - Активность Lampa
+     * @param {Object} anime - Маппинг данных аниме Shikimori
      */
     function appendFull(activity, anime) {
         var page = fullPage();
@@ -2970,8 +2970,8 @@
     // ─── Menu & Styles ─────────────────────────────────────────────────
 
     /**
-     * Add Shikimori menu item to Lampa sidebar.
-     * Guarded against duplicate insertion.
+     * Добавить пункт меню Shikimori в боковую панель Lampa.
+     * Защита от дублирования.
      */
     function addMenu() {
         var menu = $('.menu .menu__list').eq(0);
@@ -3003,8 +3003,8 @@
     }
 
     /**
-     * Inject plugin CSS styles into the page.
-     * Guarded by #shikimori-style id to prevent duplicate injection.
+     * Внедрить CSS стили плагина в страницу.
+     * Защита по id #shikimori-style от повторной инъекции.
      */
     function addStyles() {
         if ($('#shikimori-style').length) return;
@@ -3065,8 +3065,8 @@
     // ─── Entry Point ───────────────────────────────────────────────────
 
     /**
-     * Plugin entry point. Registers component, hooks, and menu.
-     * Waits for Lampa ready state if needed.
+     * Точка входа плагина. Регистрирует компонент, хуки и меню.
+     * Ждёт готовности Lampa при необходимости.
      */
     function start() {
         if (!window.Lampa || !window.$) return;
