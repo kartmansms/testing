@@ -23,7 +23,9 @@
             hide_adult: true,
             default_sort: 'popularity',
             card_size: 'normal',
-            shiki_host: 'https://shikimori.io'
+            shiki_host: 'https://shikimori.io',
+            image_proxy: true,
+            image_proxy_url: 'https://wsrv.nl/?url='
         };
     }
 
@@ -241,6 +243,33 @@
         return 'https://shikimori.io' + (url.indexOf('/') === 0 ? url : '/' + url);
     }
 
+    function proxyImageUrl(url) {
+        if (!url) return url;
+
+        var settings = readSettings();
+
+        if (!settings.image_proxy) return url;
+
+        var proxyBase = settings.image_proxy_url || 'https://wsrv.nl/?url=';
+
+        if (window.Lampa && Lampa.VPN && typeof Lampa.VPN.is === 'function') {
+            try {
+                var regions = Lampa.VPN.regions || ['ru', 'by'];
+                if (Lampa.VPN.is(regions)) {
+                    if (/shikimori\.(io|one|me)/.test(url) && url.indexOf('wsrv.nl') === -1) {
+                        return proxyBase + encodeURIComponent(url);
+                    }
+                }
+            } catch (e) {}
+        }
+
+        if (/shikimori\.(io|one|me)/.test(url) && url.indexOf('wsrv.nl') === -1) {
+            return proxyBase + encodeURIComponent(url);
+        }
+
+        return url;
+    }
+
     function isBadPosterUrl(url) {
         url = String(url || '').toLowerCase();
 
@@ -256,7 +285,10 @@
         var url = normalizePosterUrl(value);
 
         if (!url || isBadPosterUrl(url)) return;
-        if (list.indexOf(url) === -1) list.push(url);
+
+        var proxied = proxyImageUrl(url);
+
+        if (list.indexOf(proxied) === -1) list.push(proxied);
     }
 
     function posterUrls(data) {
@@ -1963,6 +1995,14 @@
                     value: 'card_size'
                 },
                 {
+                    title: 'Прокси постеров: ' + (settings.image_proxy ? 'вкл' : 'выкл'),
+                    value: 'image_proxy'
+                },
+                {
+                    title: 'URL прокси: ' + (settings.image_proxy_url || 'https://wsrv.nl/?url='),
+                    value: 'image_proxy_url'
+                },
+                {
                     title: 'Домен Shikimori: ' + (settings.shiki_host || 'https://shikimori.io'),
                     value: 'shiki_host'
                 },
@@ -1991,6 +2031,22 @@
                         return;
                     } else if (item.value === 'card_size') {
                         openCardSizeSettings();
+                        return;
+                    } else if (item.value === 'image_proxy') {
+                        openSelectMenu('image_proxy', 'Прокси постеров', [
+                            { title: selectedTitle(settings.image_proxy, 'Вкл'), value: 'true' },
+                            { title: selectedTitle(!settings.image_proxy, 'Выкл'), value: 'false' }
+                        ], function (v) { return v === 'true'; });
+                        return;
+                    } else if (item.value === 'image_proxy_url') {
+                        askText('URL прокси (заканчивается на =)', settings.image_proxy_url || 'https://wsrv.nl/?url=', function (value) {
+                            if (value) {
+                                settings.image_proxy_url = value;
+                                saveSettings(settings);
+                                storageSet(POSTER_CACHE_KEY, {});
+                                notify('URL прокси сохранён. Кэш постеров очищен.');
+                            }
+                        }, btnElement);
                         return;
                     } else if (item.value === 'shiki_host') {
                         openShikiHostSettings(btnElement);
