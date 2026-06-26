@@ -1525,7 +1525,7 @@
 
         if (data.status) meta.push(statusName(data.status));
 
-        var heartSvg = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+        var heartSvg = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor" stroke="currentColor" stroke-width="1"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
 
         this.data = data;
 
@@ -3045,7 +3045,7 @@
                 '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
                 '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
                 '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
-                '.Shikimori-card__user-rate-group{position:absolute;top:2.35em;left:.45em;display:inline-flex;align-items:center;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;gap:.3em}' +
+                '.Shikimori-card__user-rate-group{position:absolute;top:2.35em;left:.45em;display:inline-flex;align-items:center;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.75em;line-height:1;gap:.3em}' +
                 '.Shikimori-card__user-rate-group .Shikimori-card__heart{color:#e95a68}' +
                 '.Shikimori-card__user-rate-group .Shikimori-card__user-rate{color:#fff;position:static;background:none;padding:0;font-size:inherit}' +
                 '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
