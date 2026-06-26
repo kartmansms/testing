@@ -1117,6 +1117,109 @@
         notify('Авторизация Shikimori сохранена');
     }
 
+    /** Построить URL QR-кода для OAuth ссылки авторизации. */
+    function qrCodeUrl(url) {
+        return 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&margin=10&format=png&data=' + encodeURIComponent(url);
+    }
+
+    /**
+     * Показать модальное окно с QR-кодом авторизации и полем ввода кода.
+     * Пользователь сканирует QR-код телефоном, подтверждает доступ,
+     * видит код на экране телефона и вводит его в Lampa.
+     */
+    function showAuthQrModal(btnElement) {
+        var auth = readAuth();
+
+        if (!auth.client_id) {
+            notify('Сначала введите Client ID');
+            return;
+        }
+
+        var url = authUrl();
+        if (!url) {
+            notify('Не удалось создать ссылку авторизации');
+            return;
+        }
+
+        var qrSrc = qrCodeUrl(url);
+        var overlay = $(
+            '<div class="shikimori-qr-overlay">' +
+                '<div class="shikimori-qr-modal">' +
+                    '<div class="shikimori-qr-title">Авторизация Shikimori</div>' +
+                    '<div class="shikimori-qr-hint">Отсканируйте QR-код телефоном</div>' +
+                    '<div class="shikimori-qr-img-wrap">' +
+                        '<img class="shikimori-qr-img" src="' + esc(qrSrc) + '" />' +
+                    '</div>' +
+                    '<div class="shikimori-qr-hint shikimori-qr-hint--small">После подтверждения введите код ниже</div>' +
+                    '<input class="shikimori-qr-input" type="text" placeholder="Код авторизации" autocomplete="off" />' +
+                    '<div class="shikimori-qr-buttons">' +
+                        '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--submit">Подтвердить</div>' +
+                        '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--copy">Копировать ссылку</div>' +
+                        '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--close">Закрыть</div>' +
+                    '</div>' +
+                '</div>' +
+            '</div>'
+        );
+
+        $('body').append(overlay);
+
+        var input = overlay.find('.shikimori-qr-input');
+        var submitBtn = overlay.find('.shikimori-qr-btn--submit');
+        var copyBtn = overlay.find('.shikimori-qr-btn--copy');
+        var closeBtn = overlay.find('.shikimori-qr-btn--close');
+
+        function closeModal() {
+            overlay.remove();
+            if (btnElement) {
+                try {
+                    Lampa.Controller.collectionSet($('.Shikimori-module'));
+                    Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
+                } catch (e) {}
+            }
+        }
+
+        function submitCode() {
+            var code = String(input.val() || '').trim();
+            if (!code) {
+                notify('Введите код авторизации');
+                return;
+            }
+            submitBtn.text('Отправка...');
+            requestTokenByCode(code, function () {
+                loadWhoami();
+                closeModal();
+            });
+        }
+
+        closeBtn.on('hover:enter click tap', closeModal);
+
+        submitBtn.on('hover:enter click tap', submitCode);
+
+        input.on('keydown', function (e) {
+            if (e.keyCode === 13) submitCode();
+        });
+
+        copyBtn.on('hover:enter click tap', function () {
+            if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) {
+                Lampa.Utils.copyTextToClipboard(url, function () {
+                    notify('Ссылка скопирована');
+                });
+            } else {
+                notify(url);
+            }
+        });
+
+        overlay.on('click', function (e) {
+            if (e.target === overlay[0]) closeModal();
+        });
+
+        setTimeout(function () {
+            Lampa.Controller.collectionSet(overlay);
+            Lampa.Controller.collectionFocus(submitBtn, overlay);
+            input.focus();
+        }, 100);
+    }
+
     /**
      * Выполнить колбэк с действительным access token.
      * Автоматически обновляет токен если истёк. Показывает уведомление если нет учётных данных.
@@ -2419,61 +2522,15 @@
             });
         }
 
-        function openAuthWizard(btnElement) {
-            var auth = readAuth();
-
-            if (!auth.client_id) {
-                notify('Сначала введите Client ID в настройках авторизации');
-                openAuthSettings(btnElement);
-                return;
-            }
-
-            var url = authUrl();
-
-            if (!url) {
-                notify('Не удалось создать ссылку авторизации');
-                return;
-            }
-
-            var opened = false;
-
-            try {
-                var authWindow = window.open(url, '_blank');
-                if (authWindow) opened = true;
-            } catch (e) {}
-
-            if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) {
-                Lampa.Utils.copyTextToClipboard(url, function () {
-                    var msg = opened
-                        ? 'Ссылка открыта и скопирована. Подтвердите доступ и вставьте код.'
-                        : 'Ссылка скопирована. Откройте её в браузере, подтвердите доступ и скопируйте код.';
-                    notify(msg);
-                });
-            } else {
-                notify(opened ? 'Ссылка открыта. Вставьте код после подтверждения.' : url);
-            }
-
-            setTimeout(function () {
-                askText('Вставьте код авторизации', '', function (value) {
-                    if (value && String(value).trim()) {
-                        notify('Отправка кода...');
-                        requestTokenByCode(String(value).trim(), function () {
-                            loadWhoami();
-                        });
-                    }
-                }, btnElement);
-            }, 300);
-        }
-
         function openAuthSettings(btnElement) {
             var auth = readAuth();
 
             var items = [
-                { title: '★ Быстрая авторизация', value: 'wizard' },
                 { title: 'Статус: ' + authStatusTitle(), value: 'whoami' },
                 { title: 'Ввести Client ID', value: 'client_id' },
                 { title: 'Ввести Client Secret', value: 'client_secret' },
                 { title: 'Redirect URI: ' + auth.redirect_uri, value: 'redirect_uri' },
+                { title: 'QR-код авторизации', value: 'qr' },
                 { title: 'Скопировать ссылку авторизации', value: 'copy_url' },
                 { title: 'Ввести код авторизации', value: 'code' },
                 { title: 'Обновить токен', value: 'refresh' },
@@ -2484,8 +2541,8 @@
                 title: 'Авторизация Shikimori',
                 items: items,
                 onSelect: function (item) {
-                    if (item.value === 'wizard') {
-                        openAuthWizard(btnElement);
+                    if (item.value === 'qr') {
+                        showAuthQrModal(btnElement);
                     } else if (item.value === 'client_id') {
                         askText('Client ID Shikimori', auth.client_id, function (value) {
                             auth.client_id = value;
@@ -3158,6 +3215,23 @@
                 '.Shikimori-loader--more{width:100%;font-size:1em;padding:1em 0;color:rgba(255,255,255,.48)}' +
                 '.Shikimori-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
                 '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
+
+                '.shikimori-qr-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center}' +
+                '.shikimori-qr-modal{background:#1b1d24;border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center;color:#fff;display:flex;flex-direction:column;align-items:center;gap:0.8em}' +
+                '.shikimori-qr-title{font-size:1.4em;font-weight:700;color:#e95a68}' +
+                '.shikimori-qr-hint{font-size:1em;color:rgba(255,255,255,.7);line-height:1.35}' +
+                '.shikimori-qr-hint--small{font-size:.88em;color:rgba(255,255,255,.5);margin-top:0.3em}' +
+                '.shikimori-qr-img-wrap{background:#fff;border-radius:.6em;padding:.6em;margin:.3em 0}' +
+                '.shikimori-qr-img{display:block;width:250px;height:250px}' +
+                '.shikimori-qr-input{width:100%;padding:.75em 1em;border:2px solid rgba(255,255,255,.15);border-radius:.5em;background:rgba(255,255,255,.08);color:#fff;font-size:1.1em;text-align:center;outline:none;box-sizing:border-box}' +
+                '.shikimori-qr-input:focus{border-color:#c83a4b}' +
+                '.shikimori-qr-input::placeholder{color:rgba(255,255,255,.35)}' +
+                '.shikimori-qr-buttons{display:flex;gap:.6em;margin-top:.4em;width:100%}' +
+                '.shikimori-qr-btn{flex:1;padding:.65em .5em!important;font-size:.95em;text-align:center}' +
+                '.shikimori-qr-btn--submit{background:#c83a4b!important;color:#fff!important}' +
+                '.shikimori-qr-btn--copy{background:rgba(255,255,255,.1)!important;color:rgba(255,255,255,.8)!important}' +
+                '.shikimori-qr-btn--close{background:rgba(255,255,255,.06)!important;color:rgba(255,255,255,.5)!important}' +
+                '.shikimori-qr-btn.focus{transform:scale(1.05);box-shadow:0 0 1em rgba(200,58,75,.5)!important}' +
 
                 '.full-start__button.shikimori-full-list-button,.full-start-new__button.shikimori-full-list-button,.shikimori-full-list-button{position:relative;color:#fff;background:rgba(0,0,0,.32)!important;border-color:transparent!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;vertical-align:middle!important;white-space:nowrap!important;overflow:visible!important}' +
                 '.shikimori-full-list-button svg{display:block;pointer-events:none;flex:0 0 auto}' +
