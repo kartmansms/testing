@@ -967,8 +967,8 @@
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: shikiPoster || item.poster_path || '',
-            img: shikiPoster || '',
+            poster_path: item.poster_path || '',
+            img: item.poster_path || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
             shikimori: shiki
