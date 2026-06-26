@@ -1179,6 +1179,8 @@
         closeBtn.on('hover:enter click tap', closeModal);
 
         enterBtn.on('hover:enter click tap', function () {
+            overlay.remove();
+
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
                 Lampa.Input.edit({
                     title: 'Код авторизации Shikimori',
@@ -1188,12 +1190,23 @@
                     code = String(code || '').trim();
                     if (!code) {
                         notify('Код не введён');
+                        if (btnElement) {
+                            try {
+                                Lampa.Controller.collectionSet($('.Shikimori-module'));
+                                Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
+                            } catch (e) {}
+                        }
                         return;
                     }
                     notify('Отправка кода...');
                     requestTokenByCode(code, function () {
                         loadWhoami();
-                        closeModal();
+                        if (btnElement) {
+                            try {
+                                Lampa.Controller.collectionSet($('.Shikimori-module'));
+                                Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
+                            } catch (e) {}
+                        }
                     });
                 });
             } else {
@@ -1201,8 +1214,13 @@
                 if (code !== null && String(code).trim()) {
                     requestTokenByCode(String(code).trim(), function () {
                         loadWhoami();
-                        closeModal();
                     });
+                }
+                if (btnElement) {
+                    try {
+                        Lampa.Controller.collectionSet($('.Shikimori-module'));
+                        Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
+                    } catch (e) {}
                 }
             }
         });
