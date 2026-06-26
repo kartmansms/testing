@@ -1150,10 +1150,9 @@
                     '<div class="shikimori-qr-img-wrap">' +
                         '<img class="shikimori-qr-img" src="' + esc(qrSrc) + '" />' +
                     '</div>' +
-                    '<div class="shikimori-qr-hint shikimori-qr-hint--small">После подтверждения введите код ниже</div>' +
-                    '<input class="shikimori-qr-input" type="text" placeholder="Код авторизации" autocomplete="off" />' +
+                    '<div class="shikimori-qr-hint shikimori-qr-hint--small">После подтверждения нажмите «Ввести код»</div>' +
                     '<div class="shikimori-qr-buttons">' +
-                        '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--submit">Подтвердить</div>' +
+                        '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--enter">Ввести код</div>' +
                         '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--copy">Копировать ссылку</div>' +
                         '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--close">Закрыть</div>' +
                     '</div>' +
@@ -1163,8 +1162,7 @@
 
         $('body').append(overlay);
 
-        var input = overlay.find('.shikimori-qr-input');
-        var submitBtn = overlay.find('.shikimori-qr-btn--submit');
+        var enterBtn = overlay.find('.shikimori-qr-btn--enter');
         var copyBtn = overlay.find('.shikimori-qr-btn--copy');
         var closeBtn = overlay.find('.shikimori-qr-btn--close');
 
@@ -1178,25 +1176,35 @@
             }
         }
 
-        function submitCode() {
-            var code = String(input.val() || '').trim();
-            if (!code) {
-                notify('Введите код авторизации');
-                return;
-            }
-            submitBtn.text('Отправка...');
-            requestTokenByCode(code, function () {
-                loadWhoami();
-                closeModal();
-            });
-        }
-
         closeBtn.on('hover:enter click tap', closeModal);
 
-        submitBtn.on('hover:enter click tap', submitCode);
-
-        input.on('keydown', function (e) {
-            if (e.keyCode === 13) submitCode();
+        enterBtn.on('hover:enter click tap', function () {
+            if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
+                Lampa.Input.edit({
+                    title: 'Код авторизации Shikimori',
+                    value: '',
+                    free: true
+                }, function (code) {
+                    code = String(code || '').trim();
+                    if (!code) {
+                        notify('Код не введён');
+                        return;
+                    }
+                    notify('Отправка кода...');
+                    requestTokenByCode(code, function () {
+                        loadWhoami();
+                        closeModal();
+                    });
+                });
+            } else {
+                var code = window.prompt('Код авторизации Shikimori', '');
+                if (code !== null && String(code).trim()) {
+                    requestTokenByCode(String(code).trim(), function () {
+                        loadWhoami();
+                        closeModal();
+                    });
+                }
+            }
         });
 
         copyBtn.on('hover:enter click tap', function () {
@@ -1215,8 +1223,7 @@
 
         setTimeout(function () {
             Lampa.Controller.collectionSet(overlay);
-            Lampa.Controller.collectionFocus(submitBtn, overlay);
-            input.focus();
+            Lampa.Controller.collectionFocus(enterBtn, overlay);
         }, 100);
     }
 
@@ -3223,9 +3230,6 @@
                 '.shikimori-qr-hint--small{font-size:.88em;color:rgba(255,255,255,.5);margin-top:0.3em}' +
                 '.shikimori-qr-img-wrap{background:#fff;border-radius:.6em;padding:.6em;margin:.3em 0}' +
                 '.shikimori-qr-img{display:block;width:250px;height:250px}' +
-                '.shikimori-qr-input{width:100%;padding:.75em 1em;border:2px solid rgba(255,255,255,.15);border-radius:.5em;background:rgba(255,255,255,.08);color:#fff;font-size:1.1em;text-align:center;outline:none;box-sizing:border-box}' +
-                '.shikimori-qr-input:focus{border-color:#c83a4b}' +
-                '.shikimori-qr-input::placeholder{color:rgba(255,255,255,.35)}' +
                 '.shikimori-qr-buttons{display:flex;gap:.6em;margin-top:.4em;width:100%}' +
                 '.shikimori-qr-btn{flex:1;padding:.65em .5em!important;font-size:.95em;text-align:center}' +
                 '.shikimori-qr-btn--submit{background:#c83a4b!important;color:#fff!important}' +
