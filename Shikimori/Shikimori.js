@@ -1171,6 +1171,55 @@
 
     // ─── User Rates (Lists) ────────────────────────────────────────────
 
+    /** Кеш оценок пользователя { animeId: rate }. */
+    var userRatesCache = null;
+
+    /** Очистить кеш оценок (вызывать после сохранения/удаления). */
+    function clearUserRatesCache() {
+        userRatesCache = null;
+    }
+
+    /** Загрузить ВСЕ оценки пользователя за один запрос и сохранить в кеш. */
+    function fetchAllUserRates(callback) {
+        var auth = readAuth();
+
+        if (!auth.id) {
+            callback({});
+            return;
+        }
+
+        withAccessToken(function (token) {
+            $.ajax({
+                url: getShikiHost() + '/api/v2/user_rates?user_id=' + auth.id + '&target_type=Anime',
+                method: 'GET',
+                dataType: 'json',
+                timeout: 12000,
+                headers: {
+                    Authorization: 'Bearer ' + token
+                },
+                success: function (res) {
+                    var map = {};
+                    if (Array.isArray(res)) {
+                        for (var i = 0; i < res.length; i++) {
+                            if (res[i] && res[i].target_id) map[res[i].target_id] = res[i];
+                        }
+                    }
+                    userRatesCache = map;
+                    callback(map);
+                },
+                error: function () {
+                    callback({});
+                }
+            });
+        });
+    }
+
+    /** Получить оценку для аниме из кеша (без запроса к API). */
+    function getUserRateFromCache(animeId) {
+        if (!userRatesCache) return null;
+        return userRatesCache[animeId] || null;
+    }
+
     /** Получить запись оценки пользователя для конкретного аниме. */
     function fetchUserRate(animeId, callback) {
         var auth = readAuth();
@@ -1461,6 +1510,7 @@
             saveUserRate(anime.id, currentRate ? currentRate.id : null, data, function (newRate) {
                 listLoading = false;
                 currentRate = newRate;
+                clearUserRatesCache();
 
                 updateBtnLabel();
 
@@ -1479,6 +1529,7 @@
             deleteUserRate(currentRate.id, function () {
                 listLoading = false;
                 currentRate = null;
+                clearUserRatesCache();
 
                 updateBtnLabel();
 
@@ -1549,15 +1600,11 @@
             installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
 
             if (isAuthorized()) {
-                var auth = readAuth();
-                if (auth.id) {
-                    fetchUserRate(data.id, function (rate) {
-                        if (rate && rate.score) {
-                            element.find('.Shikimori-card__user-rate').text('★ ' + rate.score);
-                            element.find('.Shikimori-card__heart').css('color', '#e95a68');
-                            element.find('.Shikimori-card__user-rate-group').show();
-                        }
-                    });
+                var rate = getUserRateFromCache(data.id);
+                if (rate && rate.score) {
+                    element.find('.Shikimori-card__user-rate').text('★ ' + rate.score);
+                    element.find('.Shikimori-card__heart').css('color', '#e95a68');
+                    element.find('.Shikimori-card__user-rate-group').show();
                 }
             }
 
@@ -2503,13 +2550,21 @@
 
                 if (data.length < PAGE_LIMIT) ended = true;
 
-                for (var i = 0; i < data.length; i++) appendCard(data[i]);
+                function renderCards() {
+                    for (var i = 0; i < data.length; i++) appendCard(data[i]);
 
-                if (!ended) addMoreButton();
+                    if (!ended) addMoreButton();
 
-                if (window.Lampa && Lampa.Controller) {
-                    Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+                    if (window.Lampa && Lampa.Controller) {
+                        Lampa.Controller.collectionSet(html);
+                        Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+                    }
+                }
+
+                if (!append && isAuthorized() && !userRatesCache) {
+                    fetchAllUserRates(function () { renderCards(); });
+                } else {
+                    renderCards();
                 }
             }, function () {
                 autoLoading = false;
