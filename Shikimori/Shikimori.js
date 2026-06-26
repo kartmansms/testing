@@ -37,6 +37,8 @@
     var posterRequests = {};
     var fullResolveCache = {};
     var fullPollId = null;
+    var appendFullTimer1 = 0;
+    var appendFullTimer2 = 0;
 
     function defaults() {
         return {
@@ -1713,6 +1715,8 @@
 
         this.destroy = function () {
             if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
+            clearTimeout(appendFullTimer1);
+            clearTimeout(appendFullTimer2);
             html.off();
             scroll.render().off();
             scroll.destroy();
@@ -2877,25 +2881,42 @@
      * @param {Object} activity - Активность Lampa
      */
     function scheduleAppendFull(activity) {
-        var delays = [300, 1500];
+        clearTimeout(appendFullTimer1);
+        clearTimeout(appendFullTimer2);
+
         var apiCalled = false;
 
-        delays.forEach(function (delay) {
-            setTimeout(function () {
-                var page = fullPage();
-                if (!page.length) return;
-                if (page.find('.shikimori-full-list-button').length) return;
+        appendFullTimer1 = setTimeout(function () {
+            var page = fullPage();
+            if (!page.length) return;
+            if (page.find('.shikimori-full-list-button').length) return;
+            if (!page.closest('body').length) return;
 
-                if (!apiCalled) {
-                    apiCalled = true;
-                    resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
-                        if (anime && anime.id) {
-                            appendFull(getActiveActivity(), anime);
-                        }
-                    });
-                }
-            }, delay);
-        });
+            if (!apiCalled) {
+                apiCalled = true;
+                resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
+                    if (anime && anime.id) {
+                        appendFull(getActiveActivity(), anime);
+                    }
+                });
+            }
+        }, 300);
+
+        appendFullTimer2 = setTimeout(function () {
+            var page = fullPage();
+            if (!page.length) return;
+            if (page.find('.shikimori-full-list-button').length) return;
+            if (!page.closest('body').length) return;
+
+            if (!apiCalled) {
+                apiCalled = true;
+                resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
+                    if (anime && anime.id) {
+                        appendFull(getActiveActivity(), anime);
+                    }
+                });
+            }
+        }, 1500);
     }
 
     /**
@@ -2923,6 +2944,8 @@
         });
 
         Lampa.Listener.follow('activity', function () {
+            clearTimeout(appendFullTimer1);
+            clearTimeout(appendFullTimer2);
             scheduleAppendFull(getActiveActivity());
         });
     }
