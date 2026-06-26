@@ -1,12 +1,12 @@
 /**
- * Shikimori Plugin for Lampa v3.2.0
+ * Shikimori Plugin for Lampa v3.3.0
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
  *
  * Возможности:
  * - Каталог Shikimori API с пагинацией, фильтрами и сортировкой
- * - Цепочка постеров: Shikimori → кеш TMDB → ARM lookup → поиск TMDB
+ * - Цепочка постеров: Shikimori → кеш TMDB → поиск TMDB
  * - Поддержка TMDB прокси через Lampa.TMDB.api() / Lampa.TMDB.image() для РФ
  * - OAuth авторизация для списков пользователя (смотрю, просмотрено и т.д.)
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
@@ -29,8 +29,6 @@
     var POSTER_CACHE_KEY = 'shikimori_poster_cache_v1';
     var AUTH_KEY = 'shikimori_auth_v1';
 
-    var ARM_HOST = 'https://arm.haglund.dev';
-    var TMDB_API_KEY = '4ef0d7355d9ffb5151e987764708ce96';
     var PAGE_LIMIT = 48;
 
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
@@ -536,9 +534,9 @@
         function next() {
             if (index >= queries.length) { onDone(); return; }
             var query = queries[index++];
-            var url = tmdbApiUrl('search/multi?api_key=' + TMDB_API_KEY +
-                '&language=' + encodeURIComponent(tmdbLanguage()) +
-                '&query=' + encodeURIComponent(query));
+            var path = 'search/multi?language=' + encodeURIComponent(tmdbLanguage()) +
+                '&query=' + encodeURIComponent(query);
+            var url = tmdbApiUrl(path);
             apiGetJson(url, function (res) {
                 var results = res && res.results ? res.results : [];
                 for (var i = 0; i < results.length; i++) {
@@ -583,10 +581,9 @@
     function fetchTmdbDetailsPoster(data, tmdbId, type, callback) {
         type = type === 'movie' ? 'movie' : 'tv';
 
-        var url = tmdbApiUrl(type +
-            '/' + encodeURIComponent(tmdbId) +
-            '?api_key=' + TMDB_API_KEY +
-            '&language=' + encodeURIComponent(tmdbLanguage()));
+        var path = type + '/' + encodeURIComponent(tmdbId) +
+            '?language=' + encodeURIComponent(tmdbLanguage());
+        var url = tmdbApiUrl(path);
 
         apiGetJson(url, function (res) {
             var poster = tmdbPosterUrl(res && res.poster_path ? res.poster_path : '');
@@ -635,16 +632,9 @@
         );
     }
 
-    /** Построить URL ARM API для поиска MAL→TMDB ID. */
-    function armLookupUrl(malId) {
-        return ARM_HOST + '/api/v2/ids?source=myanimelist&id=' +
-            encodeURIComponent(malId) +
-            '&include=themoviedb,myanimelist';
-    }
-
     /**
      * Разрешить постер из внешних источников (TMDB прокси).
-     * Цепочка: кеш → кеш TMDB → ARM lookup → TMDB details → поиск TMDB.
+     * Цепочка: кеш → кеш TMDB → TMDB details → поиск TMDB.
      * Обрабатывает параллельные запросы через очередь posterRequests.
      * @param {Object} data - Маппинг данных аниме
      * @param {Function} callback - Вызывается с URL постера или пустой строкой
@@ -682,44 +672,15 @@
                     finishPosterRequest(data.id, poster);
                 } else {
                     resolvePosterByTmdbSearch(data, function (searchPoster) {
-                        if (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        } else {
-                            finishPosterRequest(data.id, '');
-                        }
+                        finishPosterRequest(data.id, searchPoster);
                     });
                 }
             });
             return;
         }
 
-        var armUrl = armLookupUrl(data.id);
-
-        apiGetJson(armUrl, function (answer) {
-            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-            var type = answer && (answer.media_type || answer.type);
-
-            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-            if (tmdbId) {
-                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
-                });
-            } else {
-                resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
-                });
-            }
-        }, function () {
-            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
-            });
+        resolvePosterByTmdbSearch(data, function (searchPoster) {
+            finishPosterRequest(data.id, searchPoster);
         });
     }
 
@@ -915,7 +876,7 @@
     // ─── Navigation ────────────────────────────────────────────────────
 
     /**
-     * Открыть полную страницу аниме. Пробует кеш TMDB → ARM lookup → fallback поиск.
+     * Открыть полную страницу аниме. Пробует кеш TMDB → поиск TMDB по названию.
      * @param {Object} data - Маппинг данных аниме
      */
     function openAnime(data) {
@@ -929,19 +890,10 @@
             return;
         }
 
-        var url = armLookupUrl(data.id);
-
-        var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) openTmdb(answer, data);
-            else fallbackSearch(data);
-        };
-
-        apiGetJson(url, onSuccess, function () {
-            fallbackSearch(data);
-        });
+        fallbackSearch(data);
     }
 
-    /** Поиск TMDB по названию при ошибке ARM lookup. Открывает полную страницу TMDB или поиск Lampa. */
+    /** Поиск TMDB по названию. Открывает полную страницу TMDB или поиск Lampa. */
     function fallbackSearch(data) {
         var queries = [];
 
@@ -2763,7 +2715,7 @@
 
     /**
      * Разрешить аниме Shikimori для полной страницы.
-     * Цепочка: кешированные данные shikimori → ARM lookup → поиск по названию.
+     * Цепочка: кешированные данные shikimori → поиск по названию.
      * @param {Object} activity - Активность Lampa
      * @param {Function} callback - Вызывается с маппингом аниме или null
      */
@@ -2793,26 +2745,7 @@
             callback(anime || null);
         }
 
-        if (tmdbId) {
-            var url = ARM_HOST + '/api/v2/themoviedb?id=' + encodeURIComponent(tmdbId);
-
-            apiGetJson(url, function (answer) {
-                var mal = extractMalId(answer);
-
-                if (mal) {
-                    fetchShikiAnimeById(mal, function (anime) {
-                        if (anime && anime.id) done(anime);
-                        else searchShikiAnimeByTitle(activity, done);
-                    });
-                } else {
-                    searchShikiAnimeByTitle(activity, done);
-                }
-            }, function () {
-                searchShikiAnimeByTitle(activity, done);
-            });
-        } else {
-            searchShikiAnimeByTitle(activity, done);
-        }
+        searchShikiAnimeByTitle(activity, done);
     }
 
     /**
@@ -2869,33 +2802,6 @@
         Lampa.Listener.follow('activity', function () {
             scheduleAppendFull(getActiveActivity());
         });
-    }
-
-    /** Извлечь MAL ID из ответа ARM API (поддерживает разные форматы ответов). */
-    function extractMalId(answer) {
-        if (!answer) return '';
-
-        if (answer.mal || answer.mal_id || answer.myanimelist) {
-            return answer.mal || answer.mal_id || answer.myanimelist;
-        }
-
-        if (answer.ids && (answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist)) {
-            return answer.ids.mal || answer.ids.mal_id || answer.ids.myanimelist;
-        }
-
-        if (answer.sources && answer.sources.myanimelist) {
-            return answer.sources.myanimelist;
-        }
-
-        if (answer.length) {
-            for (var i = 0; i < answer.length; i++) {
-                if (answer[i] && (answer[i].myanimelist || answer[i].mal || answer[i].mal_id)) {
-                    return answer[i].myanimelist || answer[i].mal || answer[i].mal_id;
-                }
-            }
-        }
-
-        return '';
     }
 
     /** Создать элемент кнопки списка Shikimori для полных страниц. */
