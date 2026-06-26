@@ -2419,10 +2419,57 @@
             });
         }
 
+        function openAuthWizard(btnElement) {
+            var auth = readAuth();
+
+            if (!auth.client_id) {
+                notify('Сначала введите Client ID в настройках авторизации');
+                openAuthSettings(btnElement);
+                return;
+            }
+
+            var url = authUrl();
+
+            if (!url) {
+                notify('Не удалось создать ссылку авторизации');
+                return;
+            }
+
+            var opened = false;
+
+            try {
+                var authWindow = window.open(url, '_blank');
+                if (authWindow) opened = true;
+            } catch (e) {}
+
+            if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) {
+                Lampa.Utils.copyTextToClipboard(url, function () {
+                    var msg = opened
+                        ? 'Ссылка открыта и скопирована. Подтвердите доступ и вставьте код.'
+                        : 'Ссылка скопирована. Откройте её в браузере, подтвердите доступ и скопируйте код.';
+                    notify(msg);
+                });
+            } else {
+                notify(opened ? 'Ссылка открыта. Вставьте код после подтверждения.' : url);
+            }
+
+            setTimeout(function () {
+                askText('Вставьте код авторизации', '', function (value) {
+                    if (value && String(value).trim()) {
+                        notify('Отправка кода...');
+                        requestTokenByCode(String(value).trim(), function () {
+                            loadWhoami();
+                        });
+                    }
+                }, btnElement);
+            }, 300);
+        }
+
         function openAuthSettings(btnElement) {
             var auth = readAuth();
 
             var items = [
+                { title: '★ Быстрая авторизация', value: 'wizard' },
                 { title: 'Статус: ' + authStatusTitle(), value: 'whoami' },
                 { title: 'Ввести Client ID', value: 'client_id' },
                 { title: 'Ввести Client Secret', value: 'client_secret' },
@@ -2437,7 +2484,9 @@
                 title: 'Авторизация Shikimori',
                 items: items,
                 onSelect: function (item) {
-                    if (item.value === 'client_id') {
+                    if (item.value === 'wizard') {
+                        openAuthWizard(btnElement);
+                    } else if (item.value === 'client_id') {
                         askText('Client ID Shikimori', auth.client_id, function (value) {
                             auth.client_id = value;
                             saveAuth(auth);
