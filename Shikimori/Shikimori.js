@@ -1540,8 +1540,10 @@
             '</svg>'
         );
 
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+        var tmdbPoster = tmdbCache[data.id] && tmdbCache[data.id].poster ? tmdbCache[data.id].poster : '';
         var posterList = posterUrls(data);
-        var imgSrc = posterList.length ? esc(posterList[0]) : noPosterSVG;
+        var imgSrc = tmdbPoster || (posterList.length ? esc(posterList[0]) : noPosterSVG);
 
         if (season) meta.push(season);
         else if (year) meta.push(year);
