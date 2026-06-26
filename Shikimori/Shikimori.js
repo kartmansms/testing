@@ -37,8 +37,6 @@
     var posterRequests = {};
     var fullResolveCache = {};
     var fullPollId = null;
-    var appendFullTimer1 = 0;
-    var appendFullTimer2 = 0;
 
     function defaults() {
         return {
@@ -354,7 +352,11 @@
 
         pushPosterUrl(list, poster.mainUrl || poster.main_url);
         pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-        pushPosterUrl(list, poster.originalUrl || poster.original_url || image.original);
+        pushPosterUrl(list, image.preview);
+        pushPosterUrl(list, poster.originalUrl || poster.original_url);
+        pushPosterUrl(list, image.original);
+        pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
+        pushPosterUrl(list, poster.x48Url || poster.x48_url || image.x48);
 
         return list;
     }
@@ -367,6 +369,12 @@
     function posterOf(data) {
         var list = posterUrls(data);
         if (list.length) return list[0];
+
+        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
+
+        if (tmdbCache[data.id] && tmdbCache[data.id].poster) {
+            return tmdbCache[data.id].poster;
+        }
 
         return '';
     }
@@ -727,29 +735,49 @@
         img = $(img);
         urls = urls || [];
 
+        img.data('poster-index', 0);
+        img.data('poster-external-tried', false);
         img.data('poster-fallback-done', false);
 
         function setFallback() {
             if (img.data('poster-fallback-done')) return;
+
             img.data('poster-fallback-done', true);
             img.attr('src', fallback);
         }
 
-        img.on('error', function () {
-            if (img.data('poster-fallback-done')) return;
+        function tryExternalPoster() {
+            if (img.data('poster-external-tried')) {
+                setFallback();
+                return;
+            }
 
-            resolveExternalPoster(data, function (url) {
-                if (url) img.attr('src', url);
-                else setFallback();
-            });
-        });
+            img.data('poster-external-tried', true);
 
-        if (!urls.length) {
             resolveExternalPoster(data, function (url) {
                 if (url) img.attr('src', url);
                 else setFallback();
             });
         }
+
+        img.on('error', function () {
+            var index;
+
+            if (img.data('poster-fallback-done')) return;
+
+            index = parseInt(img.data('poster-index'), 10) || 0;
+            index += 1;
+
+            img.data('poster-index', index);
+
+            if (urls[index]) {
+                img.attr('src', urls[index]);
+            } else {
+                tryExternalPoster();
+            }
+        });
+
+        if (!urls.length) tryExternalPoster();
     }
 
     // ─── Genres & API ──────────────────────────────────────────────────
@@ -967,8 +995,8 @@
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: item.poster_path || '',
-            img: item.poster_path || '',
+            poster_path: shikiPoster || item.poster_path || '',
+            img: shikiPoster || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
             shikimori: shiki
@@ -1685,8 +1713,6 @@
 
         this.destroy = function () {
             if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
-            clearTimeout(appendFullTimer1);
-            clearTimeout(appendFullTimer2);
             html.off();
             scroll.render().off();
             scroll.destroy();
@@ -2851,42 +2877,25 @@
      * @param {Object} activity - Активность Lampa
      */
     function scheduleAppendFull(activity) {
-        clearTimeout(appendFullTimer1);
-        clearTimeout(appendFullTimer2);
-
+        var delays = [300, 1500];
         var apiCalled = false;
 
-        appendFullTimer1 = setTimeout(function () {
-            var page = fullPage();
-            if (!page.length) return;
-            if (page.find('.shikimori-full-list-button').length) return;
-            if (!page.closest('body').length) return;
+        delays.forEach(function (delay) {
+            setTimeout(function () {
+                var page = fullPage();
+                if (!page.length) return;
+                if (page.find('.shikimori-full-list-button').length) return;
 
-            if (!apiCalled) {
-                apiCalled = true;
-                resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
-                    if (anime && anime.id) {
-                        appendFull(getActiveActivity(), anime);
-                    }
-                });
-            }
-        }, 300);
-
-        appendFullTimer2 = setTimeout(function () {
-            var page = fullPage();
-            if (!page.length) return;
-            if (page.find('.shikimori-full-list-button').length) return;
-            if (!page.closest('body').length) return;
-
-            if (!apiCalled) {
-                apiCalled = true;
-                resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
-                    if (anime && anime.id) {
-                        appendFull(getActiveActivity(), anime);
-                    }
-                });
-            }
-        }, 1500);
+                if (!apiCalled) {
+                    apiCalled = true;
+                    resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
+                        if (anime && anime.id) {
+                            appendFull(getActiveActivity(), anime);
+                        }
+                    });
+                }
+            }, delay);
+        });
     }
 
     /**
@@ -2914,8 +2923,6 @@
         });
 
         Lampa.Listener.follow('activity', function () {
-            clearTimeout(appendFullTimer1);
-            clearTimeout(appendFullTimer2);
             scheduleAppendFull(getActiveActivity());
         });
     }
