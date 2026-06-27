@@ -1073,8 +1073,18 @@
         var url = armLookupUrl(data.id);
 
         var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) openTmdb(answer, data);
-            else fallbackSearch(data);
+            if (answer && answer.themoviedb) {
+                var armType = answer.media_type || answer.type || '';
+
+                if (!armType) {
+                    fallbackSearch(data);
+                    return;
+                }
+
+                openTmdb(answer, data);
+            } else {
+                fallbackSearch(data);
+            }
         };
 
         apiGetJson(url, onSuccess, function () {
@@ -1093,12 +1103,21 @@
         if (queries.length === 0) { openLampaSearch(data); return; }
 
         var shikiYear = getAnimeYear(data);
+        var desiredType = data.kind === 'movie' ? 'movie' : 'tv';
 
         notify('Поиск в базе...');
         searchTmdbMulti(queries, shikiYear,
-            function () { return true; },
+            function (item) {
+                return item.media_type === desiredType;
+            },
             function (best) { openTmdb(best, data); },
-            function () { openLampaSearch(data); }
+            function () {
+                searchTmdbMulti(queries, shikiYear,
+                    function () { return true; },
+                    function (best) { openTmdb(best, data); },
+                    function () { openLampaSearch(data); }
+                );
+            }
         );
     }
 
