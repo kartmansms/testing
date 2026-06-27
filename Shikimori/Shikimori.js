@@ -1171,6 +1171,10 @@
             return;
         }
 
+        if (window.lampa_settings && window.lampa_settings.lgbt) {
+            delete window.lampa_settings.lgbt[movie.id + '_' + type];
+        }
+
         var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
 
         if (!tmdbCache[shiki.id] || tmdbCache[shiki.id].id !== movie.id) {
