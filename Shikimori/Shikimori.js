@@ -2696,7 +2696,7 @@
             });
         }
 
-        function openAuthSettings(btnElement) {
+        function openAuthSettings(btnElement, focusIndex) {
             var auth = readAuth();
 
             var items = [
@@ -2722,19 +2722,19 @@
                             auth.client_id = value;
                             saveAuth(auth);
                             notify('Client ID сохранён');
-                        }, btnElement, function () { openAuthSettings(btnElement); });
+                        }, btnElement, function () { openAuthSettings(btnElement, 1); });
                     } else if (item.value === 'client_secret') {
                         askText('Client Secret Shikimori', auth.client_secret, function (value) {
                             auth.client_secret = value;
                             saveAuth(auth);
                             notify('Client Secret сохранён');
-                        }, btnElement, function () { openAuthSettings(btnElement); });
+                        }, btnElement, function () { openAuthSettings(btnElement, 2); });
                     } else if (item.value === 'redirect_uri') {
                         askText('Redirect URI', auth.redirect_uri, function (value) {
                             auth.redirect_uri = value || defaultAuth().redirect_uri;
                             saveAuth(auth);
                             notify('Redirect URI сохранён');
-                        }, btnElement, function () { openAuthSettings(btnElement); });
+                        }, btnElement, function () { openAuthSettings(btnElement, 3); });
                     } else if (item.value === 'copy_url') {
                         var url = authUrl();
 
@@ -2753,7 +2753,7 @@
                     } else if (item.value === 'code') {
                         askText('Код авторизации', '', function (value) {
                             if (value) requestTokenByCode(value, loadWhoami);
-                        }, btnElement, function () { openAuthSettings(btnElement); });
+                        }, btnElement, function () { openAuthSettings(btnElement, 6); });
                     } else if (item.value === 'refresh') {
                         refreshToken(function () {
                             loadWhoami();
@@ -2777,6 +2777,15 @@
                     Lampa.Controller.toggle('content');
                 }
             });
+
+            if (typeof focusIndex === 'number' && focusIndex >= 0) {
+                setTimeout(function () {
+                    var selectors = $('.selectbox .selector');
+                    if (selectors.length > focusIndex) {
+                        Lampa.Controller.collectionFocus(selectors.eq(focusIndex)[0], $('.selectbox'));
+                    }
+                }, 100);
+            }
         }
 
         function askText(title, value, callback, btnElement, onReturn) {
