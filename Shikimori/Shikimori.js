@@ -3379,7 +3379,9 @@
                 '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
                 '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
                 '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
-                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.Shikimori-card__user-rate{position:absolute;top:2.15em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#e95a68;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.rate--shikimori{font-size:.9em}' +
+                '.rate--shikimori>div{color:#ffd166}' +
                 '.Shikimori.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
                 '.Shikimori-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
                 '.Shikimori-loader,.Shikimori-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
