@@ -1879,7 +1879,7 @@
                 '<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                     '<div class="card__view">' +
                         '<img class="card__img" src="' + imgSrc + '" />' +
-                        '<div class="Shikimori-card__rating">♥ ' + esc(score) + '</div>' +
+                        '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
                         '<div class="Shikimori-card__user-rate-group" style="display:none">' +
                             '<span class="Shikimori-card__heart">' + heartSvg + '</span>' +
@@ -3268,7 +3268,7 @@
 
         if (!page.find('.rate--shikimori').length) {
             page.find('.full-start__rate-line, .full-start-new__rate-line').first().append(
-                '<div class="rate rate--shikimori"><div>♥ ' + esc(score) + '</div><span>Shikimori</span></div>'
+                '<div class="rate rate--shikimori"><div>★ ' + esc(score) + '</div><span>Shikimori</span></div>'
             );
         }
 
@@ -3386,7 +3386,7 @@
                 '.Shikimori-card__rating,.Shikimori-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#fff}' +
                 '.Shikimori-card__rating{left:.45em;color:#ffd166}' +
                 '.Shikimori-card__badge{right:.45em;color:#fff;background:rgba(200,58,75,.88)}' +
-                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
+                '.Shikimori-card__user-rate{position:absolute;top:2.35em;left:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.9em;line-height:1;color:#2ecc71;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:85%}' +
                 '.Shikimori-card__user-rate-group{position:absolute;top:2.35em;left:.45em;display:inline-flex;align-items:center;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.80em;line-height:1;gap:.3em}' +
                 '.Shikimori-card__user-rate-group .Shikimori-card__heart{color:#e95a68}' +
                 '.Shikimori-card__user-rate-group .Shikimori-card__user-rate{color:#fff;position:static;background:none;padding:0;font-size:inherit}' +
