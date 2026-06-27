@@ -27,8 +27,7 @@
                 anilist_top_all: 'Топ донхуа за все время (AniList)',
                 anilist_top_year: 'Топ донхуа ' + new Date().getFullYear() + ' (AniList)',
                 anilist_popular: 'Популярные на AniList',
-                mal_top: 'Топ на MyAnimeList',
-                mal_airing: 'Сейчас на MAL'
+
             },
             recommendations: 'Рекомендации',
             continue_watching: 'Продолжить просмотр',
@@ -66,8 +65,7 @@
                 anilist_top_all: 'Топ донхуа за весь час (AniList)',
                 anilist_top_year: 'Топ донхуа ' + new Date().getFullYear() + ' (AniList)',
                 anilist_popular: 'Популярні на AniList',
-                mal_top: 'Топ на MyAnimeList',
-                mal_airing: 'Зараз на MAL'
+
             },
             recommendations: 'Рекомендації',
             continue_watching: 'Продовжити перегляд',
@@ -105,8 +103,7 @@
                 anilist_top_all: 'Top Donghua All Time (AniList)',
                 anilist_top_year: 'Top Donghua ' + new Date().getFullYear() + ' (AniList)',
                 anilist_popular: 'Popular on AniList',
-                mal_top: 'Top on MyAnimeList',
-                mal_airing: 'Currently Airing on MAL'
+
             },
             recommendations: 'Recommendations',
             continue_watching: 'Continue Watching',
@@ -260,116 +257,6 @@
     }
 
     // =================================================================
-    // Jikan (MyAnimeList unofficial API)
-    // =================================================================
-
-    var JIKAN_URL = 'https://api.jikan.moe/v4';
-
-    function jikanRequest(endpoint, params, callback, error) {
-        var url = JIKAN_URL + endpoint;
-        if (params) {
-            var qs = [];
-            for (var k in params) {
-                qs.push(k + '=' + encodeURIComponent(params[k]));
-            }
-            url += (url.indexOf('?') === -1 ? '?' : '&') + qs.join('&');
-        }
-        $.ajax({
-            url: url,
-            type: 'GET',
-            dataType: 'json',
-            success: function (res) {
-                if (res && res.data) callback(res.data);
-                else if (error) error('No data');
-            },
-            error: function (err) {
-                if (error) error(err);
-            }
-        });
-    }
-
-    function jikanToLampa(items) {
-        return items.filter(function (m) { return m && m.mal_id; }).map(function (m) {
-            return {
-                id: m.mal_id,
-                name: m.title || '',
-                original_name: m.title_japanese || m.title || '',
-                title: m.title || '',
-                overview: m.synopsis || '',
-                poster_path: m.images && m.images.jpg && m.images.jpg.large_image_url ? m.images.jpg.large_image_url : (m.images && m.images.jpg && m.images.jpg.image_url ? m.images.jpg.image_url : ''),
-                backdrop_path: m.images && m.images.jpg && m.images.jpg.large_image_url ? m.images.jpg.large_image_url : '',
-                vote_average: m.score || 0,
-                vote_count: m.scored_by || 0,
-                first_air_date: m.aired && m.aired.from ? m.aired.from.substring(0, 10) : '',
-                original_language: 'zh',
-                genre_ids: (m.genres || []).map(function () { return 16; }),
-                media_type: 'tv',
-                source: 'mal',
-                mal_id: m.mal_id,
-                status: m.status || 'Currently Airing',
-                episodes: m.episodes || 0,
-                type: m.type || 'TV',
-                studios: (m.studios || []).map(function (s) { return s.name; })
-            };
-        });
-    }
-
-    function jikanTopDonghua(page, callback, error) {
-        jikanRequest('/anime', {
-            order_by: 'score',
-            sort: 'desc',
-            type: 'tv',
-            status: 'complete',
-            min_score: '7',
-            limit: '20',
-            page: page || 1,
-            producers: '56,1086,53,376'
-        }, function (data) {
-            callback(jikanToLampa(data || []));
-        }, error);
-    }
-
-    function jikanAiringDonghua(callback, error) {
-        jikanRequest('/seasons/now', {
-            type: 'tv',
-            filter: 'tv',
-            limit: '20'
-        }, function (data) {
-            var chinese = data.filter(function (m) {
-                var studios = (m.studios || []).map(function (s) { return s.name.toLowerCase(); });
-                var producers = (m.producers || []).map(function (p) { return p.name.toLowerCase(); });
-                var src = (m.source || '').toLowerCase();
-                var title = (m.title_japanese || '').toLowerCase();
-                var hasChinese = studios.some(function (s) { return s.indexOf('bilibili') !== -1 || s.indexOf('tencent') !== -1 || s.indexOf('youku') !== -1; }) ||
-                    producers.some(function (p) { return p.indexOf('bilibili') !== -1 || p.indexOf('tencent') !== -1 || p.indexOf('youku') !== -1; }) ||
-                    src.indexOf('web novel') !== -1 || src.indexOf('web novel') !== -1 ||
-                    title.match(/[\u4e00-\u9fff]/);
-                return hasChinese;
-            });
-            callback(jikanToLampa(chinese.length ? chinese : data.slice(0, 10)));
-        }, error);
-    }
-
-    function jikanSearchDonghua(query, page, callback, error) {
-        jikanRequest('/anime', {
-            q: query,
-            type: 'tv',
-            order_by: 'score',
-            sort: 'desc',
-            limit: '20',
-            page: page || 1
-        }, function (data) {
-            var chinese = data.filter(function (m) {
-                var studios = (m.studios || []).map(function (s) { return s.name.toLowerCase(); });
-                var producers = (m.producers || []).map(function (p) { return p.name.toLowerCase(); });
-                return studios.some(function (s) { return s.indexOf('bilibili') !== -1 || s.indexOf('tencent') !== -1 || s.indexOf('youku') !== -1 || s.indexOf('haolin') !== -1; }) ||
-                    producers.some(function (p) { return p.indexOf('bilibili') !== -1 || p.indexOf('tencent') !== -1 || p.indexOf('youku') !== -1; });
-            });
-            callback(jikanToLampa(chinese.length ? chinese : data));
-        }, error);
-    }
-
-    // =================================================================
     // КАТЕГОРИИ TMDB
     // =================================================================
 
@@ -501,7 +388,7 @@
 
             var categories = DONGHUA_CATEGORIES;
             var network = new Lampa.Reguest();
-            var status = new Lampa.Status(categories.length + 6);
+            var status = new Lampa.Status(categories.length + 4);
 
             status.onComplite = function () {
                 var fulldata = [];
@@ -523,10 +410,6 @@
                             title = t('categories.anilist_top_year');
                         } else if (catIndex === categories.length + 3) {
                             title = t('categories.anilist_popular');
-                        } else if (catIndex === categories.length + 4) {
-                            title = t('categories.mal_top');
-                        } else if (catIndex === categories.length + 5) {
-                            title = t('categories.mal_airing');
                         }
 
                         Lampa.Utils.extendItemsParams(data.results, { style: { name: 'wide' } });
@@ -571,14 +454,6 @@
 
             anilistPopular(1, function (items) {
                 status.append((baseIndex + 3).toString(), { results: items });
-            }, function () { status.error(); });
-
-            jikanTopDonghua(1, function (items) {
-                status.append((baseIndex + 4).toString(), { results: items });
-            }, function () { status.error(); });
-
-            jikanAiringDonghua(function (items) {
-                status.append((baseIndex + 5).toString(), { results: items });
             }, function () { status.error(); });
 
             return this.render();
@@ -732,8 +607,8 @@
 
             html += '<div class="selector donghua-rec-item" data-id="' + item.id + '" data-source="' + (item.source || 'tmdb') + '" style="' +
                 'min-width: 120px; max-width: 120px; cursor: pointer; border-radius: 8px; overflow: hidden; background: #222;">' +
-                '<div style="width: 100%; padding-top: 140%; position: relative; overflow: hidden;">' +
-                (poster ? '<img src="' + poster + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center;" />' : '') +
+                '<div style="width: 100%; height: 160px; overflow: hidden; position: relative;">' +
+                (poster ? '<img src="' + poster + '" style="width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block;" />' : '') +
                 '</div>' +
                 '<div style="padding: 6px 8px;">' +
                 '<div style="font-size: 0.75em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + itemTitle + '</div>' +
