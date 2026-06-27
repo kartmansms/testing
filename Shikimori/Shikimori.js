@@ -1070,7 +1070,27 @@
             return;
         }
 
-        fallbackSearch(data);
+        var url = armLookupUrl(data.id);
+
+        var onSuccess = function (answer) {
+            if (answer && answer.themoviedb) {
+                var armType = answer.media_type || answer.type || '';
+                var expectedType = data.kind === 'movie' ? 'movie' : 'tv';
+
+                if (armType && armType !== expectedType) {
+                    fallbackSearch(data);
+                    return;
+                }
+
+                openTmdb(answer, data);
+            } else {
+                fallbackSearch(data);
+            }
+        };
+
+        apiGetJson(url, onSuccess, function () {
+            fallbackSearch(data);
+        });
     }
 
     /** Поиск TMDB по названию при ошибке ARM lookup. Открывает полную страницу TMDB или поиск Lampa. */
