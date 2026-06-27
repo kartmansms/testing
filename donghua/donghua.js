@@ -150,6 +150,18 @@
 
     var ICON_DONGHUA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15l3.5-4.5 2.5 3.01L14.5 9l4.5 6H5z"/></svg>';
 
+    var TMDB_GENRES = {
+        16: 'Мультфильм', 10759: 'Боевик', 10765: 'Фантастика', 10768: 'Война',
+        10749: 'Мелодрама', 18: 'Драма', 35: 'Комедия', 9648: 'Детектив',
+        10764: 'Реалити', 10767: 'Ток-шоу', 10762: 'Детский'
+    };
+
+    var TMDB_GENRES_EN = {
+        16: 'Animation', 10759: 'Action', 10765: 'Sci-Fi', 10768: 'War',
+        10749: 'Romance', 18: 'Drama', 35: 'Comedy', 9648: 'Mystery',
+        10764: 'Reality', 10767: 'Talk', 10762: 'Kids'
+    };
+
     // =================================================================
     // AniList GraphQL API
     // =================================================================
@@ -605,14 +617,24 @@
             var itemTitle = item.name || item.original_name || item.title || '';
             var year = (item.first_air_date || '').substring(0, 4);
 
+            var genres = [];
+            if (item.genres && item.genres.length) {
+                genres = item.genres.map(function (g) { return g.name || g; }).filter(Boolean).slice(0, 2);
+            } else if (item.genre_ids && item.genre_ids.length) {
+                var lang = (Lampa.Storage.get('language', 'ru') || 'ru');
+                var genreMap = lang === 'en' ? TMDB_GENRES_EN : TMDB_GENRES;
+                genres = item.genre_ids.slice(0, 2).map(function (id) { return genreMap[id] || ''; }).filter(Boolean);
+            }
+
             html += '<div class="selector donghua-rec-item" data-id="' + item.id + '" data-source="' + (item.source || 'tmdb') + '" style="' +
                 'min-width: 120px; max-width: 120px; cursor: pointer; border-radius: 8px; overflow: hidden; background: #222;">' +
-                '<div style="width: 100%; height: 160px; overflow: hidden; position: relative;">' +
+                '<div style="width: 100%; height: 140px; overflow: hidden; position: relative;">' +
                 (poster ? '<img src="' + poster + '" style="width: 100%; height: 100%; object-fit: cover; object-position: top center; display: block;" />' : '') +
                 '</div>' +
                 '<div style="padding: 6px 8px;">' +
                 '<div style="font-size: 0.75em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + itemTitle + '</div>' +
                 (year ? '<div style="font-size: 0.65em; color: rgba(255,255,255,0.5);">' + year + '</div>' : '') +
+                (genres.length ? '<div style="font-size: 0.6em; color: rgba(255,255,255,0.4); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + genres.join(' · ') + '</div>' : '') +
                 '</div>' +
                 '</div>';
         });
