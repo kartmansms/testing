@@ -1652,7 +1652,7 @@
             if (currentRate && currentRate.status) {
                 var text = map[currentRate.status] || 'В списке';
 
-                if (currentRate.score) text += ' (★ ' + currentRate.score + ')';
+                if (currentRate.score) text += ' (♥ ' + currentRate.score + ')';
 
                 setButtonState(text, true, false);
             } else {
@@ -1879,7 +1879,7 @@
                 '<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                     '<div class="card__view">' +
                         '<img class="card__img" src="' + imgSrc + '" />' +
-                        '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
+                        '<div class="Shikimori-card__rating">♥ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
                         '<div class="Shikimori-card__user-rate-group" style="display:none">' +
                             '<span class="Shikimori-card__heart">' + heartSvg + '</span>' +
@@ -1896,7 +1896,7 @@
             if (isAuthorized()) {
                 var rate = getUserRateFromCache(data.id);
                 if (rate && rate.score) {
-                    element.find('.Shikimori-card__user-rate').text('★ ' + rate.score);
+                    element.find('.Shikimori-card__user-rate').text('♥ ' + rate.score);
                     element.find('.Shikimori-card__heart').css('color', '#e95a68');
                     element.find('.Shikimori-card__user-rate-group').show();
                 }
@@ -3268,7 +3268,7 @@
 
         if (!page.find('.rate--shikimori').length) {
             page.find('.full-start__rate-line, .full-start-new__rate-line').first().append(
-                '<div class="rate rate--shikimori"><div>★ ' + esc(score) + '</div><span>Shikimori</span></div>'
+                '<div class="rate rate--shikimori"><div>♥ ' + esc(score) + '</div><span>Shikimori</span></div>'
             );
         }
 
