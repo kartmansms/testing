@@ -2722,18 +2722,21 @@
                             auth.client_id = value;
                             saveAuth(auth);
                             notify('Client ID сохранён');
+                            openAuthSettings(btnElement);
                         }, btnElement);
                     } else if (item.value === 'client_secret') {
                         askText('Client Secret Shikimori', auth.client_secret, function (value) {
                             auth.client_secret = value;
                             saveAuth(auth);
                             notify('Client Secret сохранён');
+                            openAuthSettings(btnElement);
                         }, btnElement);
                     } else if (item.value === 'redirect_uri') {
                         askText('Redirect URI', auth.redirect_uri, function (value) {
                             auth.redirect_uri = value || defaultAuth().redirect_uri;
                             saveAuth(auth);
                             notify('Redirect URI сохранён');
+                            openAuthSettings(btnElement);
                         }, btnElement);
                     } else if (item.value === 'copy_url') {
                         var url = authUrl();
@@ -2752,12 +2755,23 @@
                         }
                     } else if (item.value === 'code') {
                         askText('Код авторизации', '', function (value) {
-                            if (value) requestTokenByCode(value, loadWhoami);
+                            if (value) {
+                                requestTokenByCode(value, function () {
+                                    loadWhoami();
+                                    openAuthSettings(btnElement);
+                                });
+                            } else {
+                                openAuthSettings(btnElement);
+                            }
                         }, btnElement);
                     } else if (item.value === 'refresh') {
-                        refreshToken(loadWhoami);
+                        refreshToken(function () {
+                            loadWhoami();
+                            openAuthSettings(btnElement);
+                        });
                     } else if (item.value === 'whoami') {
                         loadWhoami();
+                        openAuthSettings(btnElement);
                     } else if (item.value === 'logout') {
                         saveAuth(defaultAuth());
                         notify('Выход из Shikimori выполнен');
