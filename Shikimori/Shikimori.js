@@ -1919,6 +1919,7 @@
         var body = $('<div class="Shikimori-body"></div>');
 
         var last;
+        var lastCardId = null;
         var rendered = false;
         var loading = false;
         var ended = false;
@@ -1962,7 +1963,16 @@
             Lampa.Controller.add('content', {
                 toggle: function () {
                     Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
+
+                    var focusTarget = null;
+
+                    if (lastCardId) {
+                        focusTarget = html.find('.selector[data-id="' + lastCardId + '"]')[0];
+                    }
+
+                    if (!focusTarget) focusTarget = last;
+
+                    Lampa.Controller.collectionFocus(focusTarget || html.find('.selector').first(), html);
                 },
                 left: function () {
                     if (Navigator.canmove('left')) Navigator.move('left');
@@ -2890,6 +2900,7 @@
             });
 
             bindPress(render, function () {
+                lastCardId = data.id;
                 openAnime(item);
             });
 
