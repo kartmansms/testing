@@ -22,7 +22,13 @@
                 modern: 'Современные дунхуа',
                 historical: 'Исторические дунхуа',
                 comedy: 'Комедийные дунхуа',
-                scifi: 'Научная фантастика'
+                scifi: 'Научная фантастика',
+                anilist_trending: 'В тренде на AniList',
+                anilist_top_all: 'Топ донхуа за все время (AniList)',
+                anilist_top_year: 'Топ донхуа ' + new Date().getFullYear() + ' (AniList)',
+                anilist_popular: 'Популярные на AniList',
+                mal_top: 'Топ на MyAnimeList',
+                mal_airing: 'Сейчас на MAL'
             },
             recommendations: 'Рекомендации',
             continue_watching: 'Продолжить просмотр',
@@ -55,7 +61,13 @@
                 modern: 'Сучасні дунхуа',
                 historical: 'Історичні дунхуа',
                 comedy: 'Комедійні дунхуа',
-                scifi: 'Наукова фантастика'
+                scifi: 'Наукова фантастика',
+                anilist_trending: 'У тренді на AniList',
+                anilist_top_all: 'Топ донхуа за весь час (AniList)',
+                anilist_top_year: 'Топ донхуа ' + new Date().getFullYear() + ' (AniList)',
+                anilist_popular: 'Популярні на AniList',
+                mal_top: 'Топ на MyAnimeList',
+                mal_airing: 'Зараз на MAL'
             },
             recommendations: 'Рекомендації',
             continue_watching: 'Продовжити перегляд',
@@ -88,7 +100,13 @@
                 modern: 'Modern Donghua',
                 historical: 'Historical Donghua',
                 comedy: 'Comedy Donghua',
-                scifi: 'Sci-Fi Donghua'
+                scifi: 'Sci-Fi Donghua',
+                anilist_trending: 'Trending on AniList',
+                anilist_top_all: 'Top Donghua All Time (AniList)',
+                anilist_top_year: 'Top Donghua ' + new Date().getFullYear() + ' (AniList)',
+                anilist_popular: 'Popular on AniList',
+                mal_top: 'Top on MyAnimeList',
+                mal_airing: 'Currently Airing on MAL'
             },
             recommendations: 'Recommendations',
             continue_watching: 'Continue Watching',
@@ -136,7 +154,223 @@
     var ICON_DONGHUA = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M21 3H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H3V5h18v14zM5 15l3.5-4.5 2.5 3.01L14.5 9l4.5 6H5z"/></svg>';
 
     // =================================================================
-    // КАТЕГОРИИ
+    // AniList GraphQL API
+    // =================================================================
+
+    var ANILIST_URL = 'https://graphql.anilist.co';
+
+    function anilistQuery(query, variables, callback, error) {
+        $.ajax({
+            url: ANILIST_URL,
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ query: query, variables: variables || {} }),
+            success: function (res) {
+                if (res && res.data) callback(res.data);
+                else if (error) error('No data');
+            },
+            error: function (err) {
+                if (error) error(err);
+            }
+        });
+    }
+
+    function anilistToLampa(items) {
+        return items.filter(function (m) { return m && m.id; }).map(function (m) {
+            var title = m.title || {};
+            return {
+                id: m.id,
+                tmdb_id: m.idMal || null,
+                name: title.romaji || title.english || title.native || '',
+                original_name: title.native || title.romaji || '',
+                title: title.english || title.romaji || title.native || '',
+                overview: m.description ? m.description.replace(/<[^>]+>/g, '') : '',
+                poster_path: m.coverImage && m.coverImage.large ? m.coverImage.large : (m.coverImage && m.coverImage.medium ? m.coverImage.medium : ''),
+                backdrop_path: m.bannerImage || '',
+                vote_average: m.averageScore ? m.averageScore / 10 : 0,
+                vote_count: m.popularity || 0,
+                first_air_date: m.startDate ? (m.startDate.year + '-' + String(m.startDate.month || 1).padStart(2, '0') + '-' + String(m.startDate.day || 1).padStart(2, '0')) : '',
+                original_language: 'zh',
+                genre_ids: (m.genres || []).map(function () { return 16; }),
+                media_type: 'tv',
+                source: 'anilist',
+                anilist_id: m.id,
+                status: m.status || 'RELEASING',
+                episodes: m.episodes || 0,
+                format: m.format || 'TV'
+            };
+        });
+    }
+
+    // Тренды AniList
+    function anilistTrending(page, callback, error) {
+        var query = 'query($page:Int,$perpage:Int){Page(page:$page,perPage:$perpage){media(type:ANIME,countryOfOrigin:CN,sort:TRENDING_DESC,formatIn:[TV,TV_SHORT,ONA]){id title{romaji english native}coverImage{large medium}bannerImage averageScore popularity description startDate{year month day}status episodes format genres}}}';
+        anilistQuery(query, { page: page || 1, perpage: 20 }, function (data) {
+            callback(anilistToLampa(data.Page.media || []));
+        }, error);
+    }
+
+    // Топ за все время
+    function anilistTopAll(page, callback, error) {
+        var query = 'query($page:Int,$perpage:Int){Page(page:$page,perPage:$perpage){media(type:ANIME,countryOfOrigin:CN,sort:SCORE_DESC,formatIn:[TV,TV_SHORT,ONA]){id title{romaji english native}coverImage{large medium}bannerImage averageScore popularity description startDate{year month day}status episodes format genres}}}';
+        anilistQuery(query, { page: page || 1, perpage: 20 }, function (data) {
+            callback(anilistToLampa(data.Page.media || []));
+        }, error);
+    }
+
+    // Топ по году
+    function anilistTopYear(year, page, callback, error) {
+        var query = 'query($page:Int,$perpage:Int,$year:Int){Page(page:$page,perPage:$perpage){media(type:ANIME,countryOfOrigin:CN,sort:SCORE_DESC,formatIn:[TV,TV_SHORT,ONA],startDate_greater:$year0000,startDate_lesser:$year1331){id title{romaji english native}coverImage{large medium}bannerImage averageScore popularity description startDate{year month day}status episodes format genres}}}';
+        var yearStart = year + '0000';
+        var yearEnd = year + '1331';
+        anilistQuery(query.replace('$year0000', yearStart).replace('$year1331', yearEnd), { page: page || 1, perpage: 20, year: year }, function (data) {
+            callback(anilistToLampa(data.Page.media || []));
+        }, error);
+    }
+
+    // Популярные
+    function anilistPopular(page, callback, error) {
+        var query = 'query($page:Int,$perpage:Int){Page(page:$page,perPage:$perpage){media(type:ANIME,countryOfOrigin:CN,sort:POPULARITY_DESC,formatIn:[TV,TV_SHORT,ONA]){id title{romaji english native}coverImage{large medium}bannerImage averageScore popularity description startDate{year month day}status episodes format genres}}}';
+        anilistQuery(query, { page: page || 1, perpage: 20 }, function (data) {
+            callback(anilistToLampa(data.Page.media || []));
+        }, error);
+    }
+
+    // Рекомендации AniList
+    function anilistRecommendations(anilistId, callback, error) {
+        var query = 'query($id:Int){Media(id:$id,type:ANIME){recommendations{edges{node{id mediaRecommendation{id title{romaji english native}coverImage{large medium}averageScore popularity startDate{year month day}}}}}}}';
+        anilistQuery(query, { id: anilistId }, function (data) {
+            if (data && data.Media && data.Media.recommendations && data.Media.recommendations.edges) {
+                var recs = data.Media.recommendations.edges
+                    .map(function (e) { return e.node && e.node.mediaRecommendation; })
+                    .filter(function (m) { return m && m.id; });
+                callback(anilistToLampa(recs));
+            } else {
+                callback([]);
+            }
+        }, error);
+    }
+
+    // Поиск AniList
+    function anilistSearch(query, page, callback, error) {
+        var gql = 'query($search:String,$page:Int,$perpage:Int){Page(page:$page,perPage:$perpage){media(type:ANIME,countryOfOrigin:CN,search:$search,formatIn:[TV,TV_SHORT,ONA]){id title{romaji english native}coverImage{large medium}bannerImage averageScore popularity description startDate{year month day}status episodes format genres}}}';
+        anilistQuery(gql, { search: query, page: page || 1, perpage: 20 }, function (data) {
+            callback(anilistToLampa(data.Page.media || []));
+        }, error);
+    }
+
+    // =================================================================
+    // Jikan (MyAnimeList unofficial API)
+    // =================================================================
+
+    var JIKAN_URL = 'https://api.jikan.moe/v4';
+
+    function jikanRequest(endpoint, params, callback, error) {
+        var url = JIKAN_URL + endpoint;
+        if (params) {
+            var qs = [];
+            for (var k in params) {
+                qs.push(k + '=' + encodeURIComponent(params[k]));
+            }
+            url += (url.indexOf('?') === -1 ? '?' : '&') + qs.join('&');
+        }
+        $.ajax({
+            url: url,
+            type: 'GET',
+            dataType: 'json',
+            success: function (res) {
+                if (res && res.data) callback(res.data);
+                else if (error) error('No data');
+            },
+            error: function (err) {
+                if (error) error(err);
+            }
+        });
+    }
+
+    function jikanToLampa(items) {
+        return items.filter(function (m) { return m && m.mal_id; }).map(function (m) {
+            return {
+                id: m.mal_id,
+                name: m.title || '',
+                original_name: m.title_japanese || m.title || '',
+                title: m.title || '',
+                overview: m.synopsis || '',
+                poster_path: m.images && m.images.jpg && m.images.jpg.large_image_url ? m.images.jpg.large_image_url : (m.images && m.images.jpg && m.images.jpg.image_url ? m.images.jpg.image_url : ''),
+                backdrop_path: m.images && m.images.jpg && m.images.jpg.large_image_url ? m.images.jpg.large_image_url : '',
+                vote_average: m.score || 0,
+                vote_count: m.scored_by || 0,
+                first_air_date: m.aired && m.aired.from ? m.aired.from.substring(0, 10) : '',
+                original_language: 'zh',
+                genre_ids: (m.genres || []).map(function () { return 16; }),
+                media_type: 'tv',
+                source: 'mal',
+                mal_id: m.mal_id,
+                status: m.status || 'Currently Airing',
+                episodes: m.episodes || 0,
+                type: m.type || 'TV',
+                studios: (m.studios || []).map(function (s) { return s.name; })
+            };
+        });
+    }
+
+    function jikanTopDonghua(page, callback, error) {
+        jikanRequest('/anime', {
+            order_by: 'score',
+            sort: 'desc',
+            type: 'tv',
+            status: 'complete',
+            min_score: '7',
+            limit: '20',
+            page: page || 1,
+            producers: '56,1086,53,376'
+        }, function (data) {
+            callback(jikanToLampa(data || []));
+        }, error);
+    }
+
+    function jikanAiringDonghua(callback, error) {
+        jikanRequest('/seasons/now', {
+            type: 'tv',
+            filter: 'tv',
+            limit: '20'
+        }, function (data) {
+            var chinese = data.filter(function (m) {
+                var studios = (m.studios || []).map(function (s) { return s.name.toLowerCase(); });
+                var producers = (m.producers || []).map(function (p) { return p.name.toLowerCase(); });
+                var src = (m.source || '').toLowerCase();
+                var title = (m.title_japanese || '').toLowerCase();
+                var hasChinese = studios.some(function (s) { return s.indexOf('bilibili') !== -1 || s.indexOf('tencent') !== -1 || s.indexOf('youku') !== -1; }) ||
+                    producers.some(function (p) { return p.indexOf('bilibili') !== -1 || p.indexOf('tencent') !== -1 || p.indexOf('youku') !== -1; }) ||
+                    src.indexOf('web novel') !== -1 || src.indexOf('web novel') !== -1 ||
+                    title.match(/[\u4e00-\u9fff]/);
+                return hasChinese;
+            });
+            callback(jikanToLampa(chinese.length ? chinese : data.slice(0, 10)));
+        }, error);
+    }
+
+    function jikanSearchDonghua(query, page, callback, error) {
+        jikanRequest('/anime', {
+            q: query,
+            type: 'tv',
+            order_by: 'score',
+            sort: 'desc',
+            limit: '20',
+            page: page || 1
+        }, function (data) {
+            var chinese = data.filter(function (m) {
+                var studios = (m.studios || []).map(function (s) { return s.name.toLowerCase(); });
+                var producers = (m.producers || []).map(function (p) { return p.name.toLowerCase(); });
+                return studios.some(function (s) { return s.indexOf('bilibili') !== -1 || s.indexOf('tencent') !== -1 || s.indexOf('youku') !== -1 || s.indexOf('haolin') !== -1; }) ||
+                    producers.some(function (p) { return p.indexOf('bilibili') !== -1 || p.indexOf('tencent') !== -1 || p.indexOf('youku') !== -1; });
+            });
+            callback(jikanToLampa(chinese.length ? chinese : data));
+        }, error);
+    }
+
+    // =================================================================
+    // КАТЕГОРИИ TMDB
     // =================================================================
 
     var DONGHUA_CATEGORIES = [
@@ -267,7 +501,7 @@
 
             var categories = DONGHUA_CATEGORIES;
             var network = new Lampa.Reguest();
-            var status = new Lampa.Status(categories.length);
+            var status = new Lampa.Status(categories.length + 6);
 
             status.onComplite = function () {
                 var fulldata = [];
@@ -276,13 +510,29 @@
                 for (var i = 0; i < keys.length; i++) {
                     var data = status.data[keys[i]];
                     if (data && data.results && data.results.length) {
-                        var cat = categories[parseInt(keys[i])];
+                        var catIndex = parseInt(keys[i]);
+                        var title = '';
+
+                        if (catIndex < categories.length) {
+                            title = t('categories.' + categories[catIndex].key);
+                        } else if (catIndex === categories.length) {
+                            title = t('categories.anilist_trending');
+                        } else if (catIndex === categories.length + 1) {
+                            title = t('categories.anilist_top_all');
+                        } else if (catIndex === categories.length + 2) {
+                            title = t('categories.anilist_top_year');
+                        } else if (catIndex === categories.length + 3) {
+                            title = t('categories.anilist_popular');
+                        } else if (catIndex === categories.length + 4) {
+                            title = t('categories.mal_top');
+                        } else if (catIndex === categories.length + 5) {
+                            title = t('categories.mal_airing');
+                        }
+
                         Lampa.Utils.extendItemsParams(data.results, { style: { name: 'wide' } });
                         fulldata.push({
-                            title: t('categories.' + cat.key),
+                            title: title,
                             results: data.results,
-                            url: cat.url,
-                            params: cat.params,
                             service_id: object.service_id
                         });
                     }
@@ -305,16 +555,42 @@
                 });
             });
 
+            var baseIndex = categories.length;
+
+            anilistTrending(1, function (items) {
+                status.append(baseIndex.toString(), { results: items });
+            }, function () { status.error(); });
+
+            anilistTopAll(1, function (items) {
+                status.append((baseIndex + 1).toString(), { results: items });
+            }, function () { status.error(); });
+
+            anilistTopYear(new Date().getFullYear(), 1, function (items) {
+                status.append((baseIndex + 2).toString(), { results: items });
+            }, function () { status.error(); });
+
+            anilistPopular(1, function (items) {
+                status.append((baseIndex + 3).toString(), { results: items });
+            }, function () { status.error(); });
+
+            jikanTopDonghua(1, function (items) {
+                status.append((baseIndex + 4).toString(), { results: items });
+            }, function () { status.error(); });
+
+            jikanAiringDonghua(function (items) {
+                status.append((baseIndex + 5).toString(), { results: items });
+            }, function () { status.error(); });
+
             return this.render();
         };
 
         comp.onMore = function (data) {
             Lampa.Activity.push({
-                url: data.url,
-                params: data.params,
                 title: data.title,
                 component: 'donghua_view',
-                page: 1
+                page: 1,
+                anilist: data.anilist || false,
+                anilist_type: data.anilist_type || ''
             });
         };
 
@@ -324,6 +600,33 @@
     function DonghuaView(object) {
         var comp = new Lampa.InteractionCategory(object);
         var network = new Lampa.Reguest();
+
+        comp.create = function () {
+            var _this = this;
+
+            if (object.results && object.results.length) {
+                _this.build({ results: object.results });
+                return;
+            }
+
+            if (object.anilist) {
+                var handlers = {
+                    trending: anilistTrending,
+                    top_all: anilistTopAll,
+                    top_year: function (p, cb, err) { anilistTopYear(object.year || new Date().getFullYear(), p, cb, err); },
+                    popular: anilistPopular
+                };
+                var handler = handlers[object.anilist_type] || anilistPopular;
+
+                handler(1, function (items) {
+                    _this.build({ results: items });
+                }, _this.empty.bind(_this));
+            } else {
+                network.silent(buildUrl(1), function (json) {
+                    _this.build(json);
+                }, _this.empty.bind(_this));
+            }
+        };
 
         function buildUrl(page) {
             var params = {};
@@ -335,13 +638,6 @@
             params.page = page;
             return buildTmdbUrl(object.url, params);
         }
-
-        comp.create = function () {
-            var _this = this;
-            network.silent(buildUrl(1), function (json) {
-                _this.build(json);
-            }, this.empty.bind(this));
-        };
 
         comp.nextPageReuest = function (object, resolve, reject) {
             network.silent(buildUrl(object.page), resolve, reject);
@@ -381,7 +677,7 @@
     }
 
     // =================================================================
-    // РЕКОМЕНДАЦИИ И ПОХОЖИЕ
+    // РЕКОМЕНДАЦИИ (TMDB + AniList)
     // =================================================================
 
     function initFullCardEnhancements() {
@@ -415,36 +711,48 @@
             var items = json.results.slice(0, 10);
             Lampa.Utils.extendItemsParams(items, { style: { name: 'wide' } });
 
-            var html = '<div class="donghua-recommendations" style="margin-top: 1.5em;">' +
-                '<div class="items-line__head">' +
-                '<div class="items-line__title">' + t('recommendations') + '</div>' +
+            renderRecommendations(render, items, t('recommendations'));
+        });
+    }
+
+    function renderRecommendations(render, items, title) {
+        var html = '<div class="donghua-recommendations" style="margin-top: 1.5em;">' +
+            '<div class="items-line__head">' +
+            '<div class="items-line__title">' + title + '</div>' +
+            '</div>' +
+            '<div class="items-line__body" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0;">';
+
+        items.forEach(function (item) {
+            var poster = '';
+            if (item.poster_path) {
+                poster = item.source === 'anilist' ? item.poster_path : Lampa.TMDB.image('/t/p/w200' + item.poster_path);
+            }
+            var itemTitle = item.name || item.original_name || item.title || '';
+            var year = (item.first_air_date || '').substring(0, 4);
+
+            html += '<div class="selector donghua-rec-item" data-id="' + item.id + '" data-source="' + (item.source || 'tmdb') + '" style="' +
+                'min-width: 120px; max-width: 120px; cursor: pointer; border-radius: 8px; overflow: hidden; background: #222;">' +
+                '<div style="width: 100%; padding-top: 140%; position: relative; overflow: hidden;">' +
+                (poster ? '<img src="' + poster + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; object-position: top center;" />' : '') +
                 '</div>' +
-                '<div class="items-line__body" style="display: flex; gap: 10px; overflow-x: auto; padding: 10px 0;">';
+                '<div style="padding: 6px 8px;">' +
+                '<div style="font-size: 0.75em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + itemTitle + '</div>' +
+                (year ? '<div style="font-size: 0.65em; color: rgba(255,255,255,0.5);">' + year + '</div>' : '') +
+                '</div>' +
+                '</div>';
+        });
 
-            items.forEach(function (item) {
-                var poster = item.poster_path ? Lampa.TMDB.image('/t/p/w200' + item.poster_path) : '';
-                var title = item.name || item.original_name || '';
-                var year = (item.first_air_date || '').substring(0, 4);
+        html += '</div></div>';
 
-                html += '<div class="selector donghua-rec-item" data-id="' + item.id + '" style="' +
-                    'min-width: 120px; max-width: 120px; cursor: pointer; border-radius: 8px; overflow: hidden; background: rgba(255,255,255,0.05);">' +
-                    '<div style="position: relative; padding-top: 150%; background: #222;">' +
-                    (poster ? '<img src="' + poster + '" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;" />' : '') +
-                    '</div>' +
-                    '<div style="padding: 6px 8px;">' +
-                    '<div style="font-size: 0.75em; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">' + title + '</div>' +
-                    (year ? '<div style="font-size: 0.65em; color: rgba(255,255,255,0.5);">' + year + '</div>' : '') +
-                    '</div>' +
-                    '</div>';
-            });
+        render.find('.full-start-new__right, .full-start__right').first().append(html);
 
-            html += '</div></div>';
-
-            render.find('.full-start-new__right, .full-start__right').first().append(html);
-
-            render.find('.donghua-rec-item').on('hover:enter click', function () {
-                var id = $(this).data('id');
-                if (id) {
+        render.find('.donghua-rec-item').on('hover:enter click', function () {
+            var id = $(this).data('id');
+            var source = $(this).data('source');
+            if (id) {
+                if (source === 'anilist') {
+                    Lampa.Noty.show('AniList ID: ' + id);
+                } else {
                     Lampa.Activity.push({
                         component: 'full',
                         id: id,
@@ -452,7 +760,7 @@
                         source: 'tmdb'
                     });
                 }
-            });
+            }
         });
     }
 
@@ -504,7 +812,7 @@
     }
 
     // =================================================================
-    // ПОИСК
+    // ПОИСК (TMDB + AniList)
     // =================================================================
 
     function addSearchSource() {
@@ -593,6 +901,7 @@
             '@keyframes donghuaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }' +
             '.donghua-rec-item { transition: transform 0.15s; }' +
             '.donghua-rec-item:hover { transform: scale(1.05); }' +
+            '.donghua-rec-item img { object-position: top center !important; }' +
             '';
 
         $('head').append('<style id="donghua-css">' + css + '</style>');
