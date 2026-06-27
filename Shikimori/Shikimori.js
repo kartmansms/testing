@@ -641,10 +641,19 @@
      *     function() { console.log('Not found'); }
      * );
      */
-    function searchTmdbMulti(queries, year, filterFn, onMatch, onDone) {
+    function searchTmdbMulti(queries, year, desiredType, onMatch, onDone) {
         var index = 0;
+        var bestMatch = null;
+        var anyMatch = null;
+
+        function finish() {
+            if (bestMatch) { onMatch(bestMatch); return; }
+            if (anyMatch) { onMatch(anyMatch); return; }
+            onDone();
+        }
+
         function next() {
-            if (index >= queries.length) { onDone(); return; }
+            if (index >= queries.length) { finish(); return; }
             var query = queries[index++];
             var url = tmdbApiUrl('search/multi?api_key=' + TMDB_API_KEY +
                 '&language=' + encodeURIComponent(tmdbLanguage()) +
@@ -653,9 +662,13 @@
                 var results = res && res.results ? res.results : [];
                 for (var i = 0; i < results.length; i++) {
                     var item = results[i];
-                    if ((item.media_type === 'tv' || item.media_type === 'movie') && filterFn(item) && tmdbYearMatch(item, year)) {
-                        onMatch(item);
-                        return;
+                    if ((item.media_type === 'tv' || item.media_type === 'movie') && item.poster_path && tmdbYearMatch(item, year)) {
+                        if (!bestMatch && desiredType && item.media_type === desiredType) {
+                            bestMatch = item;
+                            finish();
+                            return;
+                        }
+                        if (!anyMatch) anyMatch = item;
                     }
                 }
                 next();
@@ -732,8 +745,7 @@
 
         if (!queries.length) { callback(''); return; }
 
-        searchTmdbMulti(queries, year,
-            function (item) { return !!item.poster_path; },
+        searchTmdbMulti(queries, year, null,
             function (best) {
                 var poster = tmdbPosterUrl(best.poster_path);
                 var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
@@ -1107,18 +1119,9 @@
         var desiredType = data.kind === 'movie' ? 'movie' : 'tv';
 
         notify('Поиск в базе...');
-        searchTmdbMulti(queries, shikiYear,
-            function (item) {
-                return item.media_type === desiredType;
-            },
+        searchTmdbMulti(queries, shikiYear, desiredType,
             function (best) { openTmdb(best, data); },
-            function () {
-                searchTmdbMulti(queries, shikiYear,
-                    function () { return true; },
-                    function (best) { openTmdb(best, data); },
-                    function () { openLampaSearch(data); }
-                );
-            }
+            function () { openLampaSearch(data); }
         );
     }
 
