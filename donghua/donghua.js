@@ -783,31 +783,13 @@
     // =================================================================
 
     function initTimeline() {
-        if (!Lampa.TimeTable) return;
+        if (!Lampa.TimeTable || typeof Lampa.TimeTable.follow !== 'function') return;
 
-        var network = new Lampa.Reguest();
-        var url = buildTmdbUrl('discover/tv', {
-            with_original_language: 'zh',
-            with_genres: '16',
-            sort_by: 'first_air_date.desc',
-            vote_count_gte: '5',
-            page: 1
-        });
-
-        network.silent(url, function (json) {
-            if (!json || !json.results) return;
-
-            json.results.forEach(function (item) {
-                if (item.first_air_date) {
-                    Lampa.TimeTable.append({
-                        id: item.id,
-                        name: item.name || item.original_name,
-                        poster: item.poster_path ? Lampa.TMDB.image('/t/p/w200' + item.poster_path) : '',
-                        date: item.first_air_date,
-                        type: 'tv'
-                    });
-                }
-            });
+        Lampa.TimeTable.follow('new_episode', function (e) {
+            if (!e || !e.movie || e.movie.original_language !== 'zh') return;
+            if (e.movie.genres && e.movie.genres.some(function (g) { return g.id === 16; })) {
+                Lampa.Noty.show('Дунхуа: ' + (e.movie.name || e.movie.title) + ' — новая серия!');
+            }
         });
     }
 
