@@ -2900,7 +2900,7 @@
             });
 
             bindPress(render, function () {
-                lastCardId = data.id;
+                lastCardId = item.id;
                 openAnime(item);
             });
 
