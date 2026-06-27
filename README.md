@@ -5,4 +5,5 @@
 
 ```bibtex
 https://kartmansms.github.io/testing/Shikimori/Shikimori.js
+https://kartmansms.github.io/testing/donghua/donghua.js
 ```
