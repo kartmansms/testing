@@ -344,7 +344,7 @@
                             item.source = 'tmdb';
                             return item;
                         });
-                        onComplite(items);
+                        onComplite([{ results: items }]);
                     } else {
                         onComplite([]);
                     }
