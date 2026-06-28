@@ -325,45 +325,6 @@
         '<text fill="%23888" font-family="Arial" font-size="14" text-anchor="middle" x="100" y="140">Нет постера</text></svg>'
     );
 
-    function addToFavorites(item) {
-        try {
-            var list = storageGet('animevost_favorites', []);
-            var exists = false;
-            for (var i = 0; i < list.length; i++) {
-                if (list[i].url === item.url) { exists = true; break; }
-            }
-            if (!exists) {
-                list.push({ url: item.url, title: item.title, poster: item.poster, year: item.year });
-                storageSet('animevost_favorites', list);
-                notify('Добавлено в избранное: ' + item.title);
-            } else {
-                notify('Уже в избранном');
-            }
-        } catch (e) {}
-    }
-
-    function removeFromFavorites(itemUrl) {
-        try {
-            var list = storageGet('animevost_favorites', []);
-            var newList = [];
-            for (var i = 0; i < list.length; i++) {
-                if (list[i].url !== itemUrl) newList.push(list[i]);
-            }
-            storageSet('animevost_favorites', newList);
-            notify('Удалено из избранного');
-        } catch (e) {}
-    }
-
-    function isInFavorites(itemUrl) {
-        try {
-            var list = storageGet('animevost_favorites', []);
-            for (var i = 0; i < list.length; i++) {
-                if (list[i].url === itemUrl) return true;
-            }
-        } catch (e) {}
-        return false;
-    }
-
     function cardHtml(item) {
         var poster = item.poster || NO_POSTER;
         var r = item.rating || 0;
@@ -446,7 +407,6 @@
             '.AnimeVost-det-ep-list{display:flex;flex-wrap:wrap;gap:.4em}' +
             '.AnimeVost-det-ep-item{padding:.4em .8em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.04);border-radius:.3em;color:#aaa;font-size:.88em;cursor:pointer;transition:all .15s}' +
             '.AnimeVost-det-ep-item:hover,.AnimeVost-det-ep-item.focus{background:rgba(232,160,0,.2);color:#e8a000;border-color:rgba(232,160,0,.3)}' +
-            '.AnimeVost-det-actions--fav-active{color:#e91e63!important;border-color:rgba(233,30,99,.5)!important;background:rgba(233,30,99,.15)!important}' +
             '.AnimeVost-det-desc-title{font-size:1.15em;font-weight:600;color:#eee;margin:1.2em 0 .4em}' +
             '</style>'
         );
@@ -746,58 +706,6 @@
 
         this.destroy = function () { scroll.destroy(); content.empty(); };
 
-        function isFavorited(item) {
-            try {
-                if (item) {
-                    var check = Lampa.Favorite.check(buildLampaCard(item));
-                    return check.any;
-                }
-                var list = storageGet('animevost_favorites', []);
-                for (var i = 0; i < list.length; i++) {
-                    if (list[i].url === currentUrl) return true;
-                }
-            } catch (e) {}
-            return false;
-        }
-
-        function toggleFavorite(item, btn) {
-            var lampaCard = buildLampaCard(item);
-            var check = Lampa.Favorite.check(lampaCard);
-
-            if (check.any) {
-                Lampa.Favorite.remove('like', lampaCard);
-                Lampa.Favorite.remove('book', lampaCard);
-                btn.find('.fav-label').text('В избранное');
-                btn.removeClass('AnimeVost-det-actions--fav-active');
-                notify('Удалено из избранного');
-            } else {
-                Lampa.Favorite.add('like', lampaCard);
-                btn.find('.fav-label').text('В избранном');
-                btn.addClass('AnimeVost-det-actions--fav-active');
-                notify('Добавлено в избранное');
-            }
-        }
-
-        function buildLampaCard(item) {
-            return {
-                id: item.id || 0,
-                title: item.title || '',
-                name: item.title || '',
-                original_title: item.original_title || '',
-                original_name: item.original_title || '',
-                poster: item.poster || '',
-                poster_path: item.poster || '',
-                overview: item.description || '',
-                release_date: item.year ? item.year + '-01-01' : '',
-                year: item.year || 0,
-                genres: item.genres || [],
-                genre_ids: [],
-                source: 'animevost',
-                method: 'anime',
-                vote_average: item.rating ? item.rating / 10 : 0
-            };
-        }
-
         function loadDetail() {
             var url = currentUrl;
             if (!url) { content.html('<div class="AnimeVost-empty">Нет данных</div>'); return; }
@@ -837,12 +745,6 @@
                 h += '<div class="selector AnimeVost-det-play" data-action="play">';
                 h += '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
                 h += '<span>Воспроизвести</span></div>';
-
-                var favActive = isFavorited(item) ? ' AnimeVost-det-actions--fav-active' : '';
-                var favText = isFavorited(item) ? 'В избранном' : 'В избранное';
-                h += '<div class="selector AnimeVost-det-fav' + favActive + '" data-action="fav">';
-                h += '<svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>';
-                h += '<span class="fav-label">' + favText + '</span></div>';
 
                 h += '<div class="selector AnimeVost-det-share" data-action="share">';
                 h += '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
@@ -923,7 +825,23 @@
 
         function sendFullEvent(item, episodes) {
             try {
-                var lampaCard = buildLampaCard(item);
+                var lampaCard = {
+                    id: item.id || 0,
+                    title: item.title || '',
+                    name: item.title || '',
+                    original_title: item.original_title || '',
+                    original_name: item.original_title || '',
+                    poster: item.poster || '',
+                    poster_path: item.poster || '',
+                    overview: item.description || '',
+                    release_date: item.year ? item.year + '-01-01' : '',
+                    year: item.year || 0,
+                    genres: item.genres || [],
+                    genre_ids: [],
+                    source: 'animevost',
+                    method: 'anime',
+                    vote_average: item.rating ? item.rating / 10 : 0
+                };
 
                 var活动 = null;
                 try {
@@ -973,8 +891,6 @@
                             title: 'Источники',
                             items: sources
                         });
-                    } else if (action === 'fav') {
-                        toggleFavorite(item, el);
                     } else if (action === 'share') {
                         if (navigator.share) {
                             navigator.share({ title: item.title, url: currentUrl });
