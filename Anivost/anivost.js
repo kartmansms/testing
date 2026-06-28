@@ -372,24 +372,36 @@
             '.AnimeVost.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
             '.AnimeVost-loader,.AnimeVost-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
             '.AnimeVost-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
-            '.AnimeVost-detail{padding:1.2em 1.5em;color:#fff;max-width:900px;margin:0 auto}' +
-            '.AnimeVost-det-head{display:flex;gap:1.2em;margin-bottom:1.2em}' +
-            '.AnimeVost-det-poster{width:180px;min-width:180px;border-radius:.5em;overflow:hidden}' +
+            '.AnimeVost-detail{position:relative;width:100%;height:100%;color:#fff;overflow:hidden}' +
+            '.AnimeVost-det-backdrop{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;filter:brightness(.35);z-index:0}' +
+            '.AnimeVost-det-gradient{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(29,31,32,0) 0%,rgba(29,31,32,.6) 50%,rgba(29,31,32,.95) 100%);z-index:1}' +
+            '.AnimeVost-det-wrap{position:relative;z-index:2;padding:2em 3em;display:flex;gap:2em;height:100%;box-sizing:border-box}' +
+            '.AnimeVost-det-poster{width:220px;min-width:220px;flex-shrink:0;border-radius:.6em;overflow:hidden;box-shadow:0 .5em 2em rgba(0,0,0,.5)}' +
             '.AnimeVost-det-poster img{width:100%;display:block}' +
-            '.AnimeVost-det-info{flex:1}' +
-            '.AnimeVost-det-title{font-size:1.6em;font-weight:700;color:#eee;margin-bottom:.3em}' +
-            '.AnimeVost-det-orig{font-size:1.1em;color:#888;margin-bottom:.7em}' +
-            '.AnimeVost-det-meta{font-size:.95em;color:#aaa;line-height:1.8}' +
-            '.AnimeVost-det-meta strong{color:#ccc}' +
-            '.AnimeVost-det-desc{margin-top:1em;font-size:1em;color:#bbb;line-height:1.6}' +
-            '.AnimeVost-det-rating{display:inline-flex;align-items:center;gap:.4em;background:rgba(255,255,255,.08);border-radius:.4em;padding:.3em .7em;margin-top:.7em}' +
-            '.AnimeVost-det-rating .rv{font-size:1.3em;font-weight:700;color:#e8a000}' +
-            '.AnimeVost-det-rating .rvc{font-size:.85em;color:#888}' +
-            '.AnimeVost-back{background:rgba(255,255,255,.06);color:#ccc;border:1px solid rgba(255,255,255,.08);border-radius:.4em;padding:.5em 1em;cursor:pointer;font-size:.95em;margin-bottom:1em;display:inline-block}' +
-            '.AnimeVost-back:hover{background:rgba(200,58,75,.3);color:#fff}' +
-            '.AnimeVost-search-input{width:100%;padding:.7em;font-size:1.1em;background:rgba(255,255,255,.06);color:#eee;border:1px solid rgba(255,255,255,.1);border-radius:.4em;outline:none;box-sizing:border-box}' +
-            '.AnimeVost-search-input:focus{border-color:#e8a000}' +
-            '.AnimeVost-search-go{margin-top:.5em;background:#e8a000;color:#fff;border:none;border-radius:.4em;padding:.6em 1.2em;cursor:pointer;font-size:1em}' +
+            '.AnimeVost-det-info{flex:1;display:flex;flex-direction:column;justify-content:center}' +
+            '.AnimeVost-det-year{font-size:1em;color:rgba(255,255,255,.6);margin-bottom:.3em}' +
+            '.AnimeVost-det-title{font-size:2.2em;font-weight:700;color:#fff;line-height:1.15;margin-bottom:.4em}' +
+            '.AnimeVost-det-orig{font-size:1.1em;color:rgba(255,255,255,.45);margin-bottom:.6em}' +
+            '.AnimeVost-det-badges{display:flex;gap:.5em;margin-bottom:.6em;flex-wrap:wrap}' +
+            '.AnimeVost-det-badge{display:inline-flex;align-items:center;gap:.3em;padding:.3em .7em;border-radius:.3em;font-size:.88em;font-weight:600}' +
+            '.AnimeVost-det-badge--rating{background:rgba(255,255,255,.1);color:#fff}' +
+            '.AnimeVost-det-badge--rating span{color:#e8a000;font-size:1.05em}' +
+            '.AnimeVost-det-badge--status{background:rgba(255,255,255,.08);color:rgba(255,255,255,.7);border:1px solid rgba(255,255,255,.12)}' +
+            '.AnimeVost-det-meta-line{font-size:.95em;color:rgba(255,255,255,.55);margin-bottom:1em;line-height:1.6}' +
+            '.AnimeVost-det-meta-line span{color:rgba(255,255,255,.8)}' +
+            '.AnimeVost-det-actions{display:flex;gap:.7em;margin-bottom:1.5em;flex-wrap:wrap}' +
+            '.AnimeVost-det-actions .selector{display:inline-flex;align-items:center;justify-content:center;width:3em;height:3em;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.06);border-radius:50%;color:rgba(255,255,255,.8);cursor:pointer;transition:all .2s}' +
+            '.AnimeVost-det-actions .selector.focus{background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.25);transform:scale(1.1);box-shadow:0 0 1.2em rgba(255,255,255,.15)}' +
+            '.AnimeVost-det-actions .selector svg{width:1.4em;height:1.4em;fill:currentColor}' +
+            '.AnimeVost-det-actions .selector--text{width:auto;border-radius:2em;padding:0 1.2em;gap:.4em;font-size:.85em}' +
+            '.AnimeVost-det-scroll{position:relative;z-index:2;padding:0 3em 2em;box-sizing:border-box}' +
+            '.AnimeVost-det-desc-title{font-size:1.15em;font-weight:600;color:#eee;margin:0 0 .4em}' +
+            '.AnimeVost-det-desc{font-size:1em;color:rgba(255,255,255,.65);line-height:1.65}' +
+            '.AnimeVost-det-episodes{margin-top:1.5em}' +
+            '.AnimeVost-det-episodes__title{font-size:1.1em;color:#eee;margin-bottom:.5em}' +
+            '.AnimeVost-det-ep-list{display:flex;flex-wrap:wrap;gap:.4em}' +
+            '.AnimeVost-det-ep-item{padding:.4em .8em;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.04);border-radius:.3em;color:rgba(255,255,255,.6);font-size:.88em;cursor:pointer;transition:all .15s}' +
+            '.AnimeVost-det-ep-item:hover,.AnimeVost-det-ep-item.focus{background:rgba(232,160,0,.2);color:#e8a000;border-color:rgba(232,160,0,.3)}' +
             '.AnimeVost-card__rating,.AnimeVost-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#fff}' +
             '.AnimeVost-card__rating{left:.45em;color:#ffd166}' +
             '.AnimeVost-card__badge{right:.45em;color:#fff;background:rgba(232,160,0,.88)}' +
@@ -738,46 +750,62 @@
             console.log('[AnimeVost] Detail loading:', url);
 
             function renderItem(item, episodes, rawHtml) {
-                var rc = item.rating >= 80 ? '#4caf50' : item.rating >= 60 ? '#ff9800' : item.rating >= 40 ? '#f44336' : '#888';
                 var gn = item.genres.length ? item.genres.join(' | ') : '';
+                var posterUrl = esc(item.poster || NO_POSTER);
 
                 var h = '';
 
-                h += '<div class="AnimeVost-det-head">';
-                h += '<div class="AnimeVost-det-poster"><img src="' + esc(item.poster || NO_POSTER) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" /></div>';
-                h += '<div class="AnimeVost-det-info">';
-                if (item.year) h += '<div class="AnimeVost-det-year">' + item.year + (item.type ? ', ' + esc(item.type) : '') + '</div>';
-                h += '<div class="AnimeVost-det-title">' + esc(item.title) + '</div>';
-                if (item.original_title) h += '<div class="AnimeVost-det-orig">' + esc(item.original_title) + '</div>';
+                h += '<img class="AnimeVost-det-backdrop" src="' + posterUrl + '" onerror="this.style.display=\'none\'" />';
+                h += '<div class="AnimeVost-det-gradient"></div>';
 
-                if (item.rating) {
-                    h += '<div class="AnimeVost-det-rating">';
-                    h += '<span class="rv" style="color:' + rc + '">' + item.rating + '%</span>';
-                    if (item.votes) h += '<span class="rvc">(' + item.votes + ' голосов)</span>';
-                    h += '</div>';
+                h += '<div class="AnimeVost-det-wrap">';
+                h += '<div class="AnimeVost-det-poster"><img src="' + posterUrl + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" /></div>';
+                h += '<div class="AnimeVost-det-info">';
+
+                if (item.year || item.type) {
+                    h += '<div class="AnimeVost-det-year">' + (item.year || '') + (item.year && item.type ? ', ' : '') + esc(item.type || '') + '</div>';
                 }
+
+                h += '<div class="AnimeVost-det-title">' + esc(item.title) + '</div>';
+
+                if (item.original_title) {
+                    h += '<div class="AnimeVost-det-orig">' + esc(item.original_title) + '</div>';
+                }
+
+                h += '<div class="AnimeVost-det-badges">';
+                if (item.rating) {
+                    h += '<div class="AnimeVost-det-badge AnimeVost-det-badge--rating"><span>' + item.rating + '%</span>Rating</div>';
+                }
+                if (item.votes) {
+                    h += '<div class="AnimeVost-det-badge AnimeVost-det-badge--rating"><span>' + item.votes + '</span>Голосов</div>';
+                }
+                h += '</div>';
 
                 var metaParts = [];
                 if (item.episodes) metaParts.push('Серии: ' + esc(item.episodes));
                 if (gn) metaParts.push(gn);
-                if (metaParts.length) h += '<div class="AnimeVost-det-meta-inline">' + metaParts.join(' · ') + '</div>';
-
-                h += '</div></div>';
+                if (metaParts.length) {
+                    h += '<div class="AnimeVost-det-meta-line">' + metaParts.join(' · ') + '</div>';
+                }
 
                 h += '<div class="AnimeVost-det-actions">';
-                h += '<div class="selector AnimeVost-det-play" data-action="play">';
+
+                h += '<div class="selector" data-action="play">';
                 h += '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
-                h += '<span>Воспроизвести</span></div>';
+                h += '</div>';
 
-                h += '<div class="selector AnimeVost-det-share" data-action="share">';
+                h += '<div class="selector" data-action="share">';
                 h += '<svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>';
-                h += '<span>Поделиться</span></div>';
+                h += '</div>';
 
-                h += '<div class="selector AnimeVost-det-site" data-action="site">';
+                h += '<div class="selector" data-action="site">';
                 h += '<svg viewBox="0 0 24 24"><path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/></svg>';
-                h += '<span>На сайте</span></div>';
+                h += '</div>';
 
                 h += '</div>';
+                h += '</div></div>';
+
+                h += '<div class="AnimeVost-det-scroll">';
 
                 h += '<div class="buttons--container"></div>';
 
@@ -797,6 +825,8 @@
                     }
                     h += '</div></div>';
                 }
+
+                h += '</div>';
 
                 content.html(h);
                 bindDetailActions(item, episodes);
