@@ -476,14 +476,49 @@
             body.empty();
         };
 
+        function showChips(list, paramKey) {
+            quick.empty();
+            list.forEach(function (item) {
+                var label = item.name || String(item);
+                var val = item.slug || item;
+                var chip = $('<div class="AnimeVost-chip selector"></div>').text(label);
+                chip.on('hover:enter click tap', function () {
+                    curParams = {};
+                    curParams[paramKey] = val;
+                    searchMode = false;
+                    curPage = 1;
+                    load(true);
+                });
+                quick.append(chip);
+            });
+        }
+
+        function clearChips() {
+            quick.empty();
+        }
+
+        function loadSection(params, reset) {
+            curParams = params || {};
+            searchMode = false;
+            curPage = 1;
+            clearChips();
+            load(reset !== false);
+        }
+
         function buildHeader() {
             head.empty();
             quick.empty();
 
             var buttons = [
-                { label: 'Главная', action: function () { curParams = {}; searchMode = false; curPage = 1; load(true); } },
-                { label: 'Онгоинги', action: function () { curParams = { ongoing: true }; searchMode = false; curPage = 1; load(true); } },
-                { label: 'Анонсы', action: function () { curParams = { preview: true }; searchMode = false; curPage = 1; load(true); } },
+                { label: 'Главная', action: function () { loadSection({}); } },
+                { label: 'Жанр', action: function () { showChips(genres, 'genre'); } },
+                { label: 'Категории', action: function () { showChips(types, 'type'); } },
+                { label: 'Год', action: function () {
+                    var yearList = years.map(function (y) { return { name: String(y), slug: y }; });
+                    showChips(yearList, 'year');
+                }},
+                { label: 'Онгоинги', action: function () { loadSection({ ongoing: true }); } },
+                { label: 'Анонсы', action: function () { loadSection({ preview: true }); } },
                 { label: 'Поиск', action: function () { showSearch(); } }
             ];
 
@@ -491,39 +526,6 @@
                 var el = $('<div class="AnimeVost-head__button selector"></div>').text(b.label);
                 el.on('hover:enter click tap', b.action);
                 head.append(el);
-            });
-
-            genres.forEach(function (g) {
-                var chip = $('<div class="AnimeVost-chip selector"></div>').text(g.name);
-                chip.on('hover:enter click tap', function () {
-                    curParams = { genre: g.slug };
-                    searchMode = false;
-                    curPage = 1;
-                    load(true);
-                });
-                quick.append(chip);
-            });
-
-            types.forEach(function (t) {
-                var chip = $('<div class="AnimeVost-chip selector"></div>').text(t.name);
-                chip.on('hover:enter click tap', function () {
-                    curParams = { type: t.slug };
-                    searchMode = false;
-                    curPage = 1;
-                    load(true);
-                });
-                quick.append(chip);
-            });
-
-            years.slice(0, 10).forEach(function (yr) {
-                var chip = $('<div class="AnimeVost-chip selector"></div>').text(String(yr));
-                chip.on('hover:enter click tap', function () {
-                    curParams = { year: yr };
-                    searchMode = false;
-                    curPage = 1;
-                    load(true);
-                });
-                quick.append(chip);
             });
         }
 
