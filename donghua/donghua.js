@@ -331,6 +331,7 @@
 
         Lampa.Search.addSource({
             title: 'Дунхуа',
+            params: {},
             search: function (params, onComplite) {
                 var url = buildSearchUrl(params.query);
 
