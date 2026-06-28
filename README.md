@@ -12,3 +12,6 @@ https://kartmansms.github.io/testing/donghua/donghua.js
 ```bibtex
 https://kartmansms.github.io/testing/Anivost/anivost.js
 ```
+```bibtex
+https://kartmansms.github.io/testing/kodik/kodik.js
+```
