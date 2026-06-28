@@ -111,14 +111,22 @@
 
     // ─── Network ────────────────────────────────────────────────────
 
-    var CORS_PROXIES = [
-        '',
-        'https://corsproxy.io/?',
-        'https://api.allorigins.win/raw?url='
-    ];
-    var proxyIndex = 0;
-
     function fetchPage(url, callback) {
+        if (window.Lampa && Lampa.Network) {
+            var net = new Lampa.Reguest();
+            net.timeout(20000);
+            net.native(url, function (data) {
+                callback(data || '');
+            }, function () {
+                net.clear();
+                callback('');
+            }, false, { dataType: 'text' });
+        } else {
+            fetchWithXHR(url, callback);
+        }
+    }
+
+    function fetchWithXHR(url, callback) {
         var called = false;
         function done(data) {
             if (called) return;
@@ -126,11 +134,15 @@
             callback(data || '');
         }
 
-        var attempts = CORS_PROXIES.length;
+        var CORS_PROXIES = [
+            '',
+            'https://corsproxy.io/?',
+            'https://api.allorigins.win/raw?url='
+        ];
         var attempt = 0;
 
         function tryNext() {
-            if (attempt >= attempts) {
+            if (attempt >= CORS_PROXIES.length) {
                 console.log('[AnimeVost] All fetch attempts failed for', url);
                 done('');
                 return;
