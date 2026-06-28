@@ -253,7 +253,13 @@
         var item = {};
 
         var titleM = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
-        item.title = titleM ? stripHtml(titleM[1]) : '';
+        item.title = titleM ? stripHtml(titleM[1]).replace(/\s+/g, ' ').trim() : '';
+        if (!item.title) {
+            var pageTitleM = html.match(/<title>([\s\S]*?)<\/title>/);
+            if (pageTitleM) {
+                item.title = stripHtml(pageTitleM[1]).replace(/\s*».*/g, '').trim();
+            }
+        }
 
         var posterM = html.match(/<img class="imgRadius" src="([^"]+)"/);
         item.poster = posterM ? posterM[1] : '';
@@ -263,6 +269,10 @@
 
         var engM = html.match(/<h4>([\s\S]*?)<\/h4>/);
         item.original_title = engM ? stripHtml(engM[1]) : '';
+        if (!item.original_title) {
+            var engAlt = html.match(/itemprop="name"[^>]*>([^<]+)<\/span/);
+            if (engAlt) item.original_title = engAlt[1].trim();
+        }
 
         item.year = parseInt(rxOne(html, /Год выхода:\s*<\/strong>\s*(\d{4})/), 10) || 0;
 
@@ -279,7 +289,8 @@
         var votesM = html.match(/vote-num-id-\d+">(\d+)/);
         item.votes = votesM ? parseInt(votesM[1], 10) : 0;
 
-        var descM = html.match(/Описание:\s*<\/strong>\s*([\s\S]*?)<\/p>/);
+        var descM = html.match(/itemprop="description">([\s\S]*?)<\/span>/);
+        if (!descM) descM = html.match(/Описание:\s*<\/strong>\s*([\s\S]*?)(?:<\/p>|<\/div>)/);
         item.description = descM ? stripHtml(descM[1]) : '';
 
         return item;
@@ -616,11 +627,12 @@
             });
         }
 
-        function openDetail(url) {
+        function openDetail(itemUrl) {
             Lampa.Activity.push({
-                url: url,
+                url: itemUrl,
                 title: 'AnimeVost',
-                component: 'animevost_detail'
+                component: 'animevost_detail',
+                animevost_url: itemUrl
             });
         }
     }
@@ -678,15 +690,25 @@
         this.destroy = function () { html.empty(); };
 
         function loadDetail() {
-            var url = params.url || '';
+            var url = params.url || params.animevost_url || '';
             if (!url) { html.html('<div class="AnimeVost-empty">Нет данных</div>'); return; }
             if (url.indexOf('http') !== 0) url = HOST + url;
 
+            console.log('[AnimeVost] Detail loading:', url);
+
             fetchPage(url, function (raw) {
-                if (!raw) { html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>'); return; }
+                console.log('[AnimeVost] Detail response length:', raw ? raw.length : 0);
+                if (!raw || raw.length < 200) {
+                    html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
+                    return;
+                }
 
                 var item = parseDetailPage(raw);
-                if (!item) { html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>'); return; }
+                console.log('[AnimeVost] Detail parsed:', item ? item.title : 'null');
+                if (!item || !item.title) {
+                    html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
+                    return;
+                }
 
                 var rc = item.rating >= 80 ? '#4caf50' : item.rating >= 60 ? '#ff9800' : item.rating >= 40 ? '#f44336' : '#888';
                 var gn = item.genres.length ? item.genres.join(', ') : '';
