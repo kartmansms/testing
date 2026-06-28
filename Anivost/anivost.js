@@ -111,23 +111,68 @@
 
     // ─── Network ────────────────────────────────────────────────────
 
+    var CORS_PROXIES = [
+        '',
+        'https://corsproxy.io/?',
+        'https://api.allorigins.win/raw?url='
+    ];
+    var proxyIndex = 0;
+
     function fetchPage(url, callback) {
-        if (window.Lampa && typeof Lampa.Reguest === 'function') {
-            try {
-                var net = new Lampa.Reguest();
-                if (typeof net.timeout === 'function') net.timeout(15000);
-                if (typeof net.silent === 'function') {
-                    net.silent(url, function (d) { callback(d); }, function () { callback(''); });
-                    return;
-                }
-            } catch (e) {}
+        var called = false;
+        function done(data) {
+            if (called) return;
+            called = true;
+            callback(data || '');
         }
-        if (window.$) {
-            $.ajax({ url: url, dataType: 'html', timeout: 15000,
-                success: function (d) { callback(d); },
-                error: function () { callback(''); }
-            });
-        } else { callback(''); }
+
+        var attempts = CORS_PROXIES.length;
+        var attempt = 0;
+
+        function tryNext() {
+            if (attempt >= attempts) {
+                console.log('[AnimeVost] All fetch attempts failed for', url);
+                done('');
+                return;
+            }
+
+            var proxy = CORS_PROXIES[attempt];
+            var fullUrl = proxy ? proxy + encodeURIComponent(url) : url;
+            attempt++;
+
+            console.log('[AnimeVost] Attempt', attempt, 'fetching:', fullUrl);
+
+            try {
+                var xhr = new XMLHttpRequest();
+                xhr.open('GET', fullUrl, true);
+                xhr.timeout = 12000;
+                xhr.onreadystatechange = function () {
+                    if (xhr.readyState === 4) {
+                        if (xhr.status >= 200 && xhr.status < 400 && xhr.responseText && xhr.responseText.length > 500) {
+                            console.log('[AnimeVost] Success with attempt', attempt, 'length:', xhr.responseText.length);
+                            done(xhr.responseText);
+                        } else {
+                            console.log('[AnimeVost] Attempt', attempt, 'failed:', xhr.status, xhr.responseText ? xhr.responseText.length : 0);
+                            tryNext();
+                        }
+                    }
+                };
+                xhr.onerror = function () {
+                    console.log('[AnimeVost] Attempt', attempt, 'network error');
+                    tryNext();
+                };
+                xhr.ontimeout = function () {
+                    console.log('[AnimeVost] Attempt', attempt, 'timeout');
+                    tryNext();
+                };
+                xhr.send();
+            } catch (e) {
+                console.log('[AnimeVost] Attempt', attempt, 'exception:', e.message);
+                tryNext();
+            }
+        }
+
+        tryNext();
     }
 
     // ─── HTML Parsing (regex-based) ─────────────────────────────────
@@ -524,12 +569,22 @@
             for (var k in curParams) { if (curParams.hasOwnProperty(k)) p[k] = curParams[k]; }
             p.page = curPage;
 
-            fetchPage(buildListUrl(p), function (html_data) {
+            var listUrl = buildListUrl(p);
+            console.log('[AnimeVost] Fetching:', listUrl);
+
+            fetchPage(listUrl, function (html_data) {
                 loading = false;
                 loader.remove();
 
+                console.log('[AnimeVost] Response length:', html_data ? html_data.length : 0);
+                if (html_data) {
+                    var storyCount = (html_data.match(/<div class="shortstory">/g) || []).length;
+                    console.log('[AnimeVost] shortstory blocks found:', storyCount);
+                }
+
                 var result = parseListPage(html_data);
                 totPages = result.pages;
+                console.log('[AnimeVost] Parsed items:', result.items.length, 'Pages:', result.pages);
 
                 if (!result.items.length && !body.children().length) {
                     body.append('<div class="AnimeVost-empty">Ничего не найдено</div>');
