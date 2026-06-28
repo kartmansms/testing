@@ -329,7 +329,7 @@
     function addSearchSource() {
         Lampa.Search.addSource({
             search: function () {
-                return t('search_hint');
+                return { title: t('search_hint'), source: 'donghua_search' };
             },
             onStart: function (onComplite) {
                 onComplite();
