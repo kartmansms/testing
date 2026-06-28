@@ -709,7 +709,7 @@
                 animevost_episodes: itemData.episodes || []
             };
 
-            lampaCard.card = $('<div></div>').data('card', lampaCard)[0];
+            lampaCard.card = $('<div></div>')[0];
 
             Lampa.Activity.push({
                 component: 'card_fullscreen',
