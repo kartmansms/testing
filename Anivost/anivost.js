@@ -61,7 +61,7 @@
     for (var y = 2026; y >= 1971; y--) years.push(y);
 
     function defaults() {
-        return { card_size: 'normal', sort: 'date' };
+        return { card_size: 'normal' };
     }
 
     function storageGet(key, fallback) {
@@ -93,14 +93,14 @@
         return base;
     }
 
-    function notify(message) {
-        if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
-        else if (window.console) console.log('[AnimeVost]', message);
+    function notify(msg) {
+        if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(msg);
+        else if (window.console) console.log('[AnimeVost]', msg);
     }
 
-    function esc(value) {
-        value = value === undefined || value === null ? '' : String(value);
-        return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    function esc(v) {
+        v = v === undefined || v === null ? '' : String(v);
+        return v.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
     function stripHtml(html) {
@@ -130,12 +130,7 @@
         } else { callback(''); }
     }
 
-    // ─── HTML Parsing (regex-based, no DOMParser dependency) ────────
-
-    function rxBetween(html, startPattern, endPattern) {
-        var m = html.match(new RegExp(startPattern + '\\s*([\\s\\S]*?)' + endPattern));
-        return m ? m[1].trim() : '';
-    }
+    // ─── HTML Parsing (regex-based) ─────────────────────────────────
 
     function rxOne(html, pattern) {
         var m = html.match(pattern);
@@ -144,13 +139,11 @@
 
     function parseShortStoryFromHtml(blockHtml) {
         var item = {};
-
         var titleM = blockHtml.match(/<h2>\s*<a href="([^"]+)">([\s\S]*?)<\/a>/);
         if (!titleM) return null;
 
         item.url = titleM[1];
         item.title = stripHtml(titleM[2]);
-
         var idM = item.url.match(/\/(\d+)-/);
         item.id = idM ? parseInt(idM[1], 10) : 0;
 
@@ -170,7 +163,6 @@
 
         item.type = rxOne(blockHtml, /Тип:\s*<\/strong>\s*([^<]+)/);
         item.episodes = rxOne(blockHtml, /Количество серий:\s*<\/strong>\s*([^<]+)/);
-        item.director = rxOne(blockHtml, /Режиссёр:\s*<\/strong>\s*(?:<a[^>]*>)?([^<]+)/);
 
         var ratingM = blockHtml.match(/width:(\d+)%/);
         item.rating = ratingM ? parseInt(ratingM[1], 10) : 0;
@@ -180,18 +172,6 @@
 
         var descM = blockHtml.match(/Описание:\s*<\/strong>\s*([\s\S]*?)<\/p>/);
         item.description = descM ? stripHtml(descM[1]) : '';
-
-        var catsM = blockHtml.match(/Категории:\s*<\/strong>\s*<i>([\s\S]*?)<\/i>/);
-        item.categories = [];
-        if (catsM) {
-            var catParts = catsM[1].match(/>([^<]+)<\/a>/g);
-            if (catParts) {
-                for (var c = 0; c < catParts.length; c++) {
-                    var catName = catParts[c].replace(/>|<\/a>/g, '').trim();
-                    if (catName) item.categories.push(catName);
-                }
-            }
-        }
 
         return item;
     }
@@ -206,30 +186,17 @@
             if (item) items.push(item);
         }
 
-        var pages = 1;
-        var current = 1;
-
+        var pages = 1, current = 1;
         var navM = html.match(/class="block_4">([\s\S]*?)<\/td>/);
         if (navM) {
-            var navHtml = navM[1];
-            var pageNums = [];
-            var spanM = navHtml.match(/<span>(\d+)<\/span>/g);
-            if (spanM) {
-                for (var s = 0; s < spanM.length; s++) {
-                    var num = parseInt(spanM[s].replace(/<[^>]+>/g, ''), 10);
-                    if (num) pageNums.push(num);
-                }
+            var nums = [];
+            var allNums = navM[1].match(/(\d+)/g);
+            if (allNums) {
+                for (var n = 0; n < allNums.length; n++) nums.push(parseInt(allNums[n], 10));
             }
-            var linkNums = navHtml.match(/<a[^>]+>(\d+)<\/a>/g);
-            if (linkNums) {
-                for (var l = 0; l < linkNums.length; l++) {
-                    var ln = parseInt(linkNums[l].replace(/<[^>]+>/g, ''), 10);
-                    if (ln) pageNums.push(ln);
-                }
-            }
-            if (pageNums.length) {
-                current = pageNums[0];
-                pages = Math.max.apply(null, pageNums);
+            if (nums.length) {
+                current = nums[0];
+                pages = Math.max.apply(null, nums);
             }
         }
 
@@ -294,12 +261,6 @@
         return url;
     }
 
-    function fetchList(params, callback) {
-        fetchPage(buildListUrl(params), function (html) {
-            callback(parseListPage(html));
-        });
-    }
-
     // ─── Card HTML ──────────────────────────────────────────────────
 
     var NO_POSTER = 'data:image/svg+xml,' + encodeURIComponent(
@@ -308,278 +269,377 @@
         '<text fill="%23888" font-family="Arial" font-size="14" text-anchor="middle" x="100" y="140">Нет постера</text></svg>'
     );
 
-    function cardHtml(item, size) {
+    function cardHtml(item) {
         var poster = item.poster || NO_POSTER;
         var r = item.rating || 0;
         var rc = r >= 80 ? '#4caf50' : r >= 60 ? '#ff9800' : r >= 40 ? '#f44336' : '#888';
-        var badge = item.type ? '<div class="av-badge">' + esc(item.type) + '</div>' : '';
-        var year = item.year ? '<span class="av-year">' + item.year + '</span>' : '';
+        var badge = item.type ? '<div class="AnimeVost-card__badge">' + esc(item.type) + '</div>' : '';
 
-        return '<div class="av-card av-' + (size === 'compact' ? 'compact' : 'normal') + '" data-url="' + esc(item.url) + '">' +
-            '<div class="av-poster-wrap">' +
-            '<img class="av-poster" src="' + esc(poster) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" />' +
+        return '<div class="AnimeVost card selector" data-url="' + esc(item.url) + '">' +
+            '<div class="card__view">' +
+            '<img class="card__img" src="' + esc(poster) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" />' +
             badge +
-            '<div class="av-rating" style="background:' + rc + '">' + r + '</div>' +
+            '<div class="AnimeVost-card__rating" style="color:' + rc + '">' + r + '</div>' +
             '</div>' +
-            '<div class="av-info">' +
-            '<div class="av-title">' + esc(item.title) + '</div>' +
-            (item.original_title ? '<div class="av-orig">' + esc(item.original_title) + '</div>' : '') +
-            '<div class="av-meta">' + year + (item.episodes ? ' · ' + esc(item.episodes) : '') + '</div>' +
+            '<div class="card__title">' + esc(item.title) + '</div>' +
+            '<div class="Shikimori-card__meta">' +
+            (item.year ? item.year + ' · ' : '') +
+            esc(item.episodes || '') +
             '</div></div>';
     }
 
     // ─── Styles ─────────────────────────────────────────────────────
 
     function addStyles() {
-        if (document.getElementById('animevost-css')) return;
-        var s = document.createElement('style');
-        s.id = 'animevost-css';
-        s.textContent =
-            '.av-wrap{padding:10px 20px}' +
-            '.av-head{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;align-items:center}' +
-            '.av-btn{background:#2b2b2b;color:#ccc;border:1px solid #444;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;transition:background .15s,color .15s}' +
-            '.av-btn:hover,.av-btn.on{background:#e8a000;color:#fff;border-color:#e8a000}' +
-            '.av-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:12px}' +
-            '.av-chip{background:#222;color:#aaa;border:1px solid #444;border-radius:14px;padding:4px 10px;cursor:pointer;font-size:12px;transition:all .15s}' +
-            '.av-chip:hover,.av-chip.on{background:#e8a000;color:#fff;border-color:#e8a000}' +
-            '.av-grid{display:flex;flex-wrap:wrap;gap:10px;justify-content:center}' +
-            '.av-card{width:155px;cursor:pointer;transition:transform .15s;border-radius:8px;overflow:hidden;background:#1a1a1a}' +
-            '.av-card:hover{transform:scale(1.03)}' +
-            '.av-card.compact{width:120px}' +
-            '.av-poster-wrap{position:relative;width:100%;padding-bottom:140%;overflow:hidden}' +
-            '.av-poster{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}' +
-            '.av-badge{position:absolute;top:6px;left:6px;background:rgba(0,0,0,.75);color:#e8a000;font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600}' +
-            '.av-rating{position:absolute;top:6px;right:6px;color:#fff;font-size:11px;font-weight:700;padding:2px 6px;border-radius:4px;min-width:24px;text-align:center}' +
-            '.av-info{padding:6px 8px 8px}' +
-            '.av-title{font-size:13px;font-weight:600;color:#eee;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;line-height:1.3}' +
-            '.av-orig{font-size:11px;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px}' +
-            '.av-meta{font-size:11px;color:#777;margin-top:4px}' +
-            '.av-pager{display:flex;justify-content:center;align-items:center;gap:6px;margin:16px 0}' +
-            '.av-pager .av-btn{background:#2b2b2b;color:#ccc;border:1px solid #444;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:13px}' +
-            '.av-pager .av-btn:hover{background:#e8a000;color:#fff}' +
-            '.av-page-info{color:#aaa;font-size:13px}' +
-            '.av-loading,.av-empty{text-align:center;color:#888;padding:30px 0;font-size:14px}' +
-            '.av-detail{padding:15px 20px;max-width:900px;margin:0 auto}' +
-            '.av-det-head{display:flex;gap:16px;margin-bottom:16px}' +
-            '.av-det-poster{width:200px;min-width:200px;border-radius:8px;overflow:hidden}' +
-            '.av-det-poster img{width:100%;display:block}' +
-            '.av-det-info{flex:1}' +
-            '.av-det-title{font-size:22px;font-weight:700;color:#eee;margin-bottom:4px}' +
-            '.av-det-orig{font-size:15px;color:#888;margin-bottom:10px}' +
-            '.av-det-meta{font-size:13px;color:#aaa;line-height:1.8}' +
-            '.av-det-meta strong{color:#ccc}' +
-            '.av-det-desc{margin-top:14px;font-size:14px;color:#bbb;line-height:1.6}' +
-            '.av-det-rating{display:inline-flex;align-items:center;gap:6px;background:#222;border-radius:6px;padding:4px 10px;margin-top:10px}' +
-            '.av-det-rating .rv{font-size:18px;font-weight:700;color:#e8a000}' +
-            '.av-det-rating .rvc{font-size:12px;color:#888}' +
-            '.av-back{background:#2b2b2b;color:#ccc;border:1px solid #444;border-radius:6px;padding:6px 12px;cursor:pointer;font-size:13px;margin-bottom:12px;display:inline-block}' +
-            '.av-back:hover{background:#e8a000;color:#fff}' +
-            '.av-search-wrap{padding:10px}' +
-            '.av-search-input{width:100%;padding:10px;font-size:15px;background:#222;color:#eee;border:1px solid #555;border-radius:6px;outline:none;box-sizing:border-box}' +
-            '.av-search-input:focus{border-color:#e8a000}' +
-            '.av-search-go{margin-top:8px;background:#e8a000;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px}';
-        document.head.appendChild(s);
+        if ($('#animevost-style').length) return;
+        $('body').append(
+            '<style id="animevost-style">' +
+            '.AnimeVost-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
+            '.AnimeVost-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
+            '.AnimeVost-module .scroll__body{width:100%}' +
+            '.AnimeVost-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em}' +
+            '.AnimeVost-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em}' +
+            '.AnimeVost-head__button,.AnimeVost-chip{' +
+            'display:inline-flex!important;align-items:center!important;justify-content:center!important;' +
+            'padding:0.65em 1.2em!important;height:auto!important;line-height:1!important;' +
+            'background:rgba(255,255,255,0.06)!important;border:1px solid rgba(255,255,255,0.04)!important;' +
+            'color:rgba(255,255,255,0.85);font-size:0.95em;font-weight:500;margin:0 0.3em 0.3em 0!important;' +
+            'transition:all 0.2s ease-in-out;border-radius:0.5em!important;outline:none!important;box-shadow:none!important}' +
+            '.AnimeVost-chip{border-radius:1.5em!important;padding:0.5em 1.2em!important;font-size:0.88em;opacity:0.85}' +
+            '.AnimeVost-head__button.focus,.AnimeVost-chip.focus{' +
+            'background:#c83a4b!important;color:#fff!important;border-color:#e95a68!important;transform:scale(1.05);' +
+            'box-shadow:0 0.4em 1.2em rgba(200,58,75,0.35)!important}' +
+            '.AnimeVost-chip--active{background:rgba(200,58,75,0.22)!important;border-color:rgba(200,58,75,0.55)!important;color:#ff8e9b!important;opacity:1}' +
+            '.AnimeVost-active{font-size:1.05em;color:rgba(255,255,255,.62);margin:.15em 0 1em;line-height:1.35}' +
+            '.AnimeVost-active span{color:#e95a68;font-weight:600}' +
+            '.AnimeVost-body{display:flex;flex-flow:row wrap;align-items:flex-start;justify-content:flex-start;padding:1em .5em}' +
+            '.AnimeVost.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
+            '.AnimeVost-loader,.AnimeVost-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
+            '.AnimeVost-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
+            '.AnimeVost-detail{padding:1.2em 1.5em;color:#fff;max-width:900px;margin:0 auto}' +
+            '.AnimeVost-det-head{display:flex;gap:1.2em;margin-bottom:1.2em}' +
+            '.AnimeVost-det-poster{width:180px;min-width:180px;border-radius:.5em;overflow:hidden}' +
+            '.AnimeVost-det-poster img{width:100%;display:block}' +
+            '.AnimeVost-det-info{flex:1}' +
+            '.AnimeVost-det-title{font-size:1.6em;font-weight:700;color:#eee;margin-bottom:.3em}' +
+            '.AnimeVost-det-orig{font-size:1.1em;color:#888;margin-bottom:.7em}' +
+            '.AnimeVost-det-meta{font-size:.95em;color:#aaa;line-height:1.8}' +
+            '.AnimeVost-det-meta strong{color:#ccc}' +
+            '.AnimeVost-det-desc{margin-top:1em;font-size:1em;color:#bbb;line-height:1.6}' +
+            '.AnimeVost-det-rating{display:inline-flex;align-items:center;gap:.4em;background:rgba(255,255,255,.08);border-radius:.4em;padding:.3em .7em;margin-top:.7em}' +
+            '.AnimeVost-det-rating .rv{font-size:1.3em;font-weight:700;color:#e8a000}' +
+            '.AnimeVost-det-rating .rvc{font-size:.85em;color:#888}' +
+            '.AnimeVost-back{background:rgba(255,255,255,.06);color:#ccc;border:1px solid rgba(255,255,255,.08);border-radius:.4em;padding:.5em 1em;cursor:pointer;font-size:.95em;margin-bottom:1em;display:inline-block}' +
+            '.AnimeVost-back:hover{background:rgba(200,58,75,.3);color:#fff}' +
+            '.AnimeVost-search-input{width:100%;padding:.7em;font-size:1.1em;background:rgba(255,255,255,.06);color:#eee;border:1px solid rgba(255,255,255,.1);border-radius:.4em;outline:none;box-sizing:border-box}' +
+            '.AnimeVost-search-input:focus{border-color:#e8a000}' +
+            '.AnimeVost-search-go{margin-top:.5em;background:#e8a000;color:#fff;border:none;border-radius:.4em;padding:.6em 1.2em;cursor:pointer;font-size:1em}' +
+            '.AnimeVost-card__rating,.AnimeVost-card__badge{position:absolute;top:.45em;padding:.25em .45em;border-radius:.25em;background:rgba(10,12,16,.82);font-size:.82em;line-height:1;color:#fff}' +
+            '.AnimeVost-card__rating{left:.45em;color:#ffd166}' +
+            '.AnimeVost-card__badge{right:.45em;color:#fff;background:rgba(232,160,0,.88)}' +
+            '.AnimeVost.card .card__view{background:#1b1d24;border-radius:.35em;overflow:hidden;position:relative;padding-bottom:145%}' +
+            '.AnimeVost.card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;display:block;background:#22252d}' +
+            '.AnimeVost.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(232,160,0,.45)}' +
+            '.AnimeVost.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
+            '.AnimeVost-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
+            '</style>'
+        );
     }
 
     // ─── Catalog Component ──────────────────────────────────────────
 
-    function CatalogComponent(object) {
-        this.extend(object);
+    function Catalog(object) {
+        var params = object || {};
+        var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
 
-        var self = this;
-        var cardSize = readSettings().card_size;
-        var curPage = 1;
-        var totPages = 1;
-        var params = {};
+        var html = $('<div class="AnimeVost-module"></div>');
+        var head = $('<div class="AnimeVost-head"></div>');
+        var quick = $('<div class="AnimeVost-quick"></div>');
+        var body = $('<div class="AnimeVost-body"></div>');
+
+        var last;
+        var rendered = false;
         var loading = false;
-        var box = null;
+        var curPage = parseInt(params.page, 10) || 1;
+        var totPages = 1;
+        var curParams = {};
+        var searchMode = false;
 
-        function load() {
-            if (loading || !box) return;
-            loading = true;
-            box.innerHTML = '<div class="av-loading">Загрузка...</div>';
+        this.render = function () {
+            if (!rendered) {
+                rendered = true;
+                html.append(head).append(quick).append(scroll.render());
+                scroll.append(body);
+                scroll.minus();
 
-            var p = {};
-            for (var k in params) { if (params.hasOwnProperty(k)) p[k] = params[k]; }
-            p.page = curPage;
+                scroll.onWheel = function (step) {
+                    var ec = Lampa.Controller.enabled && Lampa.Controller.enabled();
+                    if (ec && ec.name !== 'content') Lampa.Controller.toggle('content');
+                    if (step > 0) Navigator.move('down');
+                    else Navigator.move('up');
+                };
 
-            fetchList(p, function (res) {
-                loading = false;
-                totPages = res.pages;
-                render(res.items);
+                scroll.onEnd = function () {
+                    if (!loading && curPage < totPages) {
+                        curPage++;
+                        load(false);
+                    }
+                };
+
+                buildHeader();
+                load(false);
+            }
+            return html;
+        };
+
+        this.create = this.render;
+
+        this.start = function () {
+            Lampa.Controller.add('content', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(html);
+                    var target = last || html.find('.selector').first();
+                    Lampa.Controller.collectionFocus(target, html);
+                },
+                left: function () {
+                    if (Navigator.canmove('left')) Navigator.move('left');
+                    else Lampa.Controller.toggle('menu');
+                },
+                right: function () { Navigator.move('right'); },
+                up: function () {
+                    if (Navigator.canmove('up')) Navigator.move('up');
+                    else Lampa.Controller.toggle('head');
+                },
+                down: function () { Navigator.move('down'); },
+                back: function () {
+                    if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
+                },
+                enter: function () {
+                    var focused = html.find('.selector.focus');
+                    if (focused.length) {
+                        var action = focused.data('action');
+                        if (typeof action === 'function') action();
+                    }
+                }
+            });
+
+            Lampa.Controller.toggle('content');
+        };
+
+        this.destroy = function () {
+            scroll.destroy();
+            body.empty();
+        };
+
+        function buildHeader() {
+            head.empty();
+            quick.empty();
+
+            var buttons = [
+                { label: 'Главная', action: function () { curParams = {}; searchMode = false; curPage = 1; load(true); } },
+                { label: 'Онгоинги', action: function () { curParams = { ongoing: true }; searchMode = false; curPage = 1; load(true); } },
+                { label: 'Анонсы', action: function () { curParams = { preview: true }; searchMode = false; curPage = 1; load(true); } },
+                { label: 'Поиск', action: function () { showSearch(); } }
+            ];
+
+            buttons.forEach(function (b) {
+                var el = $('<div class="AnimeVost-head__button selector"></div>').text(b.label);
+                el.on('hover:enter click tap', b.action);
+                head.append(el);
+            });
+
+            genres.forEach(function (g) {
+                var chip = $('<div class="AnimeVost-chip selector"></div>').text(g.name);
+                chip.on('hover:enter click tap', function () {
+                    curParams = { genre: g.slug };
+                    searchMode = false;
+                    curPage = 1;
+                    load(true);
+                });
+                quick.append(chip);
+            });
+
+            types.forEach(function (t) {
+                var chip = $('<div class="AnimeVost-chip selector"></div>').text(t.name);
+                chip.on('hover:enter click tap', function () {
+                    curParams = { type: t.slug };
+                    searchMode = false;
+                    curPage = 1;
+                    load(true);
+                });
+                quick.append(chip);
+            });
+
+            years.slice(0, 10).forEach(function (yr) {
+                var chip = $('<div class="AnimeVost-chip selector"></div>').text(String(yr));
+                chip.on('hover:enter click tap', function () {
+                    curParams = { year: yr };
+                    searchMode = false;
+                    curPage = 1;
+                    load(true);
+                });
+                quick.append(chip);
             });
         }
 
-        function render(items) {
-            if (!box) return;
-            var h = '';
-            if (!items.length) {
-                h = '<div class="av-empty">Ничего не найдено</div>';
-            } else {
-                h += '<div class="av-grid">';
-                for (var i = 0; i < items.length; i++) h += cardHtml(items[i], cardSize);
-                h += '</div>';
-            }
-            if (totPages > 1) {
-                h += '<div class="av-pager">';
-                if (curPage > 1) h += '<div class="av-btn" data-p="' + (curPage - 1) + '">&laquo; Назад</div>';
-                h += '<span class="av-page-info">Стр. ' + curPage + ' / ' + totPages + '</span>';
-                if (curPage < totPages) h += '<div class="av-btn" data-p="' + (curPage + 1) + '">Вперёд &raquo;</div>';
-                h += '</div>';
-            }
-            box.innerHTML = h;
-
-            var cards = box.querySelectorAll('.av-card');
-            for (var c = 0; c < cards.length; c++) {
-                cards[c].onclick = function () {
-                    var u = this.getAttribute('data-url');
-                    if (u) navigateToDetail(u);
-                };
-            }
-            var pbtns = box.querySelectorAll('.av-pager .av-btn');
-            for (var pb = 0; pb < pbtns.length; pb++) {
-                pbtns[pb].onclick = function () {
-                    var pg = parseInt(this.getAttribute('data-p'), 10);
-                    if (pg) { curPage = pg; load(); }
-                };
-            }
-        }
-
-        function nav(label, p, chipKey, chipList) {
-            var el = document.createElement('div');
-            el.className = 'av-btn';
-            el.textContent = label;
-            el.onclick = function () {
-                params = p || {};
-                curPage = 1;
-                load();
-            };
-            return el;
-        }
-
         function showSearch() {
-            if (!box) return;
-            box.innerHTML = '<div class="av-search-wrap">' +
-                '<input class="av-search-input" id="av-si" type="text" placeholder="Поиск аниме..." />' +
-                '<div class="av-btn av-search-go" id="av-sg">Найти</div></div><div id="av-sr"></div>';
-            var inp = document.getElementById('av-si');
-            var btn = document.getElementById('av-sg');
-            if (inp) {
-                inp.focus();
-                inp.onkeydown = function (e) { if (e.keyCode === 13) go(); };
-            }
-            if (btn) btn.onclick = go;
-            function go() {
-                var q = inp ? inp.value.trim() : '';
+            body.empty();
+            searchMode = true;
+
+            var wrap = $('<div style="width:100%;padding:0 .5em"></div>');
+            var inp = $('<input class="AnimeVost-search-input" type="text" placeholder="Поиск аниме..." />');
+            var btn = $('<div class="AnimeVost-search-go selector">Найти</div>');
+
+            btn.on('hover:enter click tap', function () {
+                var q = inp.val().trim();
                 if (!q) return;
-                params = { search: q };
+                curParams = { search: q };
                 curPage = 1;
+                load(true);
+            });
+
+            inp.on('keydown', function (e) {
+                if (e.keyCode === 13) btn.trigger('hover:enter');
+            });
+
+            wrap.append(inp).append(btn);
+            body.append(wrap);
+
+            setTimeout(function () { inp.focus(); }, 100);
+        }
+
+        function load(reset) {
+            if (loading) return;
+            loading = true;
+
+            if (reset) {
+                body.empty();
+                last = null;
+            }
+
+            var loader = $('<div class="AnimeVost-loader">Загрузка...</div>');
+            body.append(loader);
+
+            var p = {};
+            for (var k in curParams) { if (curParams.hasOwnProperty(k)) p[k] = curParams[k]; }
+            p.page = curPage;
+
+            fetchPage(buildListUrl(p), function (html_data) {
                 loading = false;
-                load();
-            }
+                loader.remove();
+
+                var result = parseListPage(html_data);
+                totPages = result.pages;
+
+                if (!result.items.length && !body.children().length) {
+                    body.append('<div class="AnimeVost-empty">Ничего не найдено</div>');
+                    return;
+                }
+
+                result.items.forEach(function (item) {
+                    var card = $(cardHtml(item));
+                    card.data('action', function () {
+                        openDetail(item.url);
+                    });
+                    card.on('hover:enter click tap', function () {
+                        openDetail(item.url);
+                    });
+                    body.append(card);
+                    last = card[0];
+                });
+
+                if (curPage < totPages) {
+                    var more = $('<div class="AnimeVost-more selector">Ещё...</div>');
+                    more.on('hover:enter click tap', function () {
+                        curPage++;
+                        load(false);
+                    });
+                    body.append(more);
+                }
+            });
         }
 
-        function makeChip(label, chipKey, chipVal) {
-            var el = document.createElement('div');
-            el.className = 'av-chip';
-            el.textContent = label;
-            el.onclick = function () {
-                params = {};
-                params[chipKey] = chipVal;
-                curPage = 1;
-                load();
-            };
-            return el;
+        function openDetail(url) {
+            Lampa.Activity.push({
+                url: url,
+                title: 'AnimeVost',
+                component: 'animevost_detail'
+            });
         }
-
-        this.createTemplate = function () {
-            var tpl = document.createElement('div');
-            tpl.className = 'av-wrap';
-
-            var head = document.createElement('div');
-            head.className = 'av-head';
-            head.appendChild(nav('Главная', {}));
-            head.appendChild(nav('Онгоинги', { ongoing: true }));
-            head.appendChild(nav('Анонсы', { preview: true }));
-            var sBtn = document.createElement('div');
-            sBtn.className = 'av-btn';
-            sBtn.textContent = 'Поиск';
-            sBtn.onclick = showSearch;
-            head.appendChild(sBtn);
-            tpl.appendChild(head);
-
-            var chipRow = document.createElement('div');
-            chipRow.className = 'av-chips';
-            for (var g = 0; g < genres.length; g++) {
-                chipRow.appendChild(makeChip(genres[g].name, 'genre', genres[g].slug));
-            }
-            tpl.appendChild(chipRow);
-
-            var typeRow = document.createElement('div');
-            typeRow.className = 'av-chips';
-            for (var t = 0; t < types.length; t++) {
-                typeRow.appendChild(makeChip(types[t].name, 'type', types[t].slug));
-            }
-            tpl.appendChild(typeRow);
-
-            var yearRow = document.createElement('div');
-            yearRow.className = 'av-chips';
-            for (var y = 0; y < Math.min(years.length, 10); y++) {
-                yearRow.appendChild(makeChip(String(years[y]), 'year', years[y]));
-            }
-            tpl.appendChild(yearRow);
-
-            box = document.createElement('div');
-            box.className = 'av-content';
-            tpl.appendChild(box);
-
-            return tpl;
-        };
-
-        this.start = function () { load(); };
-        this.destroy = function () { box = null; };
     }
 
     // ─── Detail Component ───────────────────────────────────────────
 
     function DetailComponent(object) {
-        this.extend(object);
-        var self = this;
-        var box = null;
+        var params = object || {};
+        var html = $('<div class="AnimeVost-detail"></div>');
+        var rendered = false;
 
-        this.createTemplate = function () {
-            box = document.createElement('div');
-            box.className = 'av-detail';
-            box.innerHTML = '<div class="av-loading">Загрузка...</div>';
-            return box;
+        this.render = function () {
+            if (!rendered) {
+                rendered = true;
+                html.html('<div class="AnimeVost-loader">Загрузка...</div>');
+                loadDetail();
+            }
+            return html;
         };
 
+        this.create = this.render;
+
         this.start = function () {
-            var url = '';
-            try {
-                if (self.activity && self.activity.url) url = self.activity.url;
-            } catch (e) {}
-            if (!url) {
-                if (box) box.innerHTML = '<div class="av-empty">Нет данных</div>';
-                return;
-            }
+            Lampa.Controller.add('content', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(html);
+                    var target = html.find('.selector').first();
+                    Lampa.Controller.collectionFocus(target, html);
+                },
+                left: function () {
+                    if (Navigator.canmove('left')) Navigator.move('left');
+                    else Lampa.Controller.toggle('menu');
+                },
+                right: function () { Navigator.move('right'); },
+                up: function () {
+                    if (Navigator.canmove('up')) Navigator.move('up');
+                    else Lampa.Controller.toggle('head');
+                },
+                down: function () { Navigator.move('down'); },
+                back: function () {
+                    if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
+                },
+                enter: function () {
+                    var focused = html.find('.selector.focus');
+                    if (focused.length) {
+                        var action = focused.data('action');
+                        if (typeof action === 'function') action();
+                    }
+                }
+            });
+
+            Lampa.Controller.toggle('content');
+        };
+
+        this.destroy = function () { html.empty(); };
+
+        function loadDetail() {
+            var url = params.url || '';
+            if (!url) { html.html('<div class="AnimeVost-empty">Нет данных</div>'); return; }
             if (url.indexOf('http') !== 0) url = HOST + url;
 
-            fetchPage(url, function (html) {
-                if (!html || !box) return;
-                var item = parseDetailPage(html);
-                if (!item) { box.innerHTML = '<div class="av-empty">Не удалось загрузить</div>'; return; }
+            fetchPage(url, function (raw) {
+                if (!raw) { html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>'); return; }
+
+                var item = parseDetailPage(raw);
+                if (!item) { html.html('<div class="AnimeVost-empty">Не удалось загрузить</div>'); return; }
 
                 var rc = item.rating >= 80 ? '#4caf50' : item.rating >= 60 ? '#ff9800' : item.rating >= 40 ? '#f44336' : '#888';
                 var gn = item.genres.length ? item.genres.join(', ') : '';
 
-                var h = '<div class="av-back" id="av-back">&larr; Назад</div>';
-                h += '<div class="av-det-head">';
-                h += '<div class="av-det-poster"><img src="' + esc(item.poster || NO_POSTER) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" /></div>';
-                h += '<div class="av-det-info">';
-                h += '<div class="av-det-title">' + esc(item.title) + '</div>';
-                if (item.original_title) h += '<div class="av-det-orig">' + esc(item.original_title) + '</div>';
-                h += '<div class="av-det-meta">';
+                var h = '<div class="AnimeVost-det-head">';
+                h += '<div class="AnimeVost-det-poster"><img src="' + esc(item.poster || NO_POSTER) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" /></div>';
+                h += '<div class="AnimeVost-det-info">';
+                h += '<div class="AnimeVost-det-title">' + esc(item.title) + '</div>';
+                if (item.original_title) h += '<div class="AnimeVost-det-orig">' + esc(item.original_title) + '</div>';
+                h += '<div class="AnimeVost-det-meta">';
                 if (item.year) h += '<div><strong>Год:</strong> ' + item.year + '</div>';
                 if (item.type) h += '<div><strong>Тип:</strong> ' + esc(item.type) + '</div>';
                 if (gn) h += '<div><strong>Жанры:</strong> ' + esc(gn) + '</div>';
@@ -587,76 +647,70 @@
                 if (item.director) h += '<div><strong>Режиссёр:</strong> ' + esc(item.director) + '</div>';
                 h += '</div>';
                 if (item.rating) {
-                    h += '<div class="av-det-rating"><span class="rv" style="color:' + rc + '">' + item.rating + '%</span>';
+                    h += '<div class="AnimeVost-det-rating"><span class="rv" style="color:' + rc + '">' + item.rating + '%</span>';
                     if (item.votes) h += '<span class="rvc">(' + item.votes + ' голосов)</span>';
                     h += '</div>';
                 }
                 h += '</div></div>';
-                if (item.description) h += '<div class="av-det-desc">' + esc(item.description) + '</div>';
-                h += '<div style="margin-top:16px"><a href="' + esc(url) + '" target="_blank" class="av-btn" style="text-decoration:none;display:inline-block">Открыть на сайте</a></div>';
+                if (item.description) h += '<div class="AnimeVost-det-desc">' + esc(item.description) + '</div>';
 
-                box.innerHTML = h;
+                var siteBtn = $('<div class="AnimeVost-back selector">Открыть на сайте</div>');
+                siteBtn.data('action', function () { window.open(url, '_blank'); });
+                siteBtn.on('hover:enter click tap', function () { window.open(url, '_blank'); });
 
-                var bb = document.getElementById('av-back');
-                if (bb) bb.onclick = function () {
-                    try { Lampa.Activity.backward(); } catch (e) { window.history.back(); }
-                };
+                html.html(h);
+                html.append(siteBtn);
             });
-        };
-
-        this.destroy = function () { box = null; };
+        }
     }
 
-    // ─── Navigation ─────────────────────────────────────────────────
+    // ─── Registration ───────────────────────────────────────────────
 
-    function navigateToDetail(url) {
-        try {
-            if (window.Lampa && Lampa.Activity && typeof Lampa.Activity.push === 'function') {
-                Lampa.Activity.push({
-                    url: url,
-                    title: 'AnimeVost',
-                    component: 'animevost_detail',
-                    animevost_url: url
-                });
-                return;
-            }
-        } catch (e) {}
-        window.open(url, '_blank');
+    function addMenu() {
+        var menu = $('.menu .menu__list').eq(0);
+        if (!menu.length || $('.menu__item.selector[data-action="animevost"]').length) return;
+
+        var button = $(
+            '<li class="menu__item selector" data-action="animevost">' +
+                '<div class="menu__ico">' +
+                    '<svg viewBox="0 0 24 24" width="44" height="44" fill="#e8a000" xmlns="http://www.w3.org/2000/svg">' +
+                        '<path d="M12 2L2 7l10 5 10-5-10-5z"/>' +
+                        '<path d="M2 17l10 5 10-5"/>' +
+                        '<path d="M2 12l10 5 10-5"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="menu__text">AnimeVost</div>' +
+            '</li>'
+        );
+
+        button.on('hover:enter click tap mouseup', function () {
+            Lampa.Activity.push({
+                url: '',
+                title: 'AnimeVost',
+                component: 'animevost',
+                page: 1
+            });
+        });
+
+        menu.append(button);
     }
 
-    // ─── Init ───────────────────────────────────────────────────────
+    function start() {
+        if (!window.Lampa || !window.$) return;
 
-    function init() {
         addStyles();
 
-        if (window.Lampa && Lampa.Component) {
-            Lampa.Component.add('animevost', CatalogComponent);
-            Lampa.Component.add('animevost_detail', DetailComponent);
-        }
+        Lampa.Component.add('animevost', Catalog);
+        Lampa.Component.add('animevost_detail', DetailComponent);
 
-        if (window.Lampa && Lampa.Menu) {
-            try {
-                Lampa.Menu.add({
-                    id: 'animevost',
-                    title: 'AnimeVost',
-                    icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>',
-                    component: 'animevost'
-                });
-            } catch (e) {
-                notify('Menu.add failed: ' + e.message);
-            }
+        if (window.appready) {
+            addMenu();
+        } else {
+            Lampa.Listener.follow('app', function (e) {
+                if (e.type === 'ready') addMenu();
+            });
         }
-
-        notify('AnimeVost плагин загружен');
     }
 
-    if (window.Lampa) {
-        init();
-    } else if (window.LampaListener) {
-        window.LampaListener.follow('app', function (e) { if (e.type === 'ready') init(); });
-    } else {
-        document.addEventListener('DOMContentLoaded', function () {
-            if (window.Lampa) init();
-        });
-    }
+    start();
 })();
