@@ -372,13 +372,11 @@
             '.AnimeVost.card{flex:0 0 14.285%;max-width:14.285%;padding:0 .6em;box-sizing:border-box;margin:0 0 1.5em 0;position:relative}' +
             '.AnimeVost-loader,.AnimeVost-empty{width:100%;text-align:center;font-size:1.2em;color:rgba(255,255,255,.68);padding:2em 0}' +
             '.AnimeVost-more{height:2.8em;line-height:2.8em;min-width:8em;text-align:center;margin-top:2em}' +
-            '.AnimeVost-detail{position:relative;width:100%;height:100%;color:#fff;overflow:hidden}' +
-            '.AnimeVost-det-backdrop{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover;filter:brightness(.35);z-index:0}' +
-            '.AnimeVost-det-gradient{position:absolute;top:0;left:0;width:100%;height:100%;background:linear-gradient(180deg,rgba(29,31,32,0) 0%,rgba(29,31,32,.6) 50%,rgba(29,31,32,.95) 100%);z-index:1}' +
-            '.AnimeVost-det-wrap{position:relative;z-index:2;padding:2em 3em;display:flex;gap:2em;height:100%;box-sizing:border-box}' +
+            '.AnimeVost-detail{padding:2em 3em;color:#fff;max-width:1100px;margin:0 auto}' +
+            '.AnimeVost-det-wrap{display:flex;gap:2em;margin-bottom:1.5em}' +
             '.AnimeVost-det-poster{width:220px;min-width:220px;flex-shrink:0;border-radius:.6em;overflow:hidden;box-shadow:0 .5em 2em rgba(0,0,0,.5)}' +
-            '.AnimeVost-det-poster img{width:100%;display:block}' +
-            '.AnimeVost-det-info{flex:1;display:flex;flex-direction:column;justify-content:center}' +
+            '.AnimeVost-det-poster img{width:100%;height:auto;display:block}' +
+            '.AnimeVost-det-info{flex:1;display:flex;flex-direction:column;justify-content:flex-start}' +
             '.AnimeVost-det-year{font-size:1em;color:rgba(255,255,255,.6);margin-bottom:.3em}' +
             '.AnimeVost-det-title{font-size:2.2em;font-weight:700;color:#fff;line-height:1.15;margin-bottom:.4em}' +
             '.AnimeVost-det-orig{font-size:1.1em;color:rgba(255,255,255,.45);margin-bottom:.6em}' +
@@ -394,7 +392,7 @@
             '.AnimeVost-det-actions .selector.focus{background:rgba(255,255,255,.2);color:#fff;border-color:rgba(255,255,255,.25);transform:scale(1.1);box-shadow:0 0 1.2em rgba(255,255,255,.15)}' +
             '.AnimeVost-det-actions .selector svg{width:1.4em;height:1.4em;fill:currentColor}' +
             '.AnimeVost-det-actions .selector--text{width:auto;border-radius:2em;padding:0 1.2em;gap:.4em;font-size:.85em}' +
-            '.AnimeVost-det-scroll{position:relative;z-index:2;padding:0 3em 2em;box-sizing:border-box}' +
+            '.AnimeVost-det-scroll{padding:0 0 1em}' +
             '.AnimeVost-det-desc-title{font-size:1.15em;font-weight:600;color:#eee;margin:0 0 .4em}' +
             '.AnimeVost-det-desc{font-size:1em;color:rgba(255,255,255,.65);line-height:1.65}' +
             '.AnimeVost-det-episodes{margin-top:1.5em}' +
@@ -755,9 +753,6 @@
 
                 var h = '';
 
-                h += '<img class="AnimeVost-det-backdrop" src="' + posterUrl + '" onerror="this.style.display=\'none\'" />';
-                h += '<div class="AnimeVost-det-gradient"></div>';
-
                 h += '<div class="AnimeVost-det-wrap">';
                 h += '<div class="AnimeVost-det-poster"><img src="' + posterUrl + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" /></div>';
                 h += '<div class="AnimeVost-det-info">';
@@ -893,22 +888,37 @@
                     genre_ids: [],
                     source: 'animevost',
                     method: 'anime',
-                    vote_average: item.rating ? item.rating / 10 : 0
+                    vote_average: item.rating ? item.rating / 10 : 0,
+                    episode: episodes.length ? 1 : 0,
+                    season: 1
                 };
 
-                var活动 = null;
+                var activeLayer = null;
                 try {
                     var layer = Lampa.Activity.active();
-                    if (layer && layer.activity) 活动 = layer.activity;
+                    if (layer && layer.activity) activeLayer = layer.activity;
                 } catch (e) {}
 
-                Lampa.Listener.send('full', {
+                var eventData = {
                     type: 'complite',
                     card: lampaCard,
                     body: content,
                     html: content,
-                    object: { activity: 活动 || { render: function () { return content[0]; } } }
-                });
+                    object: activeLayer ? { activity: activeLayer } : {}
+                };
+
+                Lampa.Listener.send('full', eventData);
+
+                setTimeout(function () {
+                    Lampa.Listener.send('full', {
+                        type: 'options',
+                        card: lampaCard,
+                        body: content,
+                        html: content,
+                        options: [],
+                        object: activeLayer ? { activity: activeLayer } : {}
+                    });
+                }, 500);
             } catch (e) {
                 console.log('[AnimeVost] sendFullEvent error:', e.message);
             }
