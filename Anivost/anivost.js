@@ -325,20 +325,71 @@
         '<text fill="%23888" font-family="Arial" font-size="14" text-anchor="middle" x="100" y="140">Нет постера</text></svg>'
     );
 
+    function addToFavorites(item) {
+        try {
+            var list = storageGet('animevost_favorites', []);
+            var exists = false;
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].url === item.url) { exists = true; break; }
+            }
+            if (!exists) {
+                list.push({ url: item.url, title: item.title, poster: item.poster, year: item.year });
+                storageSet('animevost_favorites', list);
+                notify('Добавлено в избранное: ' + item.title);
+            } else {
+                notify('Уже в избранном');
+            }
+        } catch (e) {}
+    }
+
+    function removeFromFavorites(itemUrl) {
+        try {
+            var list = storageGet('animevost_favorites', []);
+            var newList = [];
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].url !== itemUrl) newList.push(list[i]);
+            }
+            storageSet('animevost_favorites', newList);
+            notify('Удалено из избранного');
+        } catch (e) {}
+    }
+
+    function isInFavorites(itemUrl) {
+        try {
+            var list = storageGet('animevost_favorites', []);
+            for (var i = 0; i < list.length; i++) {
+                if (list[i].url === itemUrl) return true;
+            }
+        } catch (e) {}
+        return false;
+    }
+
     function cardHtml(item) {
         var poster = item.poster || NO_POSTER;
         var r = item.rating || 0;
         var rc = r >= 80 ? '#4caf50' : r >= 60 ? '#ff9800' : r >= 40 ? '#f44336' : '#888';
         var badge = item.type ? '<div class="AnimeVost-card__badge">' + esc(item.type) + '</div>' : '';
+        var favClass = isInFavorites(item.url) ? ' AnimeVost-btn--fav-active' : '';
 
-        return '<div class="AnimeVost card selector" data-url="' + esc(item.url) + '">' +
+        return '<div class="AnimeVost card selector" data-url="' + esc(item.url) + '" data-title="' + esc(item.title) + '">' +
             '<div class="card__view">' +
             '<img class="card__img" src="' + esc(poster) + '" onerror="this.onerror=null;this.src=\'' + NO_POSTER + '\'" />' +
             badge +
             '<div class="AnimeVost-card__rating" style="color:' + rc + '">' + r + '</div>' +
+            '<div class="AnimeVost-card__actions">' +
+            '<div class="AnimeVost-card__btn selector" data-btn="watch" title="Смотреть">' +
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>' +
+            '</div>' +
+            '<div class="AnimeVost-card__btn selector' + favClass + '" data-btn="fav" title="В избранное">' +
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>' +
+            '</div>' +
+            '<div class="AnimeVost-card__btn selector" data-btn="share" title="Поделиться">' +
+            '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>' +
+            '</div>' +
+            '</div>' +
             '</div>' +
             '<div class="card__title">' + esc(item.title) + '</div>' +
-            '<div class="Shikimori-card__meta">' +
+            '<div class="AnimeVost-card__meta">' +
             (item.year ? item.year + ' · ' : '') +
             esc(item.episodes || '') +
             '</div></div>';
@@ -398,6 +449,13 @@
             '.AnimeVost.card.focus .card__view{box-shadow:0 0 0 .22em #fff,0 .4em 1.4em rgba(232,160,0,.45)}' +
             '.AnimeVost.card .card__title{font-size:1.06em;line-height:1.22;max-height:2.55em;overflow:hidden;margin-top:.55em}' +
             '.AnimeVost-card__meta{font-size:.88em;line-height:1.25;color:rgba(255,255,255,.52);height:2.35em;overflow:hidden;margin-top:.25em}' +
+            '.AnimeVost-card__actions{position:absolute;bottom:0;left:0;right:0;display:flex;justify-content:center;gap:.3em;padding:.4em .3em;background:linear-gradient(transparent,rgba(0,0,0,.85));opacity:0;transition:opacity .2s}' +
+            '.AnimeVost.card.focus .AnimeVost-card__actions{opacity:1}' +
+            '.AnimeVost-card__btn{width:2em;height:2em;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(255,255,255,.15);color:#fff;cursor:pointer;transition:all .15s;flex-shrink:0}' +
+            '.AnimeVost-card__btn:hover,.AnimeVost-card__btn.focus{background:#e8a000;transform:scale(1.15)}' +
+            '.AnimeVost-btn--fav-active{color:#e91e63!important;background:rgba(233,30,99,.25)!important}' +
+            '.AnimeVost-card__btn[title]::after{content:attr(title);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:rgba(0,0,0,.9);color:#fff;font-size:.7em;padding:.2em .5em;border-radius:.25em;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .15s}' +
+            '.AnimeVost-card__btn:hover[title]::after,.AnimeVost-card__btn.focus[title]::after{opacity:1}' +
             '</style>'
         );
     }
@@ -471,11 +529,23 @@
                     if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
                 },
                 enter: function () {
-                    var focused = html.find('.selector.focus');
-                    if (focused.length) {
-                        var action = focused.data('action');
-                        if (typeof action === 'function') action();
+                    var focused = html.find('.focus');
+                    if (!focused.length) return;
+
+                    var btn = focused.closest('.AnimeVost-card__btn');
+                    if (btn.length) {
+                        btn.trigger('hover:enter');
+                        return;
                     }
+
+                    var card = focused.closest('.AnimeVost.card');
+                    if (card.length) {
+                        card.trigger('hover:enter');
+                        return;
+                    }
+
+                    var action = focused.data('action');
+                    if (typeof action === 'function') action();
                 }
             });
 
@@ -541,29 +611,31 @@
         }
 
         function showSearch() {
-            body.empty();
-            searchMode = true;
-
-            var wrap = $('<div style="width:100%;padding:0 .5em"></div>');
-            var inp = $('<input class="AnimeVost-search-input" type="text" placeholder="Поиск аниме..." />');
-            var btn = $('<div class="AnimeVost-search-go selector">Найти</div>');
-
-            btn.on('hover:enter click tap', function () {
-                var q = inp.val().trim();
-                if (!q) return;
-                curParams = { search: q };
-                curPage = 1;
-                load(true);
-            });
-
-            inp.on('keydown', function (e) {
-                if (e.keyCode === 13) btn.trigger('hover:enter');
-            });
-
-            wrap.append(inp).append(btn);
-            body.append(wrap);
-
-            setTimeout(function () { inp.focus(); }, 100);
+            if (window.Lampa && Lampa.Input) {
+                Lampa.Input({
+                    title: 'Поиск аниме',
+                    value: '',
+                    placeholder: 'Введите название...',
+                    onSubmit: function (query) {
+                        query = (query || '').trim();
+                        if (!query) return;
+                        curParams = { search: query };
+                        curPage = 1;
+                        searchMode = true;
+                        clearChips();
+                        load(true);
+                    }
+                });
+            } else {
+                var q = prompt('Поиск аниме:');
+                if (q && q.trim()) {
+                    curParams = { search: q.trim() };
+                    curPage = 1;
+                    searchMode = true;
+                    clearChips();
+                    load(true);
+                }
+            }
         }
 
         function load(reset) {
@@ -606,12 +678,41 @@
 
                 result.items.forEach(function (item) {
                     var card = $(cardHtml(item));
+
+                    card.on('hover:enter click tap', function (e) {
+                        var target = $(e.target).closest('.AnimeVost-card__btn');
+                        if (target.length) {
+                            var btn = target.data('btn');
+                            if (btn === 'watch') {
+                                openDetail(item.url);
+                            } else if (btn === 'fav') {
+                                if (isInFavorites(item.url)) {
+                                    removeFromFavorites(item.url);
+                                    target.removeClass('AnimeVost-btn--fav-active');
+                                } else {
+                                    addToFavorites(item);
+                                    target.addClass('AnimeVost-btn--fav-active');
+                                }
+                            } else if (btn === 'share') {
+                                var shareUrl = HOST + item.url;
+                                if (navigator.share) {
+                                    navigator.share({ title: item.title, url: shareUrl });
+                                } else if (navigator.clipboard) {
+                                    navigator.clipboard.writeText(shareUrl);
+                                    notify('Ссылка скопирована');
+                                } else {
+                                    prompt('Ссылка:', shareUrl);
+                                }
+                            }
+                            return;
+                        }
+                        openDetail(item.url);
+                    });
+
                     card.data('action', function () {
                         openDetail(item.url);
                     });
-                    card.on('hover:enter click tap', function () {
-                        openDetail(item.url);
-                    });
+
                     body.append(card);
                     last = card[0];
                 });
