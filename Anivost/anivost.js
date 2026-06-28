@@ -145,10 +145,10 @@
             try {
                 var xhr = new XMLHttpRequest();
                 xhr.open('GET', fullUrl, true);
-                xhr.timeout = 12000;
+                xhr.timeout = 20000;
                 xhr.onreadystatechange = function () {
                     if (xhr.readyState === 4) {
-                        if (xhr.status >= 200 && xhr.status < 400 && xhr.responseText && xhr.responseText.length > 500) {
+                        if (xhr.status >= 200 && xhr.status < 400 && xhr.responseText && xhr.responseText.length > 100) {
                             console.log('[AnimeVost] Success with attempt', attempt, 'length:', xhr.responseText.length);
                             done(xhr.responseText);
                         } else {
@@ -598,7 +598,7 @@
             var loader = $('<div class="AnimeVost-loader">Загрузка...</div>');
             body.append(loader);
 
-            var pagesToLoad = reset ? 2 : 1;
+            var pagesToLoad = reset ? 3 : 1;
             var loadedItems = [];
             var loadedPages = 0;
             var loadedTotal = 1;
@@ -637,6 +637,8 @@
                 loading = false;
                 loader.remove();
                 totPages = loadedTotal;
+
+                console.log('[AnimeVost] Total loaded:', loadedItems.length, 'items');
 
                 if (!loadedItems.length && !body.children().length) {
                     body.append('<div class="AnimeVost-empty">Ничего не найдено</div>');
