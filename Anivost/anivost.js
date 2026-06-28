@@ -588,33 +588,52 @@
             var loader = $('<div class="AnimeVost-loader">Загрузка...</div>');
             body.append(loader);
 
-            var p = {};
-            for (var k in curParams) { if (curParams.hasOwnProperty(k)) p[k] = curParams[k]; }
-            p.page = curPage;
+            var pagesToLoad = reset ? 2 : 1;
+            var loadedItems = [];
+            var loadedPages = 0;
+            var loadedTotal = 1;
 
-            var listUrl = buildListUrl(p);
-            console.log('[AnimeVost] Fetching:', listUrl);
+            function fetchPageNum(pageNum) {
+                var p = {};
+                for (var k in curParams) { if (curParams.hasOwnProperty(k)) p[k] = curParams[k]; }
+                p.page = pageNum;
 
-            fetchPage(listUrl, function (html_data) {
+                var listUrl = buildListUrl(p);
+                console.log('[AnimeVost] Fetching page', pageNum, ':', listUrl);
+
+                fetchPage(listUrl, function (html_data) {
+                    loadedPages++;
+
+                    if (html_data) {
+                        var storyCount = (html_data.match(/<div class="shortstory">/g) || []).length;
+                        console.log('[AnimeVost] Page', pageNum, 'shortstory blocks:', storyCount);
+                    }
+
+                    var result = parseListPage(html_data);
+                    if (pageNum === 1) loadedTotal = result.pages;
+                    console.log('[AnimeVost] Page', pageNum, 'items:', result.items.length, 'total pages:', result.pages);
+
+                    loadedItems = loadedItems.concat(result.items);
+
+                    if (loadedPages < pagesToLoad && pageNum < loadedTotal) {
+                        fetchPageNum(pageNum + 1);
+                    } else {
+                        finishLoad(result);
+                    }
+                });
+            }
+
+            function finishLoad(result) {
                 loading = false;
                 loader.remove();
+                totPages = loadedTotal;
 
-                console.log('[AnimeVost] Response length:', html_data ? html_data.length : 0);
-                if (html_data) {
-                    var storyCount = (html_data.match(/<div class="shortstory">/g) || []).length;
-                    console.log('[AnimeVost] shortstory blocks found:', storyCount);
-                }
-
-                var result = parseListPage(html_data);
-                totPages = result.pages;
-                console.log('[AnimeVost] Parsed items:', result.items.length, 'Pages:', result.pages);
-
-                if (!result.items.length && !body.children().length) {
+                if (!loadedItems.length && !body.children().length) {
                     body.append('<div class="AnimeVost-empty">Ничего не найдено</div>');
                     return;
                 }
 
-                result.items.forEach(function (item) {
+                loadedItems.forEach(function (item) {
                     var card = $(cardHtml(item));
 
                     card.on('hover:enter click tap', function () {
@@ -625,6 +644,8 @@
                     last = card[0];
                 });
 
+                curPage = Math.min(pagesToLoad, totPages);
+
                 if (curPage < totPages) {
                     var more = $('<div class="AnimeVost-more selector">Ещё...</div>');
                     more.on('hover:enter click tap', function () {
@@ -633,7 +654,9 @@
                     });
                     body.append(more);
                 }
-            });
+            }
+
+            fetchPageNum(curPage);
         }
 
         function openDetail(itemUrl, itemData) {
