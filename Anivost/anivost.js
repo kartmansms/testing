@@ -677,44 +677,12 @@
         }
 
         function openDetail(itemUrl, itemData) {
-            if (!itemData) {
-                Lampa.Activity.push({
-                    url: itemUrl,
-                    title: 'AnimeVost',
-                    component: 'animevost_detail',
-                    animevost_url: itemUrl
-                });
-                return;
-            }
-
-            var genresFormatted = [];
-            if (itemData.genres && itemData.genres.length) {
-                for (var g = 0; g < itemData.genres.length; g++) {
-                    genresFormatted.push({ name: itemData.genres[g] });
-                }
-            }
-
-            var lampaCard = {
-                id: itemData.id || 0,
-                card: {},
-                title: itemData.title || '',
-                original_title: itemData.original_title || '',
-                name: itemData.original_title || itemData.title || '',
-                poster: itemData.poster || '',
-                year: itemData.year || 0,
-                genres: genresFormatted,
-                description: itemData.description || '',
-                source: 'animevost',
-                animevost_url: itemUrl,
-                animevost_episodes: itemData.episodes || []
-            };
-
-            lampaCard.card = $('<div></div>')[0];
-
             Lampa.Activity.push({
-                component: 'card_fullscreen',
-                card: lampaCard,
-                source: 'animevost'
+                url: itemUrl,
+                title: 'AnimeVost',
+                component: 'animevost_detail',
+                animevost_url: itemUrl,
+                animevost_data: itemData || null
             });
         }
     }
@@ -728,6 +696,7 @@
         var content = $('<div></div>');
         var rendered = false;
         var currentUrl = params.url || params.animevost_url || '';
+        var cachedData = params.animevost_data || null;
 
         this.render = function () {
             if (!rendered) {
@@ -807,24 +776,9 @@
 
             console.log('[AnimeVost] Detail loading:', url);
 
-            fetchPage(url, function (raw) {
-                console.log('[AnimeVost] Detail response length:', raw ? raw.length : 0);
-                if (!raw || raw.length < 200) {
-                    content.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
-                    return;
-                }
-
-                var item = parseDetailPage(raw);
-                console.log('[AnimeVost] Detail parsed:', item ? item.title : 'null');
-                if (!item || !item.title) {
-                    content.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
-                    return;
-                }
-
+            function renderItem(item, episodes, rawHtml) {
                 var rc = item.rating >= 80 ? '#4caf50' : item.rating >= 60 ? '#ff9800' : item.rating >= 40 ? '#f44336' : '#888';
                 var gn = item.genres.length ? item.genres.join(' | ') : '';
-
-                var episodes = parseEpisodes(raw);
 
                 var h = '';
 
@@ -888,9 +842,35 @@
                 }
 
                 content.html(h);
-
                 bindDetailActions(item, episodes);
-            });
+                sendFullEvent(item, episodes);
+            }
+
+            if (cachedData) {
+                console.log('[AnimeVost] Using cached data for:', cachedData.title);
+                fetchPage(url, function (raw) {
+                    var episodes = raw ? parseEpisodes(raw) : [];
+                    renderItem(cachedData, episodes, raw);
+                });
+            } else {
+                fetchPage(url, function (raw) {
+                    console.log('[AnimeVost] Detail response length:', raw ? raw.length : 0);
+                    if (!raw || raw.length < 200) {
+                        content.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
+                        return;
+                    }
+
+                    var item = parseDetailPage(raw);
+                    console.log('[AnimeVost] Detail parsed:', item ? item.title : 'null');
+                    if (!item || !item.title) {
+                        content.html('<div class="AnimeVost-empty">Не удалось загрузить</div>');
+                        return;
+                    }
+
+                    var episodes = parseEpisodes(raw);
+                    renderItem(item, episodes, raw);
+                });
+            }
         }
 
         function parseEpisodes(raw) {
@@ -907,6 +887,37 @@
                 }
             }
             return episodes;
+        }
+
+        function sendFullEvent(item, episodes) {
+            try {
+                var genresFormatted = [];
+                if (item.genres && item.genres.length) {
+                    for (var g = 0; g < item.genres.length; g++) {
+                        genresFormatted.push({ name: item.genres[g] });
+                    }
+                }
+
+                var lampaCard = {
+                    id: item.id || 0,
+                    title: item.title || '',
+                    original_title: item.original_title || '',
+                    name: item.original_title || item.title || '',
+                    poster: item.poster || '',
+                    year: item.year || 0,
+                    genres: genresFormatted,
+                    description: item.description || '',
+                    source: 'animevost'
+                };
+
+                Lampa.Listener.send('full', {
+                    card: lampaCard,
+                    html: content,
+                    object: { activity: { render: function () { return content[0]; } } }
+                });
+            } catch (e) {
+                console.log('[AnimeVost] sendFullEvent error:', e.message);
+            }
         }
 
         function bindDetailActions(item, episodes) {
@@ -980,80 +991,6 @@
         menu.append(button);
     }
 
-    function setupFullListener() {
-        Lampa.Listener.follow('full', function (event) {
-            var card = event.card;
-            if (!card || card.source !== 'animevost') return;
-
-            var container = event.object && event.object.activity && event.object.activity.render
-                ? event.object.activity.render()
-                : null;
-            if (!container) {
-                try {
-                    var layer = Lampa.Activity.active();
-                    if (layer && layer.activity) container = layer.activity.render();
-                } catch (e) {}
-            }
-            if (!container) return;
-
-            var $container = $(container);
-            var_episodes_block($container, card);
-            var_play_button($container, card);
-        });
-    }
-
-    function var_episodes_block($container, card) {
-        var episodes = card.animevost_episodes || [];
-        var url = card.animevost_url || '';
-        if (!url || !episodes.length) return;
-
-        if ($container.find('.AnimeVost-full-episodes').length) return;
-
-        var block = $('<div class="AnimeVost-full-episodes"></div>');
-        block.append('<div class="full-title">Эпизоды</div>');
-
-        var list = $('<div class="AnimeVost-det-ep-list" style="margin-top:.5em"></div>');
-        for (var i = 0; i < episodes.length; i++) {
-            var epUrl = episodes[i].url;
-            if (epUrl.indexOf('http') !== 0) epUrl = HOST + epUrl;
-            var ep = $('<div class="AnimeVost-det-ep-item selector"></div>');
-            ep.text('Серия ' + (i + 1));
-            ep.data('url', epUrl);
-            ep.on('hover:enter click tap', function () {
-                var u = $(this).data('url');
-                if (u) window.open(u, '_blank');
-            });
-            list.append(ep);
-        }
-        block.append(list);
-
-        var target = $container.find('.full-desc');
-        if (target.length) target.after(block);
-        else $container.append(block);
-    }
-
-    function var_play_button($container, card) {
-        if ($container.find('.AnimeVost-full-play').length) return;
-
-        var episodes = card.animevost_episodes || [];
-        var url = card.animevost_url || '';
-
-        var playBtn = $('<div class="full-desc__button selector AnimeVost-full-play" style="margin-top:1em"></div>');
-        playBtn.text(episodes.length ? 'Смотреть на AnimeVost' : 'Открыть на сайте');
-        playBtn.on('hover:enter click tap', function () {
-            if (episodes.length) {
-                var epUrl = episodes[0].url;
-                if (epUrl.indexOf('http') !== 0) epUrl = HOST + epUrl;
-                window.open(epUrl, '_blank');
-            } else if (url) {
-                window.open(url.indexOf('http') === 0 ? url : HOST + url, '_blank');
-            }
-        });
-
-        var target = $container.find('.full-desc');
-        if (target.length) target.prepend(playBtn);
-    }
-
     function start() {
         if (!window.Lampa || !window.$) return;
 
@@ -1061,8 +998,6 @@
 
         Lampa.Component.add('animevost', Catalog);
         Lampa.Component.add('animevost_detail', DetailComponent);
-
-        setupFullListener();
 
         if (window.appready) {
             addMenu();
