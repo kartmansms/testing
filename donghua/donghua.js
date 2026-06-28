@@ -327,17 +327,13 @@
      * Фильтрует результаты по китайскому языку (zh)
      */
     function addSearchSource() {
-        Lampa.Search.addSource({
-            search: function () {
-                return { title: t('search_hint'), source: 'donghua_search' };
-            },
-            onStart: function (onComplite) {
-                onComplite();
-            },
-            onSearch: function (query, onComplite) {
-                var url = buildSearchUrl(query);
+        var network = new Lampa.Reguest();
 
-                var network = new Lampa.Reguest();
+        Lampa.Search.addSource({
+            title: 'Дунхуа',
+            search: function (params, onComplite) {
+                var url = buildSearchUrl(params.query);
+
                 network.silent(url, function (json) {
                     if (json && json.results) {
                         var items = json.results.map(function (item) {
@@ -355,7 +351,7 @@
                     onComplite([]);
                 });
             },
-            cancel: function () {}
+            onCancel: network.clear.bind(network)
         });
     }
 
