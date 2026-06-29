@@ -161,10 +161,10 @@
 
   var STATUS_MAP = {
     'finished': 'Завершено',
-    'ongoing': 'Виходить',
-    'announced': 'Анонсовано',
-    'paused': 'Призупинено',
-    'discontinued': 'Скасовано'
+    'ongoing': 'Выходит',
+    'announced': 'Анонсировано',
+    'paused': 'Приостановлено',
+    'discontinued': 'Отменено'
   };
   var STATUS_STD_MAP = {
     'finished': 'ended',
@@ -174,10 +174,10 @@
     'discontinued': 'canceled'
   };
   var GENRE_TYPE_MAP = {
-    'theme': 'Тематичне',
-    'genre': 'Основне',
-    'demographic': 'Демографічне',
-    'explicit': 'Для дорослих'
+    'theme': 'Тематическое',
+    'genre': 'Основное',
+    'demographic': 'Демографическое',
+    'explicit': 'Для взрослых'
   };
   var PAGINATION = {
     ITEMS_PER_PAGE: 60,
@@ -186,13 +186,13 @@
   };
   var FILTER_OPTIONS = {
     media_type: [{
-      title: 'Всі типи',
+      title: 'Все типы',
       value: ''
     }, {
-      title: 'ТВ Серіал',
+      title: 'ТВ Сериал',
       value: 'tv'
     }, {
-      title: 'Фільм',
+      title: 'Фильм',
       value: 'movie'
     }, {
       title: 'OVA',
@@ -201,33 +201,33 @@
       title: 'ONA',
       value: 'ona'
     }, {
-      title: 'Спеціальний',
+      title: 'Специальный',
       value: 'special'
     }, {
-      title: 'Музичний',
+      title: 'Музыкальный',
       value: 'music'
     }],
     status: [{
-      title: 'Всі статуси',
+      title: 'Все статусы',
       value: ''
     }, {
       title: 'Завершено',
       value: 'finished'
     }, {
-      title: 'Виходить',
+      title: 'Выходит',
       value: 'ongoing'
     }, {
-      title: 'Анонсовано',
+      title: 'Анонсировано',
       value: 'announced'
     }, {
-      title: 'Призупинено',
+      title: 'Приостановлено',
       value: 'paused'
     }, {
-      title: 'Скасовано',
+      title: 'Отменено',
       value: 'discontinued'
     }],
     season: [{
-      title: 'Всі сезони',
+      title: 'Все сезоны',
       value: ''
     }, {
       title: 'Зима',
@@ -236,14 +236,14 @@
       title: 'Весна',
       value: 'spring'
     }, {
-      title: 'Літо',
+      title: 'Лето',
       value: 'summer'
     }, {
-      title: 'Осінь',
+      title: 'Осень',
       value: 'fall'
     }],
     rating: [{
-      title: 'Всі рейтинги',
+      title: 'Все рейтинги',
       value: ''
     }, {
       title: 'G',
@@ -265,26 +265,26 @@
       value: 'rx'
     }],
     sort: [{
-      title: 'За рейтингом ↓',
+      title: 'По рейтингу ↓',
       value: 'score:desc'
     }, {
-      title: 'За рейтингом ↑',
+      title: 'По рейтингу ↑',
       value: 'score:asc'
     }, {
-      title: 'За датою ↓',
+      title: 'По дате ↓',
       value: 'start_date:desc'
     }, {
-      title: 'За датою ↑',
+      title: 'По дате ↑',
       value: 'start_date:asc'
     }, {
-      title: 'За назвою ↓',
+      title: 'По названию ↓',
       value: 'title:desc'
     }, {
-      title: 'За назвою ↑',
+      title: 'По названию ↑',
       value: 'title:asc'
     }],
     genres: [{
-      title: 'Всі жанри',
+      title: 'Все жанры',
       value: ''
     }]
   };
@@ -503,7 +503,7 @@
           air_date: airDate,
           episode_number: episodeNumber,
           season_number: seasonNumber,
-          name: 'Епізод ' + episodeNumber,
+          name: 'Эпизод ' + episodeNumber,
           overview: '',
           still_path: imageFields.still_path,
           img: imageFields.img
@@ -566,7 +566,7 @@
       status: STATUS_MAP[anime.status] || anime.status,
       media_type: anime.media_type,
       // Quality: 'UA' if translated, otherwise undefined (or real quality if we had it)
-      quality: anime.translated_ua ? 'Солов’їна' : undefined,
+      quality: anime.translated_ua ? 'Соловьина' : undefined,
       // Поле для іконки перекладу
       has_translation: anime.translated_ua,
       translated_ua: anime.translated_ua,
@@ -685,7 +685,7 @@
       if (nextEpisode) card.next_episode_to_air = nextEpisode;
     }
 
-    // Епізоди
+    // Эпизоди
     // Ensure no episodes for pure movies to avoid empty tab
     var episodes;
     if (details && Array.isArray(details.episodes) && details.episodes.length) {
@@ -699,7 +699,7 @@
             air_date: ep.air_date || (year ? year + '-01-01' : undefined),
             episode_number: ep.number || ep.episode_number || idx + 1,
             season_number: ep.season || ep.season_number || seasonNumber,
-            name: ep.title_ua || ep.title_ja || ep.title_en || ep.name || 'Епізод ' + (ep.number || idx + 1),
+            name: ep.title_ua || ep.title_ja || ep.title_en || ep.name || 'Эпизод ' + (ep.number || idx + 1),
             overview: markdownToPlainText(ep.synopsis_ua || ep.synopsis_en || ep.overview || ''),
             still_path: imageFields.still_path,
             img: imageFields.img
@@ -748,7 +748,7 @@
     if (!item || item.hidden) return;
     var text = normalizeCommentText(item.text);
     if (!text) return;
-    var author = item.author && item.author.username || 'Анонім';
+    var author = item.author && item.author.username || 'Аноним';
     var date = formatCommentDate(item.created || item.updated);
     var score = formatScore(item.vote_score);
     var prefix = level > 0 ? '  '.repeat(Math.min(level, 5)) + '-> ' : '';
@@ -769,7 +769,7 @@
     if (!item || item.hidden) return;
     var text = normalizeCommentText(item.text);
     if (text) {
-      var author = item.author && item.author.username || 'Анонім';
+      var author = item.author && item.author.username || 'Аноним';
       var dateLabel = formatCommentDate(item.created || item.updated);
       var score = Number(item.vote_score || 0);
       entries.push({
@@ -792,7 +792,7 @@
     if (!item || item.hidden) return null;
     var text = normalizeCommentText(item.text);
     if (!text) return null;
-    var author = item.author && item.author.username || 'Анонім';
+    var author = item.author && item.author.username || 'Аноним';
     var dateLabel = formatCommentDate(item.created || item.updated);
     var score = Number(item.vote_score || 0);
     var scoreLabel = formatScore(score);
@@ -1639,7 +1639,7 @@
           translateBadge.className = 'card__quality';
           translateBadge.classList.add('hikka-translate-quality');
           var translateBadgeInner = document.createElement('div');
-          translateBadgeInner.innerText = 'Солов’їна';
+          translateBadgeInner.innerText = 'Соловьина';
           translateBadge.appendChild(translateBadgeInner);
           viewElement.appendChild(translateBadge);
         }
@@ -1672,7 +1672,7 @@
         render.on('hover:enter', function () {
           var slug = element.hikka_slug || element.id;
           if (!slug) {
-            Lampa.Noty.show('Не вдалося відкрити картку: відсутній slug');
+            Lampa.Noty.show('Не удалось открыть карточку: отсутствует slug');
             return;
           }
           var cardData = _objectSpread2(_objectSpread2({}, element), {}, {
@@ -1818,7 +1818,7 @@
         // Only Translated
         var onlyTranslatedBtn = document.createElement('div');
         onlyTranslatedBtn.className = 'simple-button simple-button--filter selector';
-        onlyTranslatedBtn.innerHTML = '<span>Переклад</span>';
+        onlyTranslatedBtn.innerHTML = '<span>Перевод</span>';
         $(onlyTranslatedBtn).on('hover:enter', function () {
           _this.toggleOnlyTranslated(onlyTranslatedBtn);
         });
@@ -1827,7 +1827,7 @@
         // Reset
         var resetBtn = document.createElement('div');
         resetBtn.className = 'simple-button simple-button--filter selector';
-        resetBtn.innerHTML = '<span>Скинути</span>';
+        resetBtn.innerHTML = '<span>Сбросить</span>';
         $(resetBtn).on('hover:enter', function () {
           _this.resetAllFilters(filterBody);
         });
@@ -1842,7 +1842,7 @@
         var _this2 = this;
         var controller = Lampa.Controller.enabled().name;
         Lampa.Select.show({
-          title: 'Оберіть опцію',
+          title: 'Выберите опцию',
           items: options,
           onSelect: function onSelect(item) {
             console.log('[Hikka Filter] Selected:', filterType, item);
@@ -1870,7 +1870,7 @@
       value: function updateButtonText(buttonElement, title) {
         var shortTitle = title;
         if (title.length > 15) {
-          if (title === 'За рейтингом ↓') shortTitle = 'Рейтинг ↓';else if (title === 'За рейтингом ↑') shortTitle = 'Рейтинг ↑';else if (title === 'За датою ↓') shortTitle = 'Дата ↓';else if (title === 'За датою ↑') shortTitle = 'Дата ↑';else if (title === 'За назвою ↓') shortTitle = 'Назва ↓';else if (title === 'За назвою ↑') shortTitle = 'Назва ↑';else if (title.startsWith('Всі')) shortTitle = 'Всі';else shortTitle = title.substring(0, 12) + '...';
+          if (title === 'По рейтингу ↓') shortTitle = 'Рейтинг ↓';else if (title === 'По рейтингу ↑') shortTitle = 'Рейтинг ↑';else if (title === 'По дате ↓') shortTitle = 'Дата ↓';else if (title === 'По дате ↑') shortTitle = 'Дата ↑';else if (title === 'По названию ↓') shortTitle = 'Название ↓';else if (title === 'По названию ↑') shortTitle = 'Название ↑';else if (title.startsWith('Все')) shortTitle = 'Всі';else shortTitle = title.substring(0, 12) + '...';
         }
         buttonElement.querySelector('span').textContent = shortTitle;
       }
@@ -1879,7 +1879,7 @@
       value: function toggleOnlyTranslated(buttonElement) {
         var _this3 = this;
         this.filterManager.filters.only_translated = !this.filterManager.filters.only_translated;
-        buttonElement.querySelector('span').textContent = this.filterManager.filters.only_translated ? 'З перекладом' : 'Переклад';
+        buttonElement.querySelector('span').textContent = this.filterManager.filters.only_translated ? 'З перекладом' : 'Перевод';
         this.component.reload();
         setTimeout(function () {
           _this3.component.navigationManager && _this3.component.navigationManager.refresh();
@@ -1893,11 +1893,11 @@
 
         // Reset button texts
         var spans = filterBody.querySelectorAll('.simple-button--filter.selector span');
-        var titles = ['Тип', 'Статус', 'Сезон', 'Рейтинг', 'Сортування', 'Жанр', 'Переклад', 'Скинути'];
+        var titles = ['Тип', 'Статус', 'Сезон', 'Рейтинг', 'Сортування', 'Жанр', 'Перевод', 'Сбросить'];
         spans.forEach(function (span, i) {
           if (titles[i]) span.textContent = titles[i];
         });
-        Lampa.Noty.show('Фільтри скинуто');
+        Lampa.Noty.show('Фильтры сброшены');
         this.component.reload();
         setTimeout(function () {
           _this4.component.navigationManager && _this4.component.navigationManager.refresh();
@@ -1943,7 +1943,7 @@
         var _this6 = this;
         this.loadGenres(function (genres) {
           if (genres.length === 0) {
-            Lampa.Noty.show('Помилка завантаження жанрів');
+            Lampa.Noty.show('Ошибка загрузки жанров');
             return;
           }
           var controller = controllerName || Lampa.Controller.enabled().name;
@@ -1956,7 +1956,7 @@
             };
           });
           Lampa.Select.show({
-            title: 'Оберіть тип жанру',
+            title: 'Выберите тип жанру',
             items: typeItems,
             onSelect: function onSelect(selectedType) {
               var genreItems = selectedType.genres.map(function (genre) {
@@ -1967,7 +1967,7 @@
                 };
               });
               genreItems.unshift({
-                title: 'Всі жанри цього типу',
+                title: 'Все жанры этого типа',
                 value: '',
                 genre: null
               });
@@ -2398,7 +2398,7 @@
           value: gender
         });
         if (age) metaItems.push({
-          label: 'Вік',
+          label: 'Возраст',
           value: String(age)
         });
         if (birthday) metaItems.push({
@@ -2673,7 +2673,7 @@
     this.activity = null;
     this.empty = function (descr) {
       var empty = new Empty({
-        descr: descr || 'Розклад Hikka порожній'
+        descr: descr || 'Расписание Hikka пустое'
       });
       html.append(empty.render());
       _this.start = empty.start.bind(empty);
@@ -2689,8 +2689,8 @@
         var anime = entry.anime || {};
         var title = card.name || card.title || '—';
         var synopsisRaw = anime.synopsis_ua || anime.synopsis_en || '';
-        var synopsis = markdownExcerpt(synopsisRaw, 280) || 'Опис відсутній';
-        var episode = entry.episode ? 'Епізод ' + entry.episode : 'Епізод —';
+        var synopsis = markdownExcerpt(synopsisRaw, 280) || 'Описание отсутствует';
+        var episode = entry.episode ? 'Эпизод ' + entry.episode : 'Эпизод —';
         var noty = Template.get('notice_card', {
           time: dateKey + ' ' + entry.time_label,
           title: title,
@@ -2723,7 +2723,7 @@
         modal.append(noty);
       });
       Modal.open({
-        title: 'Hikka Розклад',
+        title: 'Hikka Расписание',
         size: 'medium',
         html: modal,
         onBack: function onBack() {
@@ -2748,7 +2748,7 @@
           item.find('.timetable__body').append('<div>+' + (entries.length - 3) + '</div>');
         }
         if (entries.length === 1 && entries[0].card && entries[0].card.img) {
-          var preview = $('<div class="timetable__preview"><img><div>Епізод ' + (entries[0].episode || '—') + '</div></div>');
+          var preview = $('<div class="timetable__preview"><img><div>Эпизод ' + (entries[0].episode || '—') + '</div></div>');
           Utils.imgLoad(preview.find('img'), entries[0].card.img, false, function () {
             preview.find('img').remove();
           });
@@ -2806,7 +2806,7 @@
           _this2.appendDay(date, grouped[key] || []);
         });
         if (!hasAny) {
-          _this2.empty('Немає епізодів у розкладі Hikka для поточного сезону');
+          _this2.empty('Нет эпизодов в расписании Hikka для текущего сезона');
           return;
         }
         scroll.minus();
@@ -3018,14 +3018,14 @@
     text.className = 'hikka-thread-entry__text';
     text.innerHTML = renderMarkdownToHtml(textChunk);
     if (isFirstChunk) {
-      head.appendChild(createChip(entry && entry.author || 'Анонім', 'author'));
-      head.appendChild(createChip(entry && entry.created_label || 'Невідома дата', 'date'));
-      head.appendChild(createChip('Оцінка ' + (entry && entry.score_label || '0'), 'score'));
-      if (level > 0) head.appendChild(createChip('Рівень ' + (level + 1), 'level'));
+      head.appendChild(createChip(entry && entry.author || 'Аноним', 'author'));
+      head.appendChild(createChip(entry && entry.created_label || 'Неизвестная дата', 'date'));
+      head.appendChild(createChip('Оценка ' + (entry && entry.score_label || '0'), 'score'));
+      if (level > 0) head.appendChild(createChip('Уровень ' + (level + 1), 'level'));
     } else {
-      head.appendChild(createChip(entry && entry.author || 'Анонім', 'author'));
+      head.appendChild(createChip(entry && entry.author || 'Аноним', 'author'));
       head.appendChild(createChip('Продовження ' + chunkIndex + '/' + chunkCount, 'continuation'));
-      if (level > 0) head.appendChild(createChip('Рівень ' + (level + 1), 'level'));
+      if (level > 0) head.appendChild(createChip('Уровень ' + (level + 1), 'level'));
     }
     wrapper.appendChild(head);
     wrapper.appendChild(text);
@@ -3035,7 +3035,7 @@
   }
   function buildThreadItems(comment) {
     var entries = Array.isArray(comment && comment.thread_entries) && comment.thread_entries.length ? comment.thread_entries : [{
-      author: comment && comment.author || 'Анонім',
+      author: comment && comment.author || 'Аноним',
       created_label: comment && comment.created_label || '',
       score_label: comment && comment.score_label || '0',
       level: 0,
@@ -3061,8 +3061,8 @@
     });
     if (!items.length) {
       items.push({
-        title: 'Немає даних',
-        subtitle: 'Коментарі відсутні',
+        title: 'Нет данных',
+        subtitle: 'Комментарии отсутствуют',
         noenter: true
       });
     }
@@ -3070,11 +3070,11 @@
   }
   function openThreadSidebar(comment) {
     var previousController = Lampa.Controller.enabled();
-    var author = safeText(comment && comment.author) || 'Анонім';
+    var author = safeText(comment && comment.author) || 'Аноним';
     var repliesCount = Number(comment && comment.replies_count || 0);
     var commentsInThread = Number(comment && comment.thread_comments_count || 0) || repliesCount + 1;
     Lampa.Select.show({
-      title: 'Гілка: ' + author,
+      title: 'Ветка: ' + author,
       items: buildThreadItems(comment),
       nomark: true,
       onFullDraw: function onFullDraw(selectScroll) {
@@ -3084,9 +3084,9 @@
         var head = document.createElement('div');
         panel.className = 'hikka-comment-sidebar';
         head.className = 'hikka-comment-sidebar__head';
-        head.appendChild(createChip('Коментарів ' + commentsInThread, 'replies'));
+        head.appendChild(createChip('Комментариев ' + commentsInThread, 'replies'));
         if (repliesCount > 0) {
-          head.appendChild(createChip('Відповідей ' + repliesCount, 'replies'));
+          head.appendChild(createChip('Ответов ' + repliesCount, 'replies'));
         }
         panel.appendChild(head);
         body.prepend(panel);
@@ -3108,12 +3108,12 @@
       key: "create",
       value: function create() {
         var _this = this;
-        var author = safeText(this.data.author) || 'Анонім';
-        var dateLabel = safeText(this.data.created_label) || 'Невідома дата';
+        var author = safeText(this.data.author) || 'Аноним';
+        var dateLabel = safeText(this.data.created_label) || 'Неизвестная дата';
         var scoreLabel = safeText(this.data.score_label) || '0';
         var repliesCount = Number(this.data.replies_count || 0);
         var commentsInThread = Number(this.data.thread_comments_count || 0) || repliesCount + 1;
-        var text = safeText(this.data.text) || 'Текст коментаря відсутній';
+        var text = safeText(this.data.text) || 'Текст комментария отсутствует';
         var root = document.createElement('div');
         var topMeta = document.createElement('div');
         var textNode = document.createElement('div');
@@ -3125,8 +3125,8 @@
         topMeta.appendChild(createChip(author, 'author'));
         topMeta.appendChild(createChip(dateLabel, 'date'));
         textNode.innerHTML = renderMarkdownPreview(text);
-        bottomMeta.appendChild(createChip('Оцінка ' + scoreLabel, 'score'));
-        bottomMeta.appendChild(createChip('Коментарів ' + commentsInThread, 'replies'));
+        bottomMeta.appendChild(createChip('Оценка ' + scoreLabel, 'score'));
+        bottomMeta.appendChild(createChip('Комментариев ' + commentsInThread, 'replies'));
         root.appendChild(topMeta);
         root.appendChild(textNode);
         root.appendChild(bottomMeta);
@@ -3234,7 +3234,7 @@
   function getComponentLinePresets() {
     return [{
       name: 'HikkaComponentOngoingUA',
-      title: 'Онгоїнги',
+      title: 'Онгоинги',
       index: 3,
       buildFilters: function buildFilters() {
         return withBaseFilters({
@@ -3246,7 +3246,7 @@
       }
     }, {
       name: 'HikkaComponentFinishedPrevSeasonUA',
-      title: 'Минулий сезон',
+      title: 'Прошлый сезон',
       index: 4,
       buildFilters: function buildFilters() {
         return withBaseFilters({
@@ -3272,7 +3272,7 @@
       }
     }, {
       name: 'HikkaComponentTopMoviesUA',
-      title: 'Високо оцінені фільми',
+      title: 'Высоко оценённые фильмы',
       index: 6,
       buildFilters: function buildFilters() {
         return withBaseFilters({
@@ -3429,7 +3429,7 @@
   }
   function normalizeEpisodeTitle(episode, episodeNumber) {
     var title = episode && (episode.title_ua || episode.title_ja || episode.title_en || episode.name) || '';
-    return title || 'Епізод ' + episodeNumber;
+    return title || 'Эпизод ' + episodeNumber;
   }
   function extractSeasonNumberFromText(value) {
     var text = String(value || '').trim();
@@ -3719,7 +3719,7 @@
       ova: 'OVA',
       special: 'Special',
       music: 'Music',
-      other: 'Інше'
+      other: 'Прочее'
     };
     return labels[type] || labels.other;
   }
@@ -4021,10 +4021,10 @@
       };
     });
     var stats = [];
-    if (typeof person.anime_count === 'number') stats.push('Аніме: ' + person.anime_count);
-    if (typeof person.characters_count === 'number') stats.push('Персонажів: ' + person.characters_count);
+    if (typeof person.anime_count === 'number') stats.push('Аниме: ' + person.anime_count);
+    if (typeof person.characters_count === 'number') stats.push('Персонажей: ' + person.characters_count);
     if (typeof person.comments_count === 'number' && person.comments_count > 0) {
-      stats.push('Коментарів: ' + person.comments_count);
+      stats.push('Комментариев: ' + person.comments_count);
     }
     var statsLine = stats.join(' • ');
     var description = person.description_ua || person.description_en || '';
@@ -4159,8 +4159,8 @@
   function buildStaffLoadingPlaceholder(slug) {
     return [{
       id: 'hikka_lazy_staff_loading_' + slug,
-      name: 'Завантаження авторів...',
-      character: 'Триває завантаження',
+      name: 'Загрузка авторов...',
+      character: 'Загрузка...',
       known_for_department: 'Production',
       profile_path: null,
       img: null,
@@ -4180,8 +4180,8 @@
   function buildCastLoadingPlaceholder(slug) {
     return [{
       id: 'hikka_lazy_cast_loading_' + slug,
-      name: 'Завантаження акторів...',
-      character: 'Триває завантаження',
+      name: 'Загрузка актёров...',
+      character: 'Загрузка...',
       known_for_department: 'Acting',
       profile_path: null,
       img: null,
@@ -4204,8 +4204,8 @@
       total_results: 1,
       result: [{
         id: 'hikka_lazy_discuss_loading_' + slug,
-        text: 'Завантаження коментарів...',
-        comment: 'Завантаження коментарів...',
+        text: 'Загрузка комментариев...',
+        comment: 'Загрузка комментариев...',
         author: 'Hikka',
         created_label: '',
         score: 0,
@@ -4230,7 +4230,7 @@
       title: 'Франшиза',
       results: [{
         id: 'hikka_lazy_franchise_loading_' + slug,
-        title: 'Завантаження...',
+        title: 'Загрузка...',
         original_title: '',
         poster_path: null,
         backdrop_path: null,
@@ -5263,8 +5263,8 @@
       rowData.page = discuss && discuss.page ? discuss.page : 1;
       rowData.results = next;
       if (!result.length && rowData.results[0]) {
-        rowData.results[0].text = 'Коментарі відсутні';
-        rowData.results[0].comment = 'Коментарі відсутні';
+        rowData.results[0].text = 'Комментарии отсутствуют';
+        rowData.results[0].comment = 'Комментарии отсутствуют';
         rowData.results[0].author = rowData.results[0].author || 'Hikka';
         rowData.results[0].email = rowData.results[0].email || 'Hikka';
       }
@@ -5278,14 +5278,14 @@
     function applyFranchiseLazy(line, rowData, slug, collection) {
       var result = collection && Array.isArray(collection.results) ? collection.results : [];
       var fallback = Array.isArray(rowData.results) ? rowData.results.slice() : [];
-      var next = result.length ? result : fallback.length ? fallback : [createFranchiseStatusItem(slug, 'Франшиза відсутня')];
+      var next = result.length ? result : fallback.length ? fallback : [createFranchiseStatusItem(slug, 'Франшиза отсутствует')];
       rowData.hikka_lazy_loading = false;
       rowData.hikka_lazy_loaded = true;
       rowData.total_pages = 1;
       rowData.page = 1;
       rowData.results = next;
       if (!result.length && rowData.results[0]) {
-        rowData.results[0].title = 'Франшиза відсутня';
+        rowData.results[0].title = 'Франшиза отсутствует';
       }
       if (line && line.data) {
         line.data.total_pages = rowData.total_pages;
@@ -5299,7 +5299,7 @@
       var firstCurrent = currentResults.length ? currentResults[0] : null;
       var paramsTemplate = cloneParamsTemplate(firstCurrent && firstCurrent.params);
       var cast = castPayload && Array.isArray(castPayload.cast) ? castPayload.cast : [];
-      var nextBase = cast.length ? cast : [createCastStatusItem(slug, 'Актори відсутні')];
+      var nextBase = cast.length ? cast : [createCastStatusItem(slug, 'Актёры отсутствуют')];
       var next = inheritLineItemParams(nextBase, paramsTemplate);
       rowData.hikka_lazy_loading = false;
       rowData.hikka_lazy_loaded = true;
@@ -5314,15 +5314,15 @@
       var firstCurrent = currentResults.length ? currentResults[0] : null;
       var paramsTemplate = cloneParamsTemplate(firstCurrent && firstCurrent.params);
       var crew = staffPayload && Array.isArray(staffPayload.crew) ? staffPayload.crew : [];
-      var nextBase = crew.length ? crew : [createStaffStatusItem(slug, 'Автори відсутні')];
+      var nextBase = crew.length ? crew : [createStaffStatusItem(slug, 'Авторы отсутствуют')];
       var next = inheritLineItemParams(nextBase, paramsTemplate);
       rowData.hikka_lazy_loading = false;
       rowData.hikka_lazy_loaded = true;
       rowData.results = next;
-      rowData.title = 'Автори';
+      rowData.title = 'Авторы';
       if (line && line.data) {
         line.data.results = rowData.results;
-        setLineTitle(line, 'Автори');
+        setLineTitle(line, 'Авторы');
         rebuildLineItems(line);
       }
     }
@@ -5417,7 +5417,7 @@
       var slug = firstResult && firstResult.hikka_lazy_slug || resolveLazySlug(rowData, event.object);
       if (!slug) return;
       if (lazyType === 'staff') {
-        setLineTitle(line, 'Автори');
+        setLineTitle(line, 'Авторы');
       }
       rowData.hikka_lazy_loading = true;
       if (lazyType === 'staff') {
@@ -5595,7 +5595,7 @@
     }
     function normalizeDescriptionHtml(value) {
       var text = String(value || '').trim();
-      if (!text) return 'Опис відсутній';
+      if (!text) return 'Описание отсутствует';
       if (text.indexOf('<') !== -1) return text;
       var decoded = decodeHtmlEntities(text).trim();
       if (decoded.indexOf('<') !== -1) return decoded;
@@ -5613,9 +5613,9 @@
         returning_series: 'Виходить',
         ended: 'Завершено',
         planned: 'Анонсовано',
-        in_production: 'У виробництві',
+        in_production: 'В производстве',
         canceled: 'Скасовано',
-        pilot: 'Пілот'
+        pilot: 'Пилот'
       };
       return labels[status] || '';
     }
@@ -5651,7 +5651,7 @@
           movie: 'Фильм'
         },
         uk: {
-          series: 'Серіал',
+          series: 'Сериал',
           movie: 'Фільм'
         },
         en: {
@@ -5770,7 +5770,7 @@
       });
       var episodes = resolveEpisodesLabel(movie);
       if (episodes) list.push({
-        text: 'Епізоди: ' + episodes,
+        text: 'Эпизоди: ' + episodes,
         mod: 'episodes'
       });
       var unique = [];
@@ -5913,7 +5913,7 @@
           description.innerHTML = html;
           description.dataset.hikkaSignature = signature;
         }
-        if (!description.innerHTML.trim()) description.innerHTML = 'Опис відсутній';
+        if (!description.innerHTML.trim()) description.innerHTML = 'Описание отсутствует';
       }
       var host = resolveActiveFullHost(bodyHint) || root;
       var overlayText = host && host.querySelector('.applecation-description-overlay__text') || document.querySelector('.applecation-description-overlay__text');
@@ -6029,7 +6029,7 @@
               page: 1,
               source: 'hikka'
             }, filt));
-            return false; // зупинити стандартну дію
+            return false; // stop standard action
           });
         }
       });
@@ -6065,7 +6065,7 @@
           var released = Number(movie.episodes_released || 0);
           if (!total) return;
           var desired = released && released < total ? released + '/' + total : String(total);
-          var episodesTitle = Lampa && Lampa.Lang && Lampa.Lang.translate ? Lampa.Lang.translate('title_episodes') : 'Епізоди';
+          var episodesTitle = Lampa && Lampa.Lang && Lampa.Lang.translate ? Lampa.Lang.translate('title_episodes') : 'Эпизоди';
           var header = document.querySelector('.full-start') || document.querySelector('.full-start-new');
           if (!header) {
             if (attempt < 8) setTimeout(function () {
@@ -6085,7 +6085,7 @@
           nodes.forEach(function (node) {
             var text = String(node && node.textContent || '').trim();
             if (!text) return;
-            if (text.indexOf(episodesTitle + ':') === 0 || /^episodes\s*:/i.test(text) || /^епізод/i.test(text)) {
+            if (text.indexOf(episodesTitle + ':') === 0 || /^episodes\s*:/i.test(text) || /^эпизод/i.test(text)) {
               node.textContent = episodesTitle + ': ' + desired;
               applied = true;
             }
@@ -6099,12 +6099,12 @@
         var updateTypeBadge = function updateTypeBadge(movie) {
           if (!movie) return;
           var MAP = {
-            tv: 'ТВ Серіал',
-            movie: 'Фільм',
+            tv: 'ТВ Сериал',
+            movie: 'Фильм',
             ova: 'OVA',
             ona: 'ONA',
-            special: 'Спеціальний',
-            music: 'Музичний'
+            special: 'Специальный',
+            music: 'Музыкальный'
           };
           var label = MAP[movie.media_type] || movie.quality || movie.media_type || 'TV';
           var typeEl = document.querySelector('.card__type');
@@ -6316,11 +6316,11 @@
   var MEDIA_TYPE_ORDER = ['movie', 'tv', 'special', 'ova', 'ona', 'music'];
   var MEDIA_TYPE_TITLES = {
     special: 'Спешл',
-    movie: 'Фільм',
+    movie: 'Фильм',
     ova: 'OVA',
     ona: 'ONA',
-    tv: 'TV Серіал',
-    music: 'Музика'
+    tv: 'TV Сериал',
+    music: 'Музыка'
   };
   function decodeQuery(value) {
     if (!value) return '';
