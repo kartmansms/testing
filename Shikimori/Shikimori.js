@@ -1009,7 +1009,7 @@
         if (orderMap[sort]) args.push('order: ' + orderMap[sort]);
 
         if (params.search) args.push('search: "' + params.search.replace(/"/g, '\\"') + '"');
-        if (params.kind) args.push('kind: ' + params.kind);
+        if (params.kind) args.push('kind: "' + params.kind + '"');
         if (params.status) args.push('status: "' + params.status + '"');
         if (params.season) args.push('season: "' + params.season + '"');
         if (params.genre) args.push('genre: "' + params.genre + '"');
