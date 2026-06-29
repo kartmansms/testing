@@ -855,7 +855,7 @@
             return;
         }
 
-        var armUrl = armLookupUrl(data.id);
+        var armUrl = armLookupUrl(data.malId || data.id);
 
         apiGetJson(armUrl, function (answer) {
             var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
@@ -1061,7 +1061,7 @@
      * @see {@link openLampaSearch} для ручного поиска Lampa
      */
     function openAnime(data) {
-        var url = armLookupUrl(data.id);
+        var url = armLookupUrl(data.malId || data.id);
 
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) {
@@ -3023,6 +3023,7 @@
 
         return {
             id: item.id,
+            malId: item.malId || item.mal_id || '',
             name: item.name,
             russian: item.russian,
             english: item.english || '',
