@@ -1957,7 +1957,7 @@
       value: function updateButtonText(buttonElement, title) {
         var shortTitle = title;
         if (title.length > 15) {
-          if (title === 'По рейтингу ↓') shortTitle = 'Рейтинг ↓';else if (title === 'По рейтингу ↑') shortTitle = 'Рейтинг ↑';else if (title === 'По дате ↓') shortTitle = 'Дата ↓';else if (title === 'По дате ↑') shortTitle = 'Дата ↑';else if (title === 'По названию ↓') shortTitle = 'Название ↓';else if (title === 'По названию ↑') shortTitle = 'Название ↑';else if (title.startsWith('Все')) shortTitle = 'Всі';else shortTitle = title.substring(0, 12) + '...';
+          if (title === 'По рейтингу ↓') shortTitle = 'Рейтинг ↓';else if (title === 'По рейтингу ↑') shortTitle = 'Рейтинг ↑';else if (title === 'По дате ↓') shortTitle = 'Дата ↓';else if (title === 'По дате ↑') shortTitle = 'Дата ↑';else if (title === 'По названию ↓') shortTitle = 'Название ↓';else if (title === 'По названию ↑') shortTitle = 'Название ↑';else if (title.startsWith('Все')) shortTitle = 'Все';else shortTitle = title.substring(0, 12) + '...';
         }
         buttonElement.querySelector('span').textContent = shortTitle;
       }
@@ -1966,7 +1966,7 @@
       value: function toggleOnlyTranslated(buttonElement) {
         var _this3 = this;
         this.filterManager.filters.only_translated = !this.filterManager.filters.only_translated;
-        buttonElement.querySelector('span').textContent = this.filterManager.filters.only_translated ? 'З перекладом' : 'Перевод';
+        buttonElement.querySelector('span').textContent = this.filterManager.filters.only_translated ? 'С переводом' : 'Перевод';
         this.component.reload();
         setTimeout(function () {
           _this3.component.navigationManager && _this3.component.navigationManager.refresh();
@@ -2489,7 +2489,7 @@
           value: String(age)
         });
         if (birthday) metaItems.push({
-          label: 'Народження',
+          label: 'Дата рождения',
           value: String(birthday)
         });
         if (metaItems.length) {
@@ -2597,9 +2597,12 @@
       Lampa.Activity.push({
         url: '',
         title: Lampa.Lang.translate('menu_anime'),
-        component: 'hikka_anime',
+        component: 'category_full',
         page: 1,
-        source: 'hikka'
+        source: 'hikka',
+        filter: JSON.stringify({
+          sort: ['score:desc']
+        })
       });
     });
     button.addClass('my_class');
@@ -4579,13 +4582,35 @@
         filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
           sort: ['score:desc']
         }))
-      }, {
-        title: lang('title_hight_voite'),
-        filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
-          sort: ['score:desc']
-        }))
       }];
-      oncomplite && oncomplite(items);
+      Api.getGenres(function (genreData) {
+        var genreList = Array.isArray(genreData && genreData.list) ? genreData.list : [];
+        var genreItems = genreList.filter(function (g) {
+          return g && g.slug && g.type === 'genre';
+        }).map(function (g) {
+          return {
+            title: g.name_ru || g.name_en || g.name || g.slug,
+            filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
+              genres: [g.slug],
+              sort: ['score:desc']
+            }))
+          };
+        });
+        var themeItems = genreList.filter(function (g) {
+          return g && g.slug && g.type === 'theme';
+        }).map(function (g) {
+          return {
+            title: g.name_ru || g.name_en || g.name || g.slug,
+            filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
+              genres: [g.slug],
+              sort: ['score:desc']
+            }))
+          };
+        });
+        oncomplite && oncomplite(items.concat(genreItems).concat(themeItems));
+      }, function () {
+        oncomplite && oncomplite(items);
+      });
     }
   };
 
@@ -6304,8 +6329,7 @@
       console.warn('[Hikka] Failed to register source provider:', e);
     }
 
-    // Добавляем лайны Hikka на главную через ContentRows
-    initRows();
+    // Линии на главной убраны — вместо них единый каталог через menu
 
     // Добавляем источник Hikka в нативный глобальный поиск Lampa
     initSearchIntegration();
