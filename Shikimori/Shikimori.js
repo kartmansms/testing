@@ -3114,18 +3114,8 @@
 
                         if (year && item.aired_on) {
                             var itemYear = parseInt(String(item.aired_on).substring(0, 4), 10);
-                            var isTv = item.kind === 'tv';
 
-                            var isValidYear = false;
-                            if (isTv) {
-                                if (itemYear >= year - 2 && itemYear <= year + 20) {
-                                    isValidYear = true;
-                                }
-                            } else {
-                                if (Math.abs(itemYear - year) <= 2) {
-                                    isValidYear = true;
-                                }
-                            }
+                            var isValidYear = Math.abs(itemYear - year) <= 1;
 
                             if (isValidYear) {
                                 best = item;
