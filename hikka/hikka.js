@@ -4551,9 +4551,6 @@
     menuCategory: function menuCategory() {
       var params = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
       var oncomplite = arguments.length > 1 ? arguments[1] : undefined;
-      var lang = Lampa && Lampa.Lang && Lampa.Lang.translate ? Lampa.Lang.translate : function (v) {
-        return v;
-      };
       var action = params.action || '';
       var isMovie = action === 'movie';
       var isTv = action === 'tv';
@@ -4562,24 +4559,37 @@
       if (isMovie) baseFilters.media_type = ['movie'];
       if (isTv) baseFilters.media_type = ['tv'];
       var items = [{
-        title: lang('title_popular'),
+        title: 'Популярное',
         filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
           sort: ['score:desc']
         }))
       }, {
-        title: lang('title_new'),
+        title: 'Онгоинги',
+        filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
+          status: ['ongoing'],
+          sort: ['score:desc']
+        }))
+      }, {
+        title: 'Анонсы',
+        filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
+          status: ['announced'],
+          sort: ['start_date:asc']
+        }))
+      }, {
+        title: 'Фильмы',
+        filter: JSON.stringify({
+          media_type: ['movie'],
+          sort: ['score:desc']
+        })
+      }, {
+        title: 'Новые',
         filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
           sort: ['start_date:desc']
         }))
       }, {
-        title: lang('title_new_this_year'),
+        title: 'Топ ' + currentYear,
         filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
           years: [String(currentYear)],
-          sort: ['start_date:desc']
-        }))
-      }, {
-        title: lang('title_in_top'),
-        filter: JSON.stringify(_objectSpread2(_objectSpread2({}, baseFilters), {}, {
           sort: ['score:desc']
         }))
       }];
