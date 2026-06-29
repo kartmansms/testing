@@ -281,6 +281,100 @@
     genres: [{
       title: 'Все жанры',
       value: ''
+    }],
+    year: [{
+      title: 'Все годы',
+      value: ''
+    }, {
+      title: '2026',
+      value: '2026'
+    }, {
+      title: '2025',
+      value: '2025'
+    }, {
+      title: '2024',
+      value: '2024'
+    }, {
+      title: '2023',
+      value: '2023'
+    }, {
+      title: '2022',
+      value: '2022'
+    }, {
+      title: '2021',
+      value: '2021'
+    }, {
+      title: '2020',
+      value: '2020'
+    }, {
+      title: '2019',
+      value: '2019'
+    }, {
+      title: '2018',
+      value: '2018'
+    }, {
+      title: '2017',
+      value: '2017'
+    }, {
+      title: '2016',
+      value: '2016'
+    }, {
+      title: '2015',
+      value: '2015'
+    }, {
+      title: '2014',
+      value: '2014'
+    }, {
+      title: '2013',
+      value: '2013'
+    }, {
+      title: '2012',
+      value: '2012'
+    }, {
+      title: '2011',
+      value: '2011'
+    }, {
+      title: '2010',
+      value: '2010'
+    }, {
+      title: '2009',
+      value: '2009'
+    }, {
+      title: '2008',
+      value: '2008'
+    }, {
+      title: '2007',
+      value: '2007'
+    }, {
+      title: '2006',
+      value: '2006'
+    }, {
+      title: '2005',
+      value: '2005'
+    }, {
+      title: '2004',
+      value: '2004'
+    }, {
+      title: '2003',
+      value: '2003'
+    }, {
+      title: '2002',
+      value: '2002'
+    }, {
+      title: '2001',
+      value: '2001'
+    }, {
+      title: '2000',
+      value: '2000'
+    }, {
+      title: '1990-е',
+      value: '1990s'
+    }, {
+      title: '1980-е',
+      value: '1980s'
+    }, {
+      title: 'Ранее',
+      value: 'older'
     }]
   };
 
@@ -1757,6 +1851,8 @@
         filterBody.appendChild(createBtn('Тип', 'media_type', FILTER_OPTIONS.media_type));
         // Status
         filterBody.appendChild(createBtn('Статус', 'status', FILTER_OPTIONS.status));
+        // Year
+        filterBody.appendChild(createBtn('Год', 'year', FILTER_OPTIONS.year));
         // Season
         filterBody.appendChild(createBtn('Сезон', 'season', FILTER_OPTIONS.season));
         // Rating
@@ -1808,6 +1904,37 @@
             console.log('[Hikka Filter] Selected:', filterType, item);
             if (filterType === 'sort') {
               _this2.filterManager.filters.sort = [item.value];
+            } else if (filterType === 'year') {
+              if (!item.value) {
+                _this2.filterManager.filters.years = [];
+              } else if (item.value === '1990s') {
+                _this2.filterManager.filters.years = [];
+                for (var y = 1990; y <= 1999; y++) {
+                  ['winter', 'spring', 'summer', 'fall'].forEach(function (s) {
+                    _this2.filterManager.filters.years.push([s, y]);
+                  });
+                }
+              } else if (item.value === '1980s') {
+                _this2.filterManager.filters.years = [];
+                for (var y = 1980; y <= 1989; y++) {
+                  ['winter', 'spring', 'summer', 'fall'].forEach(function (s) {
+                    _this2.filterManager.filters.years.push([s, y]);
+                  });
+                }
+              } else if (item.value === 'older') {
+                _this2.filterManager.filters.years = [];
+                for (var y = 1960; y <= 1979; y++) {
+                  ['winter', 'spring', 'summer', 'fall'].forEach(function (s) {
+                    _this2.filterManager.filters.years.push([s, y]);
+                  });
+                }
+              } else {
+                var yearNum = Number(item.value);
+                _this2.filterManager.filters.years = [];
+                ['winter', 'spring', 'summer', 'fall'].forEach(function (s) {
+                  _this2.filterManager.filters.years.push([s, yearNum]);
+                });
+              }
             } else {
               _this2.filterManager.filters[filterType] = item.value ? [item.value] : [];
             }
@@ -1853,7 +1980,7 @@
 
         // Reset button texts
         var spans = filterBody.querySelectorAll('.simple-button--filter.selector span');
-        var titles = ['Тип', 'Статус', 'Сезон', 'Рейтинг', 'Сортування', 'Жанр', 'Перевод', 'Сбросить'];
+        var titles = ['Тип', 'Статус', 'Год', 'Сезон', 'Рейтинг', 'Сортування', 'Жанр', 'Перевод', 'Сбросить'];
         spans.forEach(function (span, i) {
           if (titles[i]) span.textContent = titles[i];
         });
