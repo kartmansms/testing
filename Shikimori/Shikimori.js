@@ -1062,18 +1062,25 @@
      */
     function openAnime(data) {
         var url = armLookupUrl(data.malId || data.id);
+        var expectedYear = getAnimeYear(data);
+        var expectedType = data.kind === 'movie' ? 'movie' : 'tv';
 
         var onSuccess = function (answer) {
             if (answer && answer.themoviedb) {
                 var armType = answer.media_type || answer.type || '';
-                var expectedType = data.kind === 'movie' ? 'movie' : 'tv';
 
                 if (armType && armType !== expectedType) {
                     fallbackSearch(data);
                     return;
                 }
 
-                openTmdb(answer, data);
+                verifyTmdbYear(answer.themoviedb, expectedType, expectedYear, function (yearOk) {
+                    if (yearOk) {
+                        openTmdb(answer, data);
+                    } else {
+                        fallbackSearch(data);
+                    }
+                });
             } else {
                 fallbackSearch(data);
             }
@@ -1081,6 +1088,26 @@
 
         apiGetJson(url, onSuccess, function () {
             fallbackSearch(data);
+        });
+    }
+
+    function verifyTmdbYear(tmdbId, type, expectedYear, callback) {
+        if (!expectedYear) { callback(true); return; }
+
+        var path = (type === 'movie' ? 'movie/' : 'tv/') + tmdbId + '?api_key=' + TMDB_API_KEY + '&language=' + encodeURIComponent(tmdbLanguage());
+        var url = tmdbApiUrl(path);
+
+        apiGetJson(url, function (res) {
+            if (!res) { callback(true); return; }
+
+            var date = res.release_date || res.first_air_date || '';
+            var tmdbYear = parseInt(String(date).substring(0, 4), 10);
+
+            if (!tmdbYear) { callback(true); return; }
+
+            callback(Math.abs(tmdbYear - expectedYear) <= 1);
+        }, function () {
+            callback(true);
         });
     }
 
