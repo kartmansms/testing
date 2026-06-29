@@ -1074,8 +1074,8 @@
                     return;
                 }
 
-                verifyTmdbYear(answer.themoviedb, expectedType, expectedYear, function (yearOk) {
-                    if (yearOk) {
+                verifyTmdbResult(answer.themoviedb, expectedType, expectedYear, data, function (ok) {
+                    if (ok) {
                         openTmdb(answer, data);
                     } else {
                         fallbackSearch(data);
@@ -1091,9 +1091,11 @@
         });
     }
 
-    function verifyTmdbYear(tmdbId, type, expectedYear, callback) {
-        if (!expectedYear) { callback(true); return; }
+    function normalizeForCompare(str) {
+        return String(str || '').toLowerCase().replace(/×/g, 'x').replace(/[^a-z0-9а-яё]/g, '');
+    }
 
+    function verifyTmdbResult(tmdbId, type, expectedYear, shikiData, callback) {
         var path = (type === 'movie' ? 'movie/' : 'tv/') + tmdbId + '?api_key=' + TMDB_API_KEY + '&language=' + encodeURIComponent(tmdbLanguage());
         var url = tmdbApiUrl(path);
 
@@ -1103,9 +1105,28 @@
             var date = res.release_date || res.first_air_date || '';
             var tmdbYear = parseInt(String(date).substring(0, 4), 10);
 
-            if (!tmdbYear) { callback(true); return; }
+            if (expectedYear && tmdbYear && tmdbYear > expectedYear + 1) {
+                callback(false);
+                return;
+            }
 
-            callback(Math.abs(tmdbYear - expectedYear) <= 1);
+            var tmdbName = normalizeForCompare(res.original_title || res.original_name || res.title || res.name);
+            var shikiName = normalizeForCompare(shikiData.name);
+            var shikiEn = normalizeForCompare(shikiData.english);
+            var shikiRu = normalizeForCompare(shikiData.russian);
+
+            if (tmdbName && shikiName) {
+                var nameMatch = tmdbName.indexOf(shikiName) !== -1 || shikiName.indexOf(tmdbName) !== -1;
+                var enMatch = shikiEn && (tmdbName.indexOf(shikiEn) !== -1 || shikiEn.indexOf(tmdbName) !== -1);
+                var ruMatch = shikiRu && (tmdbName.indexOf(shikiRu) !== -1 || shikiRu.indexOf(tmdbName) !== -1);
+
+                if (!nameMatch && !enMatch && !ruMatch) {
+                    callback(false);
+                    return;
+                }
+            }
+
+            callback(true);
         }, function () {
             callback(true);
         });
