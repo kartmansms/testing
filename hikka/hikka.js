@@ -403,7 +403,7 @@
   function inferSeasonNumber$1(details) {
     var numericValue = Number(details && (details.season_number || details.season) || 0);
     if (numericValue > 0) return numericValue;
-    var candidates = [details && details.title_ua, details && details.title_en, details && details.title_ja, details && details.name, details && details.slug];
+    var candidates = [details && details.title_ru, details && details.title_en, details && details.title_ua, details && details.title_ja, details && details.name, details && details.slug];
     for (var i = 0; i < candidates.length; i++) {
       var parsed = extractSeasonNumberFromText$1(candidates[i]);
       if (parsed > 0) return parsed;
@@ -546,8 +546,8 @@
       id: anime.slug,
       mal_id: anime.mal_id,
       kinopoisk_id: anime.kinopoisk_id || anime.mal_id,
-      title: anime.title_ua || anime.title_en || anime.title_ja,
-      name: anime.media_type !== 'movie' ? anime.title_ua || anime.title_en || anime.title_ja : undefined,
+      title: anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja,
+      name: anime.media_type !== 'movie' ? anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja : undefined,
       original_title: anime.title_en || anime.title_ja || anime.title_ua,
       // КЛЮЧОВЕ ПОЛЕ: original_name визначає тип картки (TV vs MOV)
       original_name: anime.media_type === 'movie' ? null : anime.title_en || anime.title_ja || anime.title_ua,
@@ -557,7 +557,7 @@
       // НЕ додаємо poster_path/backdrop_path - вони викликають TMDB prefix при створенні Card!
       // Тільки для Full потрібні ці поля, там вони передаються окремо через buildFullPayloadFromDetails
       vote_average: anime.score || anime.native_score || 0,
-      overview: markdownToPlainText(anime.synopsis_ua || anime.synopsis_en || ''),
+      overview: markdownToPlainText(anime.synopsis_ru || anime.synopsis_en || anime.synopsis_ua || ''),
       year: anime.year,
       release_year: anime.year || '2023',
       // Побудова дат для Full (fallback з року)
@@ -575,6 +575,7 @@
   }
   function buildFullPayloadFromDetails(details) {
     var mediaType = details && details.media_type === 'movie' ? 'movie' : 'tv';
+    var title_ru = details && details.title_ru;
     var title_ua = details && details.title_ua;
     var title_en = details && details.title_en;
     var title_ja = details && details.title_ja;
@@ -593,13 +594,12 @@
       id: details && details.slug,
       mal_id: details && details.mal_id,
       kinopoisk_id: details && (details.kinopoisk_id || details.mal_id),
-      title: title_ua || title_en || title_ja,
-      name: mediaType !== 'movie' ? title_ua || title_en || title_ja : undefined,
+      title: title_ru || title_en || title_ua || title_ja,
+      name: mediaType !== 'movie' ? title_ru || title_en || title_ua || title_ja : undefined,
       original_title: title_ja || title_en || title_ua,
       original_name: mediaType !== 'movie' ? title_en || title_ja || title_ua : null,
-      // Використати title_ja як tagline для відображення оригінальної назви
       tagline: title_ja || '',
-      overview: markdownToHtml(details && (details.synopsis_ua || details.synopsis_en) || ''),
+      overview: markdownToHtml(details && (details.synopsis_ru || details.synopsis_en || details.synopsis_ua) || ''),
       poster_path: imageFields.poster_path,
       poster: imageFields.poster,
       img: imageFields.img,
@@ -699,7 +699,7 @@
             air_date: ep.air_date || (year ? year + '-01-01' : undefined),
             episode_number: ep.number || ep.episode_number || idx + 1,
             season_number: ep.season || ep.season_number || seasonNumber,
-            name: ep.title_ua || ep.title_ja || ep.title_en || ep.name || 'Эпизод ' + (ep.number || idx + 1),
+            name: ep.title_ru || ep.title_en || ep.title_ua || ep.title_ja || ep.name || 'Эпизод ' + (ep.number || idx + 1),
             overview: markdownToPlainText(ep.synopsis_ua || ep.synopsis_en || ep.overview || ''),
             still_path: imageFields.still_path,
             img: imageFields.img
@@ -2539,7 +2539,7 @@
   function buildCardFromAnime(anime, index) {
     var safe = anime || {};
     var mediaType = safe.media_type === 'movie' ? 'movie' : 'tv';
-    var title = safe.title_ua || safe.title_en || safe.title_ja || '—';
+    var title = safe.title_ru || safe.title_en || safe.title_ua || safe.title_ja || '—';
     var year = safe.year;
     var fallbackDate = year ? String(year) + '-01-01' : undefined;
     return {
@@ -3406,7 +3406,7 @@
     return character && (character.name_ua || character.name_en || character.name_ja || character.name) || 'Персонаж';
   }
   function pickAnimeTitle(anime) {
-    return anime && (anime.title_ua || anime.title_en || anime.title_ja || anime.name) || '';
+    return anime && (anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja || anime.name) || '';
   }
   function formatDateFromUnix(timestamp) {
     var value = Number(timestamp || 0);
@@ -3428,7 +3428,7 @@
     return Number(fallbackIndex || 0) + 1;
   }
   function normalizeEpisodeTitle(episode, episodeNumber) {
-    var title = episode && (episode.title_ua || episode.title_ja || episode.title_en || episode.name) || '';
+    var title = episode && (episode.title_ru || episode.title_en || episode.title_ua || episode.title_ja || episode.name) || '';
     return title || 'Эпизод ' + episodeNumber;
   }
   function extractSeasonNumberFromText(value) {
@@ -3446,7 +3446,7 @@
   function inferSeasonNumber(details) {
     var numericValue = Number(details && (details.season_number || details.season) || 0);
     if (numericValue > 0) return numericValue;
-    var candidates = [details && details.title_ua, details && details.title_en, details && details.title_ja, details && details.name, details && details.slug];
+    var candidates = [details && details.title_ru, details && details.title_en, details && details.title_ua, details && details.title_ja, details && details.name, details && details.slug];
     for (var i = 0; i < candidates.length; i++) {
       var parsed = extractSeasonNumberFromText(candidates[i]);
       if (parsed > 0) return parsed;
@@ -3517,7 +3517,7 @@
   function normalizeEpisodeSeasonNumber(episode, details, fallbackSeasonNumber) {
     var directSeason = Number(episode && (episode.season || episode.season_number) || 0);
     if (directSeason > 0) return directSeason;
-    var candidates = [episode && episode.title_ua, episode && episode.title_en, episode && episode.title_ja, episode && episode.name, episode && episode.slug];
+    var candidates = [episode && episode.title_ru, episode && episode.title_en, episode && episode.title_ua, episode && episode.title_ja, episode && episode.name, episode && episode.slug];
     for (var i = 0; i < candidates.length; i++) {
       var parsed = extractSeasonNumberFromText(candidates[i]);
       if (parsed > 0) return parsed;
@@ -3691,8 +3691,8 @@
       hikka_slug: anime.slug,
       title: title || '—',
       name: !isMovie ? title || '—' : undefined,
-      original_title: anime.title_en || anime.title_ja || anime.title_ua || title || '',
-      original_name: !isMovie ? anime.title_en || anime.title_ja || anime.title_ua || title || '' : null,
+      original_title: anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja || title || '',
+      original_name: !isMovie ? anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja || title || '' : null,
       poster_path: null,
       backdrop_path: null,
       poster: anime.image || null,
@@ -4096,7 +4096,7 @@
       return {
         id: item.slug || 'fr_' + idx,
         hikka_slug: item.slug || 'fr_' + idx,
-        title: item.title_ua || item.title_en || item.title_ja || '',
+        title: item.title_ru || item.title_en || item.title_ua || item.title_ja || '',
         original_title: item.title_en || item.title_ja || item.title_ua || '',
         // Для колекційних карток не використовуємо *_path, аби уникнути Api.img з TMDB
         poster_path: null,
