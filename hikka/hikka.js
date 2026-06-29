@@ -544,13 +544,13 @@
       title: anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja,
       name: anime.media_type !== 'movie' ? anime.title_ru || anime.title_en || anime.title_ua || anime.title_ja : undefined,
       original_title: anime.title_en || anime.title_ja || anime.title_ua,
-      // КЛЮЧОВЕ ПОЛЕ: original_name визначає тип картки (TV vs MOV)
+      // КЛЮЧЕВОЕ ПОЛЕ: original_name определяет тип карточки (TV vs MOV)
       original_name: anime.media_type === 'movie' ? null : anime.title_en || anime.title_ja || anime.title_ua,
       source: 'hikka',
       img: anime.image,
       poster: anime.image,
-      // НЕ додаємо poster_path/backdrop_path - вони викликають TMDB prefix при створенні Card!
-      // Тільки для Full потрібні ці поля, там вони передаються окремо через buildFullPayloadFromDetails
+      // НЕ добавляем poster_path/backdrop_path - они вызывают TMDB prefix при создании Card!
+      // Только для Full нужны эти поля, они передаются отдельно через buildFullPayloadFromDetails
       vote_average: anime.score || anime.native_score || 0,
       overview: markdownToPlainText(anime.synopsis_ru || anime.synopsis_en || anime.synopsis_ua || ''),
       year: anime.year,
@@ -562,7 +562,7 @@
       media_type: anime.media_type,
       // Quality: 'UA' if translated, otherwise undefined (or real quality if we had it)
       quality: anime.translated_ua ? 'Соловьина' : undefined,
-      // Поле для іконки перекладу
+      // Поле для иконки перевода
       has_translation: anime.translated_ua,
       translated_ua: anime.translated_ua,
       hikka_slug: anime.slug
@@ -583,7 +583,7 @@
     var isBackdropUrl = /^(https?:)?\/\//i.test(normalizedBackdrop) || /^data:image\//i.test(normalizedBackdrop);
     var backdropPath = hasBackdrop && normalizedBackdrop.charAt(0) === '/' ? normalizedBackdrop : null;
     var backgroundImage = hasBackdrop && !backdropPath && isBackdropUrl ? normalizedBackdrop : null;
-    // Для Full потрібно передавати стандартизований ключ статусу
+    // Для Full нужно передавать стандартизированный ключ статуса
     var statusKey = details ? STATUS_STD_MAP[details.status] || details.status : undefined;
     var card = {
       id: details && details.slug,
@@ -601,7 +601,7 @@
       backdrop_path: backdropPath,
       background_image: backgroundImage,
       images: {
-        // Applecation fallback: блокуємо TMDB /images для Hikka-карток.
+        // Applecation fallback: блокируем TMDB /images для Hikka-карточек.
         logos: [{
           iso_639_1: 'uk',
           file_path: '__hikka_skip_logo__'
@@ -622,7 +622,7 @@
       first_air_date: mediaType !== 'movie' && year ? year + '-01-01' : undefined,
       // runtime for movies (duration in minutes from Hikka)
       runtime: details && typeof details.duration === 'number' ? details.duration : undefined,
-      // Applecation нативно читає runtime серій з episode_run_time[0].
+      // Applecation нативно читает runtime серий из episode_run_time[0].
       episode_run_time: mediaType !== 'movie' && details && typeof details.duration === 'number' ? [details.duration] : undefined,
       // Ensure countries arrays to avoid join errors in Full
       production_countries: Array.isArray(details && details.countries) ? details.countries.map(function (c) {
@@ -640,7 +640,7 @@
       source: 'hikka'
     };
 
-    // Жанри
+    // Жанры
     if (details && Array.isArray(details.genres)) {
       card.genres = details.genres.map(function (g, i) {
         return {
@@ -650,17 +650,17 @@
       });
     }
 
-    // Кількість сезонів/епізодів
+    // Количество сезонов/эпизодов
     if (details && typeof details.seasons_count === 'number') card.number_of_seasons = details.seasons_count;
     if (details && typeof details.episodes_count === 'number') card.number_of_episodes = details.episodes_count;
-    // Додаткові лічильники випущених/загальних епізодів + fallback для Start
+    // Дополнительные счетчики выпущенных/общих эпизодов + fallback для Start
     if (typeof details.episodes_total === 'number') {
       card.episodes_total = details.episodes_total;
       if (!card.number_of_episodes) card.number_of_episodes = details.episodes_total;
     }
     if (typeof details.episodes_released === 'number') card.episodes_released = details.episodes_released;
 
-    // Компанії виробництва (повертаємо всі студії/компанії, як у нативному потоці)
+    // Компании производства (возвращаем все студии/компании, как в нативном потоке)
     card.production_companies = Array.isArray(details && details.companies) ? details.companies.map(function (item) {
       return {
         id: item && item.company ? item.company.slug : undefined,
@@ -876,8 +876,8 @@
       return [item[0], Number(item[1]) || item[1]];
     });
 
-    // Hikka API валідатор відхиляє years з єдиним season-year елементом.
-    // Для сумісності дублюємо один елемент.
+    // Hikka API валидатор отклоняет years с единственным season-year элементом.
+    // Для совместимости дублируем один элемент.
     if (normalized.length === 1) return [normalized[0], normalized[0]];
     return normalized;
   }
@@ -1038,11 +1038,11 @@
         rating: filters.rating || [],
         years: normalizeYearsForApi(filters.years),
         genres: filters.genres || [],
-        // Додаємо підтримку жанрів
+        // Добавляем поддержку жанров
         studios: filters.studios || [],
-        // Додаємо підтримку студій
+        // Добавляем поддержку студий
         only_translated: filters.only_translated || false,
-        // Додаємо підтримку only_translated
+        // Добавляем поддержку only_translated
         sort: filters.sort || ['score:desc']
       };
       if (Array.isArray(filters.score) && filters.score.length) {
@@ -1543,10 +1543,10 @@
     return _createClass(CardFactory, null, [{
       key: "create",
       value: function create(element) {
-        // КРИТИЧНО: Використовуємо Lampa.Maker.make('Card') замість deprecated AnimeCard
+        // КРИТИЧНО: Используем Lampa.Maker.make('Card') вместо deprecated AnimeCard
         // Params мають бути в data.params, а НЕ окремим аргументом!
-        // ВАЖЛИВО: НЕ передаємо poster_path/backdrop_path, бо Card додає TMDB prefix!
-        // Hikka вже має повні URL в img/poster
+        // ВАЖНО: НЕ передаём poster_path/backdrop_path, потому что Card добавляет TMDB prefix!
+        // Hikka уже имеет полные URL в img/poster
         var card = Lampa.Maker.make('Card', _objectSpread2(_objectSpread2({
           title: element.title || element.name,
           original_title: element.original_title || element.original_name,
@@ -1554,19 +1554,19 @@
           vote_average: element.vote_average,
           vote_count: element.vote_count,
           overview: element.overview,
-          // НЕ передаємо poster_path та backdrop_path - вони викликають TMDB prefix
+          // НЕ передаём poster_path и backdrop_path - они вызывают TMDB prefix
           // poster_path: element.poster_path,
           // backdrop_path: element.backdrop_path,
           img: element.img,
-          // Повний URL від Hikka
+          // Полный URL от Hikka
           poster: element.poster,
-          // Повний URL від Hikka
-          // Hikka специфічні поля
+          // Полный URL от Hikka
+          // Hikka специфичные поля
           hikka_slug: element.hikka_slug,
           quality: element.quality,
           has_translation: element.has_translation
         }, element), {}, {
-          // ВАЖЛИВО: params має бути в data.params
+          // ВАЖНО: params должен быть в data.params
           params: {
             card_category: false,
             card_small: false
@@ -1586,7 +1586,7 @@
       key: "render",
       value: function render(card, element, scroll, _activity) {
         var callbacks = arguments.length > 4 && arguments[4] !== undefined ? arguments[4] : {};
-        // card.render() повертає jQuery об'єкт
+        // card.render() возвращает jQuery объект
         var render = card.render();
         render.addClass('selector');
         render.addClass('hikka-card'); // Add scoped class
@@ -1604,7 +1604,7 @@
           viewElement.appendChild(translateBadge);
         }
 
-        // Для колекцій у Full показуємо реальний media_type (TV/ONA/OVA/...)
+        // Для коллекций в Full показываем реальный media_type (TV/ONA/OVA/...)
         if (element && element.hikka_collection && viewElement) {
           var typeLabel = String(element.hikka_media_type_label || element.media_type || '').toUpperCase();
           var typeNode = viewElement.querySelector('.card__type');
@@ -1613,12 +1613,12 @@
           }
         }
 
-        // Важливо: підписка на події ПЕРЕД додаванням в DOM
+        // Важно: подписка на события ПЕРЕД добавлением в DOM
         render.on('hover:touch hover:enter hover:focus', function () {
           if (callbacks.onFocus) callbacks.onFocus(card, render[0]);
         });
         render.on('hover:focus', function () {
-          // КРИТИЧНО: спочатку оновлюємо скрол
+          // КРИТИЧНО: сначала обновляем скролл
           scroll.update(render[0]);
           var card_data = element;
           var image = card_data.img || card_data.poster;
@@ -1627,7 +1627,7 @@
           }
         });
 
-        // Enter -> нативний потік Full через source-provider (без prefetch details тут)
+        // Enter -> нативный поток Full через source-provider (без prefetch details)
         render.off('hover:enter');
         render.on('hover:enter', function () {
           var slug = element.hikka_slug || element.id;
@@ -3681,7 +3681,7 @@
         hikka_slug: item.slug || 'fr_' + idx,
         title: item.title_ru || item.title_en || item.title_ua || item.title_ja || '',
         original_title: item.title_en || item.title_ja || item.title_ua || '',
-        // Для колекційних карток не використовуємо *_path, аби уникнути Api.img з TMDB
+        // Для коллекционных карточек не используем *_path, чтобы избежать Api.img из TMDB
         poster_path: null,
         backdrop_path: null,
         poster: item.image || null,
@@ -3690,7 +3690,7 @@
         release_date: mediaType === 'movie' ? year ? year + '-01-01' : startDate : undefined,
         first_air_date: mediaType !== 'movie' ? year ? year + '-01-01' : startDate : undefined,
         media_type: mediaType,
-        // Для нормального TV-style картки залишаємо non-movie original_name,
+        // Для нормальной TV-style карточки оставляем non-movie original_name,
         // а лейбл типу оновимо в CardRenderer.
         original_name: mediaType === 'movie' ? null : item.title_en || item.title_ja || item.title_ua || '',
         source: 'hikka',
@@ -3725,7 +3725,7 @@
           img: person.image || null,
           source: 'hikka',
           gender: 0,
-          // Full будує staff-лайн тільки для job === 'Director'
+          // Full строит staff-линию только для job === 'Director'
           job: 'Director'
         };
         return;
@@ -3870,7 +3870,7 @@
         return;
       }
 
-      // Пропускаємо порожні чанки, але не завершуємо завчасно всю послідовність.
+      // Пропускаем пустые чанки, но не завершаем досрочно всю последовательность.
       loadPresetChunk(state, onloaded, onempty);
     };
     chunk.forEach(function (preset) {
@@ -4815,7 +4815,7 @@
       var template = _objectSpread2({}, params);
       if (params.emit && _typeof(params.emit) === 'object') {
         template.emit = _objectSpread2({}, params.emit);
-        // placeholder-only handler блокує нативний onEnter у Person/Card
+        // placeholder-only handler блокирует нативный onEnter в Person/Card
         delete template.emit.onlyEnter;
       }
       return template;
@@ -5031,27 +5031,27 @@
       if (cleanupBusy) return;
       cleanupBusy = true;
       try {
-        // Reactions blocks (new and legacy) та кнопки реакцій
+        // Reactions blocks (new and legacy) и кнопки реакций
         document.querySelectorAll('.full-start-new__reactions, .full-start__reactions, .button--reaction').forEach(function (el) {
           return el.remove();
         });
 
-        // "Ще" (More) блок CUB discuss – повністю прибираємо з DOM
+        // "Ещё" (More) блок CUB discuss – полностью удаляем из DOM
         document.querySelectorAll('.full-review-all').forEach(function (el) {
           var wasFocused = el.classList.contains('focus');
           if (wasFocused) focusFirstVisibleCommentFrom(el);
           el.remove();
         });
 
-        // Add review картка від CUB: повністю прибираємо з DOM,
-        // щоб вона ніколи не могла бути ціллю TV-навігації
+        // Add review карточка от CUB: полностью удаляем из DOM,
+        // чтобы она никогда не могла быть целью TV-навигации
         document.querySelectorAll('.full-review-add').forEach(function (el) {
           var wasFocused = el.classList.contains('focus');
           if (wasFocused) focusFirstVisibleCommentFrom(el);
           el.remove();
         });
 
-        // Лайки у футері штатних відгуків
+        // Лайки в футере стандартных отзывов
         document.querySelectorAll('.full-review__footer').forEach(function (el) {
           return el.remove();
         });
@@ -5575,7 +5575,7 @@
       }
     }
 
-    // Хелпер для перев’язки чипів жанрів/студій на наш компонент
+    // Хелпер для привязки чипов жанров/студий к нашему компоненту
     function rebindChips(movie) {
       var tagsContainer = document.querySelector('.full-descr__tags');
       if (!tagsContainer) return;
@@ -5597,7 +5597,7 @@
           if (matched) type = 'company';
         }
         if (matched) {
-          // Відв’язуємо усі попередні обробники і навішуємо наш
+          // Отвязываем все предыдущие обработчики и навешиваем наш
           $(chip).off('hover:enter');
           $(chip).on('hover:enter', function () {
             var filt = type === 'genre' ? {
@@ -5612,7 +5612,7 @@
               page: 1,
               source: 'hikka'
             }, filt));
-            return false; // stop standard action
+            return false; // остановить стандартное действие
           });
         }
       });
@@ -5640,7 +5640,7 @@
         currentFullBody = resolveElement(e.body);
       }
       if (e.type === 'complite') {
-        // Хелпер для оновлення відображення епізодів у шапці (3/12 або 12)
+        // Хелпер для обновления отображения эпизодов в шапке (3/12 или 12)
         var _updateEpisodesHeader = function updateEpisodesHeader(movie) {
           var attempt = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : 0;
           if (!movie) return;
@@ -5713,7 +5713,7 @@
           console.log('[Hikka] Override chips error:', err);
         }
 
-        // Додатково спостерігаємо за змінами тегів і перев’язуємо при оновленні DOM
+        // Дополнительно наблюдаем изменения тегов и привязываем при обновлении DOM
         try {
           var tagsContainer = document.querySelector('.full-descr__tags');
           var _movie = e.data && e.data.movie ? e.data.movie : null;
@@ -6108,17 +6108,17 @@
     Lampa.__hikkaPatchedFavoriteApiImageNormalization = true;
   }
   function init() {
-    // Додаємо стилі для плагіну через шаблонну систему
+    // Добавляем стили для плагина через шаблонную систему
     Lampa.Template.add('hikka_styles', "\n        <style>\n        .hikka-card .card__icons .icon--ua{background-image:url('data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 40'%3E%3Crect width='60' height='20' fill='%230052CC'/%3E%3Crect y='20' width='60' height='20' fill='%23FFDD00'/%3E%3C/svg%3E');background-size:contain;background-repeat:no-repeat;background-position:center}.hikka-card .card__quality{text-transform:none}.hikka-card .hikka-anime-card__rating,.hikka-card .hikka-anime-card__episodes,.hikka-card .hikka-anime-card__status{font-size:12px;color:rgba(255,255,255,0.8);margin-top:2px}.hikka-card .hikka-anime-card__rating{color:#ffd700}.hikka-card .hikka-anime-card__status{color:#90ee90}.hikka-video-background{position:fixed;inset:0;z-index:1;opacity:0;pointer-events:none;-webkit-transition:opacity .28s ease;-o-transition:opacity .28s ease;transition:opacity .28s ease;background:#000}.hikka-video-background.is-visible{opacity:1}.hikka-video-background::after{content:'';position:absolute;inset:0;background:-webkit-gradient(linear,left top,left bottom,from(rgba(0,0,0,0.15)),to(rgba(0,0,0,0.62)));background:-webkit-linear-gradient(top,rgba(0,0,0,0.15) 0,rgba(0,0,0,0.62) 100%);background:-o-linear-gradient(top,rgba(0,0,0,0.15) 0,rgba(0,0,0,0.62) 100%);background:linear-gradient(180deg,rgba(0,0,0,0.15) 0,rgba(0,0,0,0.62) 100%)}.hikka-video-background__video{width:100%;height:100%;-o-object-fit:cover;object-fit:cover}.hikka-character{padding:2em 1.5em}.hikka-character__body{max-width:48em;margin:0 auto}.hikka-character__content{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-orient:vertical;-webkit-box-direction:normal;-webkit-flex-direction:column;-ms-flex-direction:column;flex-direction:column;gap:1em;-webkit-box-align:center;-webkit-align-items:center;-ms-flex-align:center;align-items:center;text-align:center}.hikka-character__image{width:12em;height:12em;-o-object-fit:cover;object-fit:cover;-webkit-border-radius:50%;border-radius:50%;-webkit-box-shadow:0 .6em 1.4em rgba(0,0,0,0.35);box-shadow:0 .6em 1.4em rgba(0,0,0,0.35)}.hikka-character__name{font-size:1.8em;font-weight:700;color:rgba(255,255,255,0.8)}.hikka-character__role{font-size:1.1em;color:rgba(255,255,255,0.6)}.hikka-character__meta{display:grid;gap:.4em;padding:.8em 1em;-webkit-border-radius:.8em;border-radius:.8em;background:rgba(255,255,255,0.06)}.hikka-character__meta-row{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-box-pack:justify;-webkit-justify-content:space-between;-ms-flex-pack:justify;justify-content:space-between;gap:1em;font-size:.95em}.hikka-character__meta-label{color:rgba(255,255,255,0.6)}.hikka-character__meta-value{color:rgba(255,255,255,0.8)}.hikka-character__description{max-width:40em;line-height:1.6;color:rgba(255,255,255,0.8)}.hikka-full-active .full-descr__text .hikka-md-link{color:rgba(178,211,255,0.98);text-decoration:underline}.hikka-full-active .full-descr__text .hikka-md-list{margin:.3em 0 .35em 1.25em;padding:0}.hikka-full-active .full-descr__text .hikka-md-quote{margin:.3em 0;padding:.35em .55em;border-left:.2em solid rgba(255,255,255,0.34);background:rgba(255,255,255,0.06);-webkit-border-radius:.3em;border-radius:.3em}.hikka-full-active .full-start-new.applecation .hikka-applecation-meta{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.45em;margin:.45em 0 .55em}.hikka-full-active .full-start-new.applecation .hikka-applecation-meta__item{display:-webkit-inline-box;display:-webkit-inline-flex;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-ms-flex-align:center;align-items:center;min-height:1.82em;padding:0 .62em;-webkit-border-radius:.62em;border-radius:.62em;font-size:.88em;line-height:1.2;border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.1);color:rgba(243,247,255,0.9)}.hikka-full-active .full-start-new.applecation .hikka-applecation-meta__item--rating{border-color:rgba(255,214,102,0.42);background:rgba(255,214,102,0.16);color:rgba(255,233,166,0.96)}.hikka-full-active .full-start-new.applecation .hikka-applecation-meta__item--status{background:rgba(129,255,175,0.11)}.hikka-full-active .applecation .applecation__description.hikka-applecation-description,.hikka-full-active .applecation-description-overlay__text.hikka-applecation-description{white-space:normal;line-height:1.35;color:rgba(239,245,255,0.9)}.hikka-full-active .applecation .applecation__description.hikka-applecation-description>span,.hikka-full-active .applecation-description-overlay__text.hikka-applecation-description>span{display:block;margin:.03em 0 .2em}.hikka-full-active .applecation .applecation__description.hikka-applecation-description .hikka-md-link,.hikka-full-active .applecation-description-overlay__text.hikka-applecation-description .hikka-md-link{color:rgba(171,210,255,0.98);text-decoration:underline}.hikka-full-active .applecation .applecation__description.hikka-applecation-description .hikka-md-list,.hikka-full-active .applecation-description-overlay__text.hikka-applecation-description .hikka-md-list{margin:.22em 0 .34em 1.05em;padding:0}.hikka-full-active .applecation .applecation__description.hikka-applecation-description .hikka-md-quote,.hikka-full-active .applecation-description-overlay__text.hikka-applecation-description .hikka-md-quote{margin:.28em 0;padding:.28em .52em;border-left:.18em solid rgba(255,255,255,0.34);background:rgba(255,255,255,0.08);-webkit-border-radius:.3em;border-radius:.3em}.hikka-full-active .applecation .full-episode__name{line-height:1.22 !important;margin-bottom:.22em !important}.hikka-full-active .applecation .full-episode__overview{line-height:1.25 !important;min-height:0 !important;height:auto !important;margin-bottom:.3em !important}.hikka-full-active .applecation .full-episode__overview:empty{display:none !important;margin-bottom:0 !important}.hikka-full-active .applecation .full-episode__date{margin-top:0 !important;line-height:1.2 !important}.hikka-full-active .full-review-add,.hikka-full-active .full-review__footer,.hikka-full-active .full-review__like,.hikka-full-active .full-review__like-icon{display:none !important}.hikka-full-active .mapping--line>.hikka-comment-card{min-width:17em;max-width:21em;padding:.9em;-webkit-border-radius:.9em;border-radius:.9em;background:-webkit-linear-gradient(290deg,rgba(16,19,25,0.92),rgba(10,12,16,0.94));background:-o-linear-gradient(290deg,rgba(16,19,25,0.92),rgba(10,12,16,0.94));background:linear-gradient(160deg,rgba(16,19,25,0.92),rgba(10,12,16,0.94));border:1px solid rgba(255,255,255,0.16);-webkit-box-shadow:0 10px 24px rgba(0,0,0,0.28);box-shadow:0 10px 24px rgba(0,0,0,0.28);gap:.6em}.hikka-full-active .hikka-comment-card.focus{border-color:rgba(255,255,255,0.52);background:rgba(20,24,31,0.97);-webkit-box-shadow:0 0 0 .2em rgba(255,255,255,0.12),0 16px 28px rgba(0,0,0,0.35);box-shadow:0 0 0 .2em rgba(255,255,255,0.12),0 16px 28px rgba(0,0,0,0.35);color:rgba(242,247,255,0.95)}.hikka-full-active .hikka-comment-card.focus .hikka-comment-card__text,.hikka-full-active .hikka-comment-card.focus .hikka-comment-chip{color:rgba(242,247,255,0.95)}.hikka-full-active .hikka-comment-meta{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.45em}.hikka-full-active .hikka-comment-card__footer{margin-top:auto;display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.45em}.hikka-full-active .hikka-comment-chip{display:-webkit-inline-box;display:-webkit-inline-flex;display:-ms-inline-flexbox;display:inline-flex;-webkit-box-align:center;-webkit-align-items:center;-ms-flex-align:center;align-items:center;height:1.75em;padding:0 .58em;-webkit-border-radius:.55em;border-radius:.55em;font-size:.88em;font-weight:500;background:rgba(255,255,255,0.12);color:rgba(240,245,255,0.92);border:1px solid rgba(255,255,255,0.16);letter-spacing:.01em}.hikka-full-active .hikka-comment-chip--author{background:rgba(255,255,255,0.18)}.hikka-full-active .hikka-comment-chip--date,.hikka-full-active .hikka-comment-chip--score,.hikka-full-active .hikka-comment-chip--replies,.hikka-full-active .hikka-comment-chip--level,.hikka-full-active .hikka-comment-chip--continuation{background:rgba(255,255,255,0.12)}.hikka-full-active .hikka-comment-chip--continuation{opacity:.82}.hikka-full-active .hikka-comment-card__text{font-size:1.02em;line-height:1.33;margin:0;-webkit-line-clamp:5;line-clamp:5;color:rgba(236,242,255,0.92)}.hikka-full-active .hikka-comment-sidebar{-webkit-border-radius:.9em;border-radius:.9em;padding:.85em;margin-bottom:.75em;border:1px solid rgba(255,255,255,0.14);background:rgba(15,19,26,0.82)}.hikka-full-active .hikka-comment-sidebar__head{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.45em;margin-bottom:.25em}.hikka-full-active .hikka-thread-item{background:transparent !important;padding:.65em 1.15em !important;border-bottom:1px solid rgba(255,255,255,0.08)}.hikka-full-active .hikka-thread-item.focus{background:rgba(255,255,255,0.06) !important}.hikka-full-active .hikka-thread-entry{border:1px solid rgba(255,255,255,0.14);-webkit-border-radius:.74em;border-radius:.74em;background:rgba(9,11,16,0.72);padding:.72em .8em}.hikka-full-active .hikka-thread-entry__head{display:-webkit-box;display:-webkit-flex;display:-ms-flexbox;display:flex;-webkit-flex-wrap:wrap;-ms-flex-wrap:wrap;flex-wrap:wrap;gap:.4em;margin-bottom:.5em}.hikka-full-active .hikka-thread-entry__text{white-space:pre-wrap;word-wrap:break-word;color:rgba(240,245,255,0.93);font-size:1.06em;line-height:1.36}.hikka-full-active .hikka-comment-card__text strong,.hikka-full-active .hikka-thread-entry__text strong{font-weight:700;color:rgba(255,255,255,0.98)}.hikka-full-active .hikka-comment-card__text em,.hikka-full-active .hikka-thread-entry__text em{font-style:italic}.hikka-full-active .hikka-comment-card__text code,.hikka-full-active .hikka-thread-entry__text code{font-family:monospace;font-size:.92em;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.14);-webkit-border-radius:.36em;border-radius:.36em;padding:.05em .35em}.hikka-full-active .hikka-comment-card__text .hikka-md-link,.hikka-full-active .hikka-thread-entry__text .hikka-md-link{color:rgba(178,211,255,0.98);text-decoration:underline}.hikka-full-active .hikka-comment-card__text .hikka-md-list,.hikka-full-active .hikka-thread-entry__text .hikka-md-list{margin:.25em 0 .3em 1.1em;padding:0}.hikka-full-active .hikka-comment-card__text .hikka-md-quote,.hikka-full-active .hikka-thread-entry__text .hikka-md-quote{margin:.3em 0;padding:.35em .55em;border-left:.2em solid rgba(255,255,255,0.34);background:rgba(255,255,255,0.06);-webkit-border-radius:.3em;border-radius:.3em}.hikka-full-active .hikka-comment-sidebar__content{margin:0;white-space:pre-wrap;word-wrap:break-word;font-size:1.02em;line-height:1.36;color:rgba(242,247,255,0.92);font-family:inherit}.hikka-full-active .applecation .mapping--line>.hikka-comment-card{min-width:18em;max-width:22em;padding:.9em .92em;-webkit-border-radius:.85em;border-radius:.85em;border:1px solid rgba(255,255,255,0.14);background:rgba(255,255,255,0.08);-webkit-box-shadow:0 10px 26px rgba(0,0,0,0.24);box-shadow:0 10px 26px rgba(0,0,0,0.24);-webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px)}.hikka-full-active .applecation .hikka-comment-card.focus{border-color:rgba(255,255,255,0.38);background:rgba(255,255,255,0.14);-webkit-box-shadow:0 0 0 .14em rgba(255,255,255,0.14),0 16px 30px rgba(0,0,0,0.32);box-shadow:0 0 0 .14em rgba(255,255,255,0.14),0 16px 30px rgba(0,0,0,0.32)}.hikka-full-active .applecation .hikka-comment-chip{font-size:.84em;min-height:1.68em;-webkit-border-radius:.52em;border-radius:.52em;background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.16)}.hikka-full-active .applecation .hikka-comment-chip--author{background:rgba(255,255,255,0.2)}.hikka-full-active .applecation .hikka-comment-card__text{line-height:1.31;-webkit-line-clamp:4;line-clamp:4}.hikka-full-active .applecation .hikka-thread-entry{border-color:rgba(255,255,255,0.16);background:rgba(255,255,255,0.08)}\n        </style>\n    ");
     // Inject styles
     $('body').append(Lampa.Template.get('hikka_styles'));
 
     // Виправлення старих локальних Hikka-карток у favorite/history/bookmarks:
-    // якщо poster_path був абсолютним URL, переносимо його в img/poster і прибираємо poster_path.
+    // если poster_path был абсолютным URL, переносим его в img/poster и удаляем poster_path.
     migrateHikkaFavoritePosters();
     patchFavoriteApiImageNormalization();
 
-    // Локальний sentinel для сумісності з Applecation без TMDB images API.
+    // Локальный sentinel для совместимости с Applecation без TMDB images API.
     try {
       if (!Lampa.__hikkaPatchedTmdbImage && Lampa.TMDB && typeof Lampa.TMDB.image === 'function') {
         var __origTmdbImage = Lampa.TMDB.image;
@@ -6134,7 +6134,7 @@
       console.log('[Hikka] Failed to patch TMDB.image:', e);
     }
 
-    // Захист від "битих" елементів у collection, які можуть ламати toggleClass у Controller.
+    // Защита от "битых" элементов в collection, которые могут ломать toggleClass в Controller.
     try {
       if (!Lampa.__hikkaPatchedNavigatorCollection && typeof Navigator !== 'undefined') {
         var sanitizeCollection = function sanitizeCollection(collection) {
@@ -6161,10 +6161,10 @@
       console.log('[Hikka] Failed to patch Navigator collection:', e);
     }
 
-    // Додаємо пункт меню
+    // Добавляем пункт меню
     addMenuItem();
 
-    // Реєстрація провайдера джерела для Full
+    // Регистрация провайдера источника для Full
     try {
       if (Lampa.Api) {
         Lampa.Api.sources = Lampa.Api.sources || {};
@@ -6177,20 +6177,20 @@
       console.warn('[Hikka] Failed to register source provider:', e);
     }
 
-    // Додаємо лайни Hikka на головну через ContentRows
+    // Добавляем лайны Hikka на главную через ContentRows
     initRows();
 
-    // Додаємо джерело Hikka у нативний глобальний пошук Lampa
+    // Добавляем источник Hikka в нативный глобальный поиск Lampa
     initSearchIntegration();
 
-    // Реєструємо компонент
+    // Регистрируем компонент
     Lampa.Component.add('hikka_anime', HikkaMainLinesComponent);
     Lampa.Component.add('hikka_character', HikkaCharacter);
 
-    // Перевизначення поведінки чипів Full та приховування форми додавання коментаря
+    // Переопределение поведения чипов Full и скрытие формы добавления комментария
     overrideFullChipsAndDiscuss();
 
-    // Перехоплення переходів у company → перенаправлення у category_full (для source=hikka)
+    // Перехват переходов в company → перенаправление в category_full (для source=hikka)
     try {
       if (!Lampa.__hikkaPatchedPush) {
         Lampa.__hikkaPatchedPush = true;
@@ -6201,8 +6201,8 @@
             if (obj && source === 'hikka' && obj.component === 'episodes' && obj.card) {
               var card = _objectSpread2({}, obj.card);
 
-              // Explorer пріоритетно читає poster_path через TMDB.img,
-              // тому для Hikka примусово використовуємо прямий card.img.
+              // Explorer приоритетно читает poster_path через TMDB.img,
+              // поэтому для Hikka принудительно используем прямой card.img.
               if (card.img) card.poster_path = null;
               if (typeof card.overview === 'string' && card.overview.indexOf('<') !== -1) {
                 card.overview = htmlToPlainText(card.overview);
