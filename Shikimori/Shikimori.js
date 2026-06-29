@@ -1061,16 +1061,6 @@
      * @see {@link openLampaSearch} для ручного поиска Lampa
      */
     function openAnime(data) {
-        var tmdbCache = storageGet(TMDB_CACHE_KEY, {});
-
-        if (tmdbCache[data.id] && tmdbCache[data.id].id) {
-            openTmdb({
-                id: tmdbCache[data.id].id,
-                media_type: tmdbCache[data.id].type
-            }, data);
-            return;
-        }
-
         var url = armLookupUrl(data.id);
 
         var onSuccess = function (answer) {
