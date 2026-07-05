@@ -213,7 +213,17 @@
 
         function loadGroups() {
             if (!isAuthorized()) {
-                body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Авторизуйтесь в настройках VK Video</div>');
+                var authBtn = $(
+                    '<div style="padding:3em;text-align:center">' +
+                        '<div style="font-size:1.3em;color:rgba(255,255,255,.7);margin-bottom:1.5em">Авторизуйтесь в VK</div>' +
+                        '<div class="simple-button selector" id="vkvideo-settings-btn" style="display:inline-block;padding:0.8em 2em;background:rgba(255,255,255,0.1);border-radius:0.5em;color:#fff">Настройки VK Video</div>' +
+                    '</div>'
+                );
+                body.html(authBtn);
+                authBtn.find('#vkvideo-settings-btn').on('hover:enter', function () {
+                    if (Lampa.Controller) Lampa.Controller.toggle('settings');
+                });
+                last = authBtn.find('#vkvideo-settings-btn')[0];
                 return;
             }
             body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Загрузка...</div>');
@@ -494,6 +504,7 @@
             '.vkvideo-module .card .card__title{font-size:1em;margin-top:0.4em;line-height:1.2}' +
             '.vkvideo-module .card .card__subtitle{font-size:0.85em;color:rgba(255,255,255,0.5);margin-top:0.2em}' +
             '.vkvideo-module .card.focus .card__view{box-shadow:0 0 0 0.2em #fff}' +
+            '#vkvideo-settings-btn.focus{background:rgba(255,255,255,0.25)!important;transform:scale(1.05)}' +
         '</style>');
     }
 
