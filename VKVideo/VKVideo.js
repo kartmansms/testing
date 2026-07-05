@@ -18,24 +18,24 @@
     var VK_API = 'https://api.vk.com/method';
     var VK_OAUTH = 'https://oauth.vk.com/authorize';
     var VK_VERSION = '5.199';
-    // var AUTH_KEY = 'vkvideo_auth_v4';
-    // var PAGE_SIZE = 40;
+    var AUTH_KEY = 'vkvideo_auth_v4';
+    var PAGE_SIZE = 40;
 
-    ─── Storage ─────────────────────────────────────────────────────
+    // --- Storage ---
 
-    // function storageGet(key, fb) {
-        // try { var v = Lampa.Storage.get(key); if (v !== undefined && v !== null) return v; } catch (e) {}
-        // return fb || null;
-    // }
-    // function storageSet(key, val) { try { Lampa.Storage.set(key, val); } catch (e) {} }
+    function storageGet(key, fb) {
+        try { var v = Lampa.Storage.get(key); if (v !== undefined && v !== null) return v; } catch (e) {}
+        return fb || null;
+    }
+    function storageSet(key, val) { try { Lampa.Storage.set(key, val); } catch (e) {} }
 
-    ─── Auth ────────────────────────────────────────────────────────
+    // --- Auth ---
 
-    // function defaultAuth() { return { client_id: '', access_token: '', user_id: 0, user_name: '' }; }
-    // function readAuth() {
-        // var b = defaultAuth(), s = storageGet(AUTH_KEY, {});
-        // if (!s || typeof s !== 'object') s = {};
-        // for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
+    function defaultAuth() { return { client_id: '', access_token: '', user_id: 0, user_name: '' }; }
+    function readAuth() {
+        var b = defaultAuth(), s = storageGet(AUTH_KEY, {});
+        if (!s || typeof s !== 'object') s = {};
+        for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
         return b;
     }
     function saveAuth(a) { storageSet(AUTH_KEY, a || defaultAuth()); }
@@ -44,7 +44,7 @@
     function notify(t) { if (Lampa.Noty) Lampa.Noty.show(t); else console.log('[VKVideo] ' + t); }
     function esc(v) { var d = document.createElement('div'); d.appendChild(document.createTextNode(v || '')); return d.innerHTML; }
 
-    // ─── VK API ──────────────────────────────────────────────────────
+    // --- VK API ---
 
     function vkApi(method, params, ok, err) {
         var a = readAuth();
@@ -68,7 +68,7 @@
         });
     }
 
-    // ─── Card rendering ──────────────────────────────────────────────
+    // --- Card rendering ---
 
     function renderCard(item, type) {
         var img = '';
@@ -104,9 +104,7 @@
         return scroll;
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Login (показывается если не авторизован)
-    // ═══════════════════════════════════════════════════════════════════
+    // ==================== COMPONENT: Login ====================
 
     function VKLogin(object) {
         var html = $('<div class="vkvideo-login"></div>');
@@ -172,10 +170,10 @@
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
-                    '<div class="vkvideo-login__hint">id.vk.ru/about/business/go → Мои приложения<br>Платформа: Web. Тип: Публичное</div>' +
-                    (currentId ? '<div class="vkvideo-login__saved">Текущий App ID: ' + esc(currentId) + '</div>' : '') +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-appid">Ввести App ID</div>' +
-                    (currentId ? '<div class="vkvideo-login__btn selector" id="vkvideo-to-token">Далее →</div>' : '') +
+                    '<div class="vkvideo-login__hint">id.vk.ru/about/business/go - Moi prilozheniya<br>Platforma: Web. Tip: Publichnoe</div>' +
+                    (currentId ? '<div class="vkvideo-login__saved">Tekushchiy App ID: ' + esc(currentId) + '</div>' : '') +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-appid">Vvesti App ID</div>' +
+                    (currentId ? '<div class="vkvideo-login__btn selector" id="vkvideo-to-token">Dalee &rarr;</div>' : '') +
                 '</div>'
             );
 
@@ -204,12 +202,12 @@
             body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
-                    '<div class="vkvideo-login__title">Авторизация VK</div>' +
-                    '<div class="vkvideo-login__desc">1. Откройте ссылку на телефоне</div>' +
+                    '<div class="vkvideo-login__title">Avtorizatsiya VK</div>' +
+                    '<div class="vkvideo-login__desc">1. Otkroyte ssylku na telefone</div>' +
                     '<div class="vkvideo-login__link">' + authUrl + '</div>' +
-                    '<div class="vkvideo-login__desc">2. Скопируйте токен из URL после #</div>' +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-token">Ввести токен</div>' +
-                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-appid">← Назад</div>' +
+                    '<div class="vkvideo-login__desc">2. Skopiruyte token iz URL posle #</div>' +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-token">Vvesti token</div>' +
+                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-appid">&larr; Nazad</div>' +
                 '</div>'
             );
 
@@ -259,9 +257,7 @@
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Communities
-    // ═══════════════════════════════════════════════════════════════════
+    // ==================== COMPONENT: Communities ====================
 
     function VKCommunities(object) {
         var html = $('<div class="vkvideo-module"></div>');
@@ -350,9 +346,7 @@
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Playlists
-    // ═══════════════════════════════════════════════════════════════════
+    // ==================== COMPONENT: Playlists ====================
 
     function VKPlaylists(object) {
         var html = $('<div class="vkvideo-module"></div>');
@@ -428,9 +422,7 @@
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Videos
-    // ═══════════════════════════════════════════════════════════════════
+    // ==================== COMPONENT: Videos ====================
 
     function VKVideos(object) {
         var html = $('<div class="vkvideo-module"></div>');
@@ -478,11 +470,6 @@
         this.destroy = function () { scroll.destroy(); html.remove(); };
 
         function loadVideos() {
-            var url = VK_API + '/video.get?owner_id=' + object.owner_id +
-                      (object.album_id ? '&album_id=' + object.album_id : '') +
-                      '&count=' + PAGE_SIZE + '&offset=' + ((page - 1) * PAGE_SIZE) +
-                      '&extended=1&v=' + VK_VERSION + '&access_token=' + readAuth().access_token;
-
             $.ajax({
                 url: VK_API + '/video.get', method: 'POST',
                 contentType: 'application/x-www-form-urlencoded', dataType: 'json', timeout: 15000,
@@ -523,7 +510,7 @@
         }
     }
 
-    // ─── Menu ────────────────────────────────────────────────────────
+    // --- Menu ---
 
     function addMenu() {
         var menu = $('.menu .menu__list').eq(0);
@@ -538,12 +525,11 @@
         if (last.length) btn.insertAfter(last); else menu.append(btn);
     }
 
-    // ─── Styles ──────────────────────────────────────────────────────
+    // --- Styles ---
 
     function addStyles() {
         if ($('#vkvideo-style').length) return;
         $('head').append('<style id="vkvideo-style">' +
-            /* Login */
             '.vkvideo-login{height:100%;color:#fff;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh}' +
             '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center}' +
             '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
@@ -551,15 +537,11 @@
             '.vkvideo-login__desc{font-size:0.95em;color:rgba(255,255,255,0.6);margin-bottom:0.8em;line-height:1.4}' +
             '.vkvideo-login__hint{font-size:0.8em;color:rgba(255,255,255,0.35);margin-bottom:1.5em}' +
             '.vkvideo-login__link{font-size:0.7em;color:rgba(255,255,255,0.3);word-break:break-all;margin-bottom:1em;padding:0.5em;background:rgba(0,0,0,0.2);border-radius:0.3em}' +
-            '.vkvideo-login__field{margin-bottom:1.2em}' +
-            '.vkvideo-login__input{width:100%;padding:0.8em 1em;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:0.5em;color:#fff;font-size:1em;outline:none;box-sizing:border-box}' +
-            '.vkvideo-login__input:focus{border-color:rgba(255,255,255,0.3)}' +
             '.vkvideo-login__btn{display:inline-block;padding:0.8em 2.5em;background:rgba(76,175,80,0.3);border-radius:0.5em;color:#fff;font-size:1em;cursor:pointer;margin-bottom:0.8em}' +
             '.vkvideo-login__btn.focus{background:rgba(76,175,80,0.5);transform:scale(1.05)}' +
             '.vkvideo-login__saved{font-size:0.85em;color:rgba(255,255,255,0.4);margin-bottom:1em}' +
             '.vkvideo-login__btn-secondary{display:inline-block;padding:0.6em 2em;background:rgba(255,255,255,0.06);border-radius:0.5em;color:rgba(255,255,255,0.5);font-size:0.9em;cursor:pointer}' +
             '.vkvideo-login__btn-secondary.focus{background:rgba(255,255,255,0.15);color:#fff}' +
-            /* Module */
             '.vkvideo-module{padding:1em;height:100%}' +
             '.vkvideo-module .card{flex:0 0 14em;padding:0.5em;box-sizing:border-box}' +
             '.vkvideo-module .card .card__view{background:#1b1d24;border-radius:0.35em;overflow:hidden;padding-bottom:56%;position:relative}' +
@@ -570,7 +552,7 @@
         '</style>');
     }
 
-    // ─── Start ───────────────────────────────────────────────────────
+    // --- Start ---
 
     function startPlugin() {
         if (!window.Lampa || !window.$) return;
