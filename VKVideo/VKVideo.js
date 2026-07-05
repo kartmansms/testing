@@ -18,24 +18,24 @@
     var VK_API = 'https://api.vk.com/method';
     var VK_OAUTH = 'https://oauth.vk.com/authorize';
     var VK_VERSION = '5.199';
-    var AUTH_KEY = 'vkvideo_auth_v4';
-    var PAGE_SIZE = 40;
+    // var AUTH_KEY = 'vkvideo_auth_v4';
+    // var PAGE_SIZE = 40;
 
-    // ─── Storage ─────────────────────────────────────────────────────
+    ─── Storage ─────────────────────────────────────────────────────
 
-    function storageGet(key, fb) {
-        try { var v = Lampa.Storage.get(key); if (v !== undefined && v !== null) return v; } catch (e) {}
-        return fb || null;
-    }
-    function storageSet(key, val) { try { Lampa.Storage.set(key, val); } catch (e) {} }
+    // function storageGet(key, fb) {
+        // try { var v = Lampa.Storage.get(key); if (v !== undefined && v !== null) return v; } catch (e) {}
+        // return fb || null;
+    // }
+    // function storageSet(key, val) { try { Lampa.Storage.set(key, val); } catch (e) {} }
 
-    // ─── Auth ────────────────────────────────────────────────────────
+    ─── Auth ────────────────────────────────────────────────────────
 
-    function defaultAuth() { return { client_id: '', access_token: '', user_id: 0, user_name: '' }; }
-    function readAuth() {
-        var b = defaultAuth(), s = storageGet(AUTH_KEY, {});
-        if (!s || typeof s !== 'object') s = {};
-        for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
+    // function defaultAuth() { return { client_id: '', access_token: '', user_id: 0, user_name: '' }; }
+    // function readAuth() {
+        // var b = defaultAuth(), s = storageGet(AUTH_KEY, {});
+        // if (!s || typeof s !== 'object') s = {};
+        // for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
         return b;
     }
     function saveAuth(a) { storageSet(AUTH_KEY, a || defaultAuth()); }
@@ -110,11 +110,16 @@
 
     function VKLogin(object) {
         var html = $('<div class="vkvideo-login"></div>');
+        var scroll = makeScroll();
+        var body = $('<div></div>');
         var clientId = storageGet('vk_client_id', '');
         var step = clientId ? 'token' : 'appid';
 
         this.render = function () {
             html.empty();
+            html.append(scroll.render());
+            scroll.append(body);
+            scroll.minus();
             if (step === 'appid') renderAppIdStep();
             else renderTokenStep();
             return html;
@@ -143,11 +148,27 @@
 
         this.stop = function () {};
         this.pause = function () {};
-        this.destroy = function () { html.remove(); };
+        this.destroy = function () { scroll.destroy(); html.remove(); };
+
+        function inputDialog(title, value, callback) {
+            if (Lampa.Input && Lampa.Input.edit) {
+                Lampa.Input.edit({ title: title, value: value, free: true }, function (result) {
+                    callback(String(result || '').trim());
+                });
+            } else {
+                var val = window.prompt(title, value || '');
+                if (val !== null) callback(val.trim());
+            }
+        }
+
+        function restoreFocus() {
+            Lampa.Controller.collectionSet(html);
+            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+        }
 
         function renderAppIdStep() {
             var currentId = storageGet('vk_client_id', '');
-            html.html(
+            body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
@@ -159,19 +180,13 @@
             );
 
             html.find('#vkvideo-input-appid').data('action', function () {
-                Lampa.Input.show({
-                    title: 'VK App ID',
-                    value: storageGet('vk_client_id', ''),
-                    placeholder: 'Например: 51909886',
-                    onInsert: function (val) {
-                        val = val.trim();
-                        if (!val) { notify('Введите App ID'); return; }
-                        storageSet('vk_client_id', val);
-                        clientId = val;
-                        notify('App ID сохранён: ' + val);
-                        step = 'token';
-                        rebuild();
-                    }
+                inputDialog('VK App ID', storageGet('vk_client_id', ''), function (val) {
+                    if (!val) { notify('Введите App ID'); return; }
+                    storageSet('vk_client_id', val);
+                    clientId = val;
+                    notify('App ID сохранён: ' + val);
+                    step = 'token';
+                    rebuild();
                 });
             });
 
@@ -186,7 +201,7 @@
                 encodeURIComponent('https://oauth.vk.com/blank.html') +
                 '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
 
-            html.html(
+            body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">Авторизация VK</div>' +
@@ -199,36 +214,31 @@
             );
 
             html.find('#vkvideo-input-token').data('action', function () {
-                Lampa.Input.show({
-                    title: 'Access Token',
-                    value: '',
-                    placeholder: 'Вставьте токен из URL',
-                    onInsert: function (val) {
-                        val = val.trim();
-                        var token = '';
-                        var m = val.match(/access_token=([a-f0-9]+)/i);
-                        if (m) token = m[1];
-                        else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
-                        if (!token) { notify('Некорректный токен'); return; }
+                inputDialog('Access Token', '', function (val) {
+                    if (!val) { notify('Токен не введён'); return; }
+                    var token = '';
+                    var m = val.match(/access_token=([a-f0-9]+)/i);
+                    if (m) token = m[1];
+                    else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
+                    if (!token) { notify('Некорректный токен'); return; }
 
-                        var a = readAuth();
-                        a.access_token = token;
-                        saveAuth(a);
+                    var a = readAuth();
+                    a.access_token = token;
+                    saveAuth(a);
 
-                        notify('Проверка...');
-                        vkApi('users.get', { fields: 'photo_50' }, function (d) {
-                            if (d && d[0]) {
-                                a.user_name = d[0].first_name || '';
-                                a.user_id = d[0].id || 0;
-                                saveAuth(a);
-                            }
-                            notify('Авторизован: ' + (readAuth().user_name || ''));
-                            Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-                        }, function () {
-                            notify('Авторизован');
-                            Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-                        });
-                    }
+                    notify('Проверка...');
+                    vkApi('users.get', { fields: 'photo_50' }, function (d) {
+                        if (d && d[0]) {
+                            a.user_name = d[0].first_name || '';
+                            a.user_id = d[0].id || 0;
+                            saveAuth(a);
+                        }
+                        notify('Авторизован: ' + (readAuth().user_name || ''));
+                        Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                    }, function () {
+                        notify('Авторизован');
+                        Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                    });
                 });
             });
 
@@ -240,10 +250,12 @@
 
         function rebuild() {
             html.empty();
+            html.append(scroll.render());
+            scroll.append(body);
+            scroll.minus();
             if (step === 'appid') renderAppIdStep();
             else renderTokenStep();
-            Lampa.Controller.collectionSet(html);
-            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+            restoreFocus();
         }
     }
 
@@ -532,8 +544,8 @@
         if ($('#vkvideo-style').length) return;
         $('head').append('<style id="vkvideo-style">' +
             /* Login */
-            '.vkvideo-login{height:100%;color:#fff;display:flex;align-items:center;justify-content:center}' +
-            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2.5em 3em;max-width:28em;width:90%;text-align:center}' +
+            '.vkvideo-login{height:100%;color:#fff;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh}' +
+            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center}' +
             '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
             '.vkvideo-login__title{font-size:1.6em;font-weight:700;margin-bottom:0.5em}' +
             '.vkvideo-login__desc{font-size:0.95em;color:rgba(255,255,255,0.6);margin-bottom:0.8em;line-height:1.4}' +
@@ -577,3 +589,5 @@
         Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') startPlugin(); });
     }
 })();
+
+        // for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
