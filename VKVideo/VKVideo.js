@@ -108,16 +108,11 @@
 
     function VKLogin(object) {
         var html = $('<div class="vkvideo-login"></div>');
-        var scroll = makeScroll();
-        var body = $('<div></div>');
         var clientId = storageGet('vk_client_id', '');
         var step = clientId ? 'token' : 'appid';
 
         this.render = function () {
             html.empty();
-            html.append(scroll.render());
-            scroll.append(body);
-            scroll.minus();
             if (step === 'appid') renderAppIdStep();
             else renderTokenStep();
             return html;
@@ -146,7 +141,7 @@
 
         this.stop = function () {};
         this.pause = function () {};
-        this.destroy = function () { scroll.destroy(); html.remove(); };
+        this.destroy = function () { html.remove(); };
 
         function inputDialog(title, value, callback) {
             if (Lampa.Input && Lampa.Input.edit) {
@@ -166,7 +161,7 @@
 
         function renderAppIdStep() {
             var currentId = storageGet('vk_client_id', '');
-            body.html(
+            html.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
@@ -199,7 +194,7 @@
                 encodeURIComponent('https://oauth.vk.com/blank.html') +
                 '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
 
-            body.html(
+            html.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">Avtorizatsiya VK</div>' +
@@ -248,12 +243,10 @@
 
         function rebuild() {
             html.empty();
-            html.append(scroll.render());
-            scroll.append(body);
-            scroll.minus();
             if (step === 'appid') renderAppIdStep();
             else renderTokenStep();
-            restoreFocus();
+            Lampa.Controller.collectionSet(html);
+            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
         }
     }
 
