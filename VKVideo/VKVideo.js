@@ -156,7 +156,7 @@
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
                     '<div class="vkvideo-login__desc">Введите VK App ID для подключения</div>' +
-                    '<div class="vkvideo-login__hint">Создайте приложение: vk.com/editapp?act=create → Standalone</div>' +
+                    '<div class="vkvideo-login__hint">Создайте приложение в VK ID:<br>id.vk.ru/about/business/go → Мои приложения → Добавить<br>Платформа: Web. Тип: Публичное</div>' +
                     '<div class="vkvideo-login__field">' +
                         '<input type="text" class="vkvideo-login__input" id="vkvideo-appid" placeholder="VK App ID" value="">' +
                     '</div>' +
@@ -523,9 +523,8 @@
         if ($('#vkvideo-style').length) return;
         $('head').append('<style id="vkvideo-style">' +
             /* Login */
-            '.vkvideo-login{height:100%;color:#fff}' +
-            '.vkvideo-login .scroll__body{display:flex;align-items:center;justify-content:center;min-height:100%}' +
-            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2.5em 3em;max-width:28em;width:90%;text-align:center}' +
+            '.vkvideo-login{height:100%;color:#fff;padding:2em}' +
+            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2.5em 3em;max-width:28em;width:90%;text-align:center;margin:0 auto}' +
             '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
             '.vkvideo-login__title{font-size:1.6em;font-weight:700;margin-bottom:0.5em}' +
             '.vkvideo-login__desc{font-size:0.95em;color:rgba(255,255,255,0.6);margin-bottom:0.8em;line-height:1.4}' +
