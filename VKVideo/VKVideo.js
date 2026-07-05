@@ -64,7 +64,7 @@
         if (!cid) return '';
         return VK_OAUTH + '?client_id=' + cid + '&display=page&redirect_uri=' +
             encodeURIComponent('https://oauth.vk.com/blank.html') +
-            '&scope=video,offline&response_type=token&v=' + VK_VERSION;
+            '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
     }
 
     function loginUser() {
@@ -235,7 +235,7 @@
     // ─── Component: Communities List ─────────────────────────────────
 
     function VKCommunitiesComponent(object) {
-        var comp = new Lampa.InteractionMain(object);
+        var comp = new Lampa.InteractionCategory(object);
         var network = new Lampa.Reguest();
 
         comp.create = function () {
@@ -249,35 +249,40 @@
                 return;
             }
 
-            loadGroups(0, [], function (groups) {
-                if (groups.length) {
-                    var cards = groups.map(groupToCard);
-                    self.build([{ title: 'Мои сообщества', results: cards, service_id: 'vkvideo' }]);
-                    self.activity.loader(false);
+            var auth = readAuth();
+            var url = VK_API + '/groups.get?user_id=' + auth.user_id +
+                      '&count=' + PAGE_SIZE + '&fields=members_count,photo_50,photo_100,photo_200' +
+                      '&v=' + VK_VERSION + '&access_token=' + auth.access_token;
+
+            network.silent(url, function (json) {
+                var items = (json && json.response && json.response.items) || [];
+                console.log('[VKVideo] groups.get returned:', items.length, 'items');
+                if (items.length) {
+                    var cards = items.map(groupToCard);
+                    self.build({ results: cards });
                 } else {
                     self.empty();
                 }
+                self.activity.loader(false);
+            }, function (err) {
+                console.error('[VKVideo] groups.get error:', err);
+                self.empty();
+                self.activity.loader(false);
             });
         };
 
-        comp.onMore = function () {};
-
-        function loadGroups(offset, all, cb) {
-            vkApi('groups.get', {
-                user_id: readAuth().user_id,
-                count: PAGE_SIZE,
-                offset: offset,
-                fields: 'members_count,photo_50,photo_100,photo_200'
-            }, function (data) {
-                var items = (data && data.items) || [];
-                var combined = all.concat(items);
-                if (items.length === PAGE_SIZE && combined.length < 500) {
-                    loadGroups(offset + PAGE_SIZE, combined, cb);
-                } else {
-                    cb(combined);
-                }
-            }, function () { cb(all); });
-        }
+        comp.nextPageReuest = function (obj, resolve, reject) {
+            var auth = readAuth();
+            var offset = (obj.page - 1) * PAGE_SIZE;
+            var url = VK_API + '/groups.get?user_id=' + auth.user_id +
+                      '&count=' + PAGE_SIZE + '&offset=' + offset +
+                      '&fields=members_count,photo_50,photo_100,photo_200' +
+                      '&v=' + VK_VERSION + '&access_token=' + auth.access_token;
+            network.silent(url, function (json) {
+                var items = (json && json.response && json.response.items) || [];
+                resolve({ results: items.map(groupToCard) });
+            }, function () { reject(); });
+        };
 
         return comp;
     }
@@ -299,6 +304,7 @@
 
             network.silent(url, function (json) {
                 var items = (json && json.response && json.response.items) || [];
+                console.log('[VKVideo] video.getAlbums returned:', items.length, 'albums for owner', groupOwnerId);
                 var cards = items.map(function (a) { return albumToCard(a, groupOwnerId); });
                 if (cards.length) {
                     self.build({ results: cards });
@@ -306,7 +312,8 @@
                     self.empty();
                 }
                 self.activity.loader(false);
-            }, function () {
+            }, function (err) {
+                console.error('[VKVideo] video.getAlbums error:', err);
                 self.empty();
                 self.activity.loader(false);
             });
@@ -345,6 +352,7 @@
 
             network.silent(url, function (json) {
                 var items = (json && json.response && json.response.items) || [];
+                console.log('[VKVideo] video.get returned:', items.length, 'videos');
                 var cards = items.map(videoToCard);
                 if (cards.length) {
                     self.build({ results: cards });
@@ -352,7 +360,8 @@
                     self.empty();
                 }
                 self.activity.loader(false);
-            }, function () {
+            }, function (err) {
+                console.error('[VKVideo] video.get error:', err);
                 self.empty();
                 self.activity.loader(false);
             });
