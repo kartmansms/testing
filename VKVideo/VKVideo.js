@@ -110,11 +110,16 @@
 
     function VKLogin(object) {
         var html = $('<div class="vkvideo-login"></div>');
+        var scroll = makeScroll();
+        var body = $('<div></div>');
         var clientId = storageGet('vk_client_id', '');
         var step = clientId ? 'token' : 'appid';
 
         this.render = function () {
             html.empty();
+            html.append(scroll.render());
+            scroll.append(body);
+            scroll.minus();
             if (step === 'appid') renderAppIdStep();
             else renderTokenStep();
             return html;
@@ -130,12 +135,12 @@
                 },
                 left: function () { Lampa.Controller.toggle('menu'); },
                 right: function () { Navigator.move('right'); },
-                up: function () { Navigator.move('up'); },
-                down: function () { Navigator.move('down'); },
+                up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
+                down: function () { if (Navigator.canmove('down')) Navigator.move('down'); },
                 back: function () { Lampa.Activity.backward(); },
                 enter: function () {
                     var f = html.find('.selector.focus');
-                    if (f.length) f.data('action') && f.data('action')();
+                    if (f.length) { var act = f.data('action'); if (act) act(); }
                 }
             });
             Lampa.Controller.toggle('content');
@@ -143,10 +148,10 @@
 
         this.stop = function () {};
         this.pause = function () {};
-        this.destroy = function () { html.remove(); };
+        this.destroy = function () { scroll.destroy(); html.remove(); };
 
         function renderAppIdStep() {
-            html.html(
+            body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
@@ -168,14 +173,16 @@
                 storageSet('vk_client_id', val);
                 clientId = val;
                 step = 'token';
-                renderAppIdStep = renderTokenStep;
                 html.empty();
+                html.append(scroll.render());
+                scroll.append(body);
+                scroll.minus();
                 renderTokenStep();
                 Lampa.Controller.collectionSet(html);
                 Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
             });
 
-            setTimeout(function () { input.focus(); }, 100);
+            setTimeout(function () { input.focus(); }, 200);
         }
 
         function renderTokenStep() {
@@ -183,7 +190,7 @@
                 encodeURIComponent('https://oauth.vk.com/blank.html') +
                 '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
 
-            html.html(
+            body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">Авторизация VK</div>' +
@@ -221,6 +228,9 @@
             html.find('#vkvideo-back-btn').data('action', function () {
                 step = 'appid';
                 html.empty();
+                html.append(scroll.render());
+                scroll.append(body);
+                scroll.minus();
                 renderAppIdStep();
                 Lampa.Controller.collectionSet(html);
                 Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
@@ -513,7 +523,8 @@
         if ($('#vkvideo-style').length) return;
         $('head').append('<style id="vkvideo-style">' +
             /* Login */
-            '.vkvideo-login{display:flex;align-items:center;justify-content:center;height:100%;color:#fff}' +
+            '.vkvideo-login{height:100%;color:#fff}' +
+            '.vkvideo-login .scroll__body{display:flex;align-items:center;justify-content:center;min-height:100%}' +
             '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2.5em 3em;max-width:28em;width:90%;text-align:center}' +
             '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
             '.vkvideo-login__title{font-size:1.6em;font-weight:700;margin-bottom:0.5em}' +
