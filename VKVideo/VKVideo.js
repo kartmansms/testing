@@ -589,5 +589,3 @@
         Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') startPlugin(); });
     }
 })();
-
-        // for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
