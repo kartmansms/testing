@@ -151,38 +151,39 @@
         this.destroy = function () { scroll.destroy(); html.remove(); };
 
         function renderAppIdStep() {
+            var currentId = storageGet('vk_client_id', '');
             body.html(
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">VK Video</div>' +
-                    '<div class="vkvideo-login__desc">Введите VK App ID для подключения</div>' +
-                    '<div class="vkvideo-login__hint">Создайте приложение в VK ID:<br>id.vk.ru/about/business/go → Мои приложения → Добавить<br>Платформа: Web. Тип: Публичное</div>' +
-                    '<div class="vkvideo-login__field">' +
-                        '<input type="text" class="vkvideo-login__input" id="vkvideo-appid" placeholder="VK App ID" value="">' +
-                    '</div>' +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-save-appid">Далее</div>' +
+                    '<div class="vkvideo-login__hint">id.vk.ru/about/business/go → Мои приложения<br>Платформа: Web. Тип: Публичное</div>' +
+                    (currentId ? '<div class="vkvideo-login__saved">Текущий App ID: ' + esc(currentId) + '</div>' : '') +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-appid">Ввести App ID</div>' +
+                    (currentId ? '<div class="vkvideo-login__btn selector" id="vkvideo-to-token">Далее →</div>' : '') +
                 '</div>'
             );
 
-            var input = html.find('#vkvideo-appid');
-            var btn = html.find('#vkvideo-save-appid');
-
-            btn.data('action', function () {
-                var val = input.val().trim();
-                if (!val) { notify('Введите App ID'); return; }
-                storageSet('vk_client_id', val);
-                clientId = val;
-                step = 'token';
-                html.empty();
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-                renderTokenStep();
-                Lampa.Controller.collectionSet(html);
-                Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+            html.find('#vkvideo-input-appid').data('action', function () {
+                Lampa.Input.show({
+                    title: 'VK App ID',
+                    value: storageGet('vk_client_id', ''),
+                    placeholder: 'Например: 51909886',
+                    onInsert: function (val) {
+                        val = val.trim();
+                        if (!val) { notify('Введите App ID'); return; }
+                        storageSet('vk_client_id', val);
+                        clientId = val;
+                        notify('App ID сохранён: ' + val);
+                        step = 'token';
+                        rebuild();
+                    }
+                });
             });
 
-            setTimeout(function () { input.focus(); }, 200);
+            html.find('#vkvideo-to-token').data('action', function () {
+                step = 'token';
+                rebuild();
+            });
         }
 
         function renderTokenStep() {
@@ -194,47 +195,63 @@
                 '<div class="vkvideo-login__box">' +
                     '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
                     '<div class="vkvideo-login__title">Авторизация VK</div>' +
-                    '<div class="vkvideo-login__desc">1. Откройте ссылку на телефоне или ПК</div>' +
+                    '<div class="vkvideo-login__desc">1. Откройте ссылку на телефоне</div>' +
                     '<div class="vkvideo-login__link">' + authUrl + '</div>' +
-                    '<div class="vkvideo-login__desc">2. Скопируйте токен из адресной строки</div>' +
-                    '<div class="vkvideo-login__field">' +
-                        '<input type="text" class="vkvideo-login__input" id="vkvideo-token" placeholder="access_token" value="">' +
-                    '</div>' +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-login-btn">Войти</div>' +
-                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-btn">Назад</div>' +
+                    '<div class="vkvideo-login__desc">2. Скопируйте токен из URL после #</div>' +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-token">Ввести токен</div>' +
+                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-appid">← Назад</div>' +
                 '</div>'
             );
 
-            html.find('#vkvideo-login-btn').data('action', function () {
-                var val = html.find('#vkvideo-token').val().trim();
-                var token = '';
-                var m = val.match(/access_token=([a-f0-9]+)/i);
-                if (m) token = m[1];
-                else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
-                if (!token) { notify('Вставьте токен'); return; }
+            html.find('#vkvideo-input-token').data('action', function () {
+                Lampa.Input.show({
+                    title: 'Access Token',
+                    value: '',
+                    placeholder: 'Вставьте токен из URL',
+                    onInsert: function (val) {
+                        val = val.trim();
+                        var token = '';
+                        var m = val.match(/access_token=([a-f0-9]+)/i);
+                        if (m) token = m[1];
+                        else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
+                        if (!token) { notify('Некорректный токен'); return; }
 
-                var a = readAuth(); a.access_token = token; saveAuth(a);
+                        var a = readAuth();
+                        a.access_token = token;
+                        saveAuth(a);
 
-                vkApi('users.get', { fields: 'photo_50' }, function (d) {
-                    if (d && d[0]) { a.user_name = d[0].first_name || ''; a.user_id = d[0].id || 0; saveAuth(a); }
-                    notify('VK Video: авторизован');
-                    Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-                }, function () {
-                    notify('VK Video: авторизован');
-                    Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                        notify('Проверка...');
+                        vkApi('users.get', { fields: 'photo_50' }, function (d) {
+                            if (d && d[0]) {
+                                a.user_name = d[0].first_name || '';
+                                a.user_id = d[0].id || 0;
+                                saveAuth(a);
+                            }
+                            notify('Авторизован: ' + (readAuth().user_name || ''));
+                            Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                        }, function () {
+                            notify('Авторизован');
+                            Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                        });
+                    }
                 });
             });
 
-            html.find('#vkvideo-back-btn').data('action', function () {
+            html.find('#vkvideo-back-appid').data('action', function () {
                 step = 'appid';
-                html.empty();
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-                renderAppIdStep();
-                Lampa.Controller.collectionSet(html);
-                Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+                rebuild();
             });
+        }
+
+        function rebuild() {
+            html.empty();
+            html.append(scroll.render());
+            scroll.append(body);
+            scroll.minus();
+            if (step === 'appid') renderAppIdStep();
+            else renderTokenStep();
+            Lampa.Controller.collectionSet(html);
+            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
         }
     }
 
@@ -535,6 +552,7 @@
             '.vkvideo-login__input:focus{border-color:rgba(255,255,255,0.3)}' +
             '.vkvideo-login__btn{display:inline-block;padding:0.8em 2.5em;background:rgba(76,175,80,0.3);border-radius:0.5em;color:#fff;font-size:1em;cursor:pointer;margin-bottom:0.8em}' +
             '.vkvideo-login__btn.focus{background:rgba(76,175,80,0.5);transform:scale(1.05)}' +
+            '.vkvideo-login__saved{font-size:0.85em;color:rgba(255,255,255,0.4);margin-bottom:1em}' +
             '.vkvideo-login__btn-secondary{display:inline-block;padding:0.6em 2em;background:rgba(255,255,255,0.06);border-radius:0.5em;color:rgba(255,255,255,0.5);font-size:0.9em;cursor:pointer}' +
             '.vkvideo-login__btn-secondary.focus{background:rgba(255,255,255,0.15);color:#fff}' +
             /* Module */
