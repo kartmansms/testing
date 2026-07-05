@@ -36,10 +36,9 @@
     function storageGet(key, fallback) {
         try {
             var val = Lampa.Storage.get(key);
-            return val !== undefined && val !== null ? val : (fallback || null);
-        } catch (e) {
-            return fallback || null;
-        }
+            if (val !== undefined && val !== null) return val;
+        } catch (e) {}
+        return fallback || null;
     }
 
     function storageSet(key, value) {
