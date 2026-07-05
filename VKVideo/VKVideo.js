@@ -1101,7 +1101,7 @@
 
     // ─── Entry Point ─────────────────────────────────────────────────
 
-    function start() {
+    function startPlugin() {
         if (!window.Lampa || !window.$) return;
 
         addStyles();
@@ -1116,16 +1116,22 @@
         initSearchIntegration();
         initFullHook();
 
-        if (window.appready) {
-            addMenu();
-        } else {
-            Lampa.Listener.follow('app', function (e) {
-                if (e.type === 'ready') addMenu();
-            });
-        }
+        addMenu();
+
+        setInterval(function () {
+            if (window.appready && $('.menu .menu__list').eq(0).length) {
+                addMenu();
+            }
+        }, 4000);
 
         console.log('[VKVideo] Plugin loaded');
     }
 
-    start();
+    if (window.appready) {
+        startPlugin();
+    } else if (window.Lampa && Lampa.Listener) {
+        Lampa.Listener.follow('app', function (e) {
+            if (e.type === 'ready') startPlugin();
+        });
+    }
 })();
