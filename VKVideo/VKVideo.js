@@ -1,11 +1,9 @@
 /**
- * VK Video Plugin for Lampa v3.0.0
+ * VK Video Plugin for Lampa v4.0.0
  *
- * Просмотр видео из сообществ VK.com в медиа-центре Lampa.
+ * Просмотр видео из сообществ VK.com.
+ * Авторизация — прямо в окне плагина.
  * Навигация: Авторизация → Сообщества → Плейлисты → Видео
- *
- * Паттерн: кастомные компоненты через Lampa.Scroll + Lampa.Controller
- * (аналогично Shikimori плагину).
  *
  * @author kartmansms
  * @license MIT
@@ -20,7 +18,7 @@
     var VK_API = 'https://api.vk.com/method';
     var VK_OAUTH = 'https://oauth.vk.com/authorize';
     var VK_VERSION = '5.199';
-    var AUTH_KEY = 'vkvideo_auth_v3';
+    var AUTH_KEY = 'vkvideo_auth_v4';
     var PAGE_SIZE = 40;
 
     // ─── Storage ─────────────────────────────────────────────────────
@@ -45,47 +43,6 @@
 
     function notify(t) { if (Lampa.Noty) Lampa.Noty.show(t); else console.log('[VKVideo] ' + t); }
     function esc(v) { var d = document.createElement('div'); d.appendChild(document.createTextNode(v || '')); return d.innerHTML; }
-
-    function getAuthUrl() {
-        var cid = storageGet('vk_client_id', '');
-        if (!cid) return '';
-        return VK_OAUTH + '?client_id=' + cid + '&display=page&redirect_uri=' +
-            encodeURIComponent('https://oauth.vk.com/blank.html') +
-            '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
-    }
-
-    function loginUser() {
-        var url = getAuthUrl();
-        if (!url) { notify('Введите VK App ID в настройках'); return; }
-        Lampa.Input.show({
-            title: 'VK Video — Авторизация',
-            value: '',
-            placeholder: 'Вставьте access_token из URL',
-            onInsert: function (val) {
-                var token = '';
-                var m = String(val).match(/access_token=([a-f0-9]+)/i);
-                if (m) token = m[1];
-                else if (/^[a-f0-9]{20,}$/.test(val.trim())) token = val.trim();
-                if (!token) { notify('Токен пустой'); return; }
-                var a = readAuth(); a.access_token = token; saveAuth(a);
-                fetchUser(function () {
-                    notify('VK Video: авторизован как ' + (readAuth().user_name || ''));
-                    if (Lampa.Controller) Lampa.Controller.toggle('content');
-                });
-            }
-        });
-    }
-
-    function logoutUser() { saveAuth(defaultAuth()); notify('VK Video: вышли'); }
-
-    function fetchUser(cb) {
-        var a = readAuth();
-        if (!a.access_token) { if (cb) cb(); return; }
-        vkApi('users.get', { fields: 'photo_50' }, function (d) {
-            if (d && d[0]) { a.user_name = d[0].first_name || ''; a.user_id = d[0].id || 0; saveAuth(a); }
-            if (cb) cb();
-        }, function () { if (cb) cb(); });
-    }
 
     // ─── VK API ──────────────────────────────────────────────────────
 
@@ -115,40 +72,27 @@
 
     function renderCard(item, type) {
         var img = '';
-        if (type === 'group') {
-            img = item.photo_200 || item.photo_100 || item.photo_50 || '';
-        } else if (type === 'album') {
-            img = (item.image && item.image.length) ? item.image[item.image.length - 1].url : '';
-        } else {
-            img = (item.image && item.image.length) ? item.image[item.image.length - 1].url :
+        if (type === 'group') img = item.photo_200 || item.photo_100 || item.photo_50 || '';
+        else if (type === 'album') img = (item.image && item.image.length) ? item.image[item.image.length - 1].url : '';
+        else img = (item.image && item.image.length) ? item.image[item.image.length - 1].url :
                   (item.first_frame && item.first_frame.length) ? item.first_frame[item.first_frame.length - 1].url : '';
-        }
+
         var title = item.name || item.title || 'Без названия';
         var overview = '';
         if (type === 'group') overview = (item.members_count || 0) + ' участников';
         else if (type === 'album') overview = (item.count || 0) + ' видео';
-        else {
-            var dur = item.duration || 0;
-            overview = Math.floor(dur / 60) + ':' + ((dur % 60) < 10 ? '0' : '') + (dur % 60);
-        }
+        else { var dur = item.duration || 0; overview = Math.floor(dur / 60) + ':' + ((dur % 60) < 10 ? '0' : '') + (dur % 60); }
 
         var el = $(
             '<div class="card selector" data-type="' + type + '">' +
-                '<div class="card__view">' +
-                    '<img class="card__img" src="' + img + '" onerror="this.style.display=\'none\'">' +
-                '</div>' +
+                '<div class="card__view"><img class="card__img" src="' + img + '" onerror="this.style.display=\'none\'"></div>' +
                 '<div class="card__title">' + esc(title) + '</div>' +
                 (overview ? '<div class="card__subtitle">' + esc(overview) + '</div>' : '') +
             '</div>'
         );
-
         el.data('item', item);
-        el.data('type', type);
-
         return el;
     }
-
-    // ─── Scroll helper ───────────────────────────────────────────────
 
     function makeScroll() {
         var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
@@ -158,6 +102,130 @@
             if (step > 0) Navigator.move('down'); else Navigator.move('up');
         };
         return scroll;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // COMPONENT: Login (показывается если не авторизован)
+    // ═══════════════════════════════════════════════════════════════════
+
+    function VKLogin(object) {
+        var html = $('<div class="vkvideo-login"></div>');
+        var clientId = storageGet('vk_client_id', '');
+        var step = clientId ? 'token' : 'appid';
+
+        this.render = function () {
+            html.empty();
+            if (step === 'appid') renderAppIdStep();
+            else renderTokenStep();
+            return html;
+        };
+        this.create = this.render;
+
+        this.start = function () {
+            Lampa.Controller.add('content', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(html);
+                    var first = html.find('.selector').first();
+                    Lampa.Controller.collectionFocus(first, html);
+                },
+                left: function () { Lampa.Controller.toggle('menu'); },
+                right: function () { Navigator.move('right'); },
+                up: function () { Navigator.move('up'); },
+                down: function () { Navigator.move('down'); },
+                back: function () { Lampa.Activity.backward(); },
+                enter: function () {
+                    var f = html.find('.selector.focus');
+                    if (f.length) f.data('action') && f.data('action')();
+                }
+            });
+            Lampa.Controller.toggle('content');
+        };
+
+        this.stop = function () {};
+        this.pause = function () {};
+        this.destroy = function () { html.remove(); };
+
+        function renderAppIdStep() {
+            html.html(
+                '<div class="vkvideo-login__box">' +
+                    '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
+                    '<div class="vkvideo-login__title">VK Video</div>' +
+                    '<div class="vkvideo-login__desc">Введите VK App ID для подключения</div>' +
+                    '<div class="vkvideo-login__hint">Создайте приложение: vk.com/editapp?act=create → Standalone</div>' +
+                    '<div class="vkvideo-login__field">' +
+                        '<input type="text" class="vkvideo-login__input" id="vkvideo-appid" placeholder="VK App ID" value="">' +
+                    '</div>' +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-save-appid">Далее</div>' +
+                '</div>'
+            );
+
+            var input = html.find('#vkvideo-appid');
+            var btn = html.find('#vkvideo-save-appid');
+
+            btn.data('action', function () {
+                var val = input.val().trim();
+                if (!val) { notify('Введите App ID'); return; }
+                storageSet('vk_client_id', val);
+                clientId = val;
+                step = 'token';
+                renderAppIdStep = renderTokenStep;
+                html.empty();
+                renderTokenStep();
+                Lampa.Controller.collectionSet(html);
+                Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+            });
+
+            setTimeout(function () { input.focus(); }, 100);
+        }
+
+        function renderTokenStep() {
+            var authUrl = VK_OAUTH + '?client_id=' + clientId + '&display=page&redirect_uri=' +
+                encodeURIComponent('https://oauth.vk.com/blank.html') +
+                '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
+
+            html.html(
+                '<div class="vkvideo-login__box">' +
+                    '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
+                    '<div class="vkvideo-login__title">Авторизация VK</div>' +
+                    '<div class="vkvideo-login__desc">1. Откройте ссылку на телефоне или ПК</div>' +
+                    '<div class="vkvideo-login__link">' + authUrl + '</div>' +
+                    '<div class="vkvideo-login__desc">2. Скопируйте токен из адресной строки</div>' +
+                    '<div class="vkvideo-login__field">' +
+                        '<input type="text" class="vkvideo-login__input" id="vkvideo-token" placeholder="access_token" value="">' +
+                    '</div>' +
+                    '<div class="vkvideo-login__btn selector" id="vkvideo-login-btn">Войти</div>' +
+                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-btn">Назад</div>' +
+                '</div>'
+            );
+
+            html.find('#vkvideo-login-btn').data('action', function () {
+                var val = html.find('#vkvideo-token').val().trim();
+                var token = '';
+                var m = val.match(/access_token=([a-f0-9]+)/i);
+                if (m) token = m[1];
+                else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
+                if (!token) { notify('Вставьте токен'); return; }
+
+                var a = readAuth(); a.access_token = token; saveAuth(a);
+
+                vkApi('users.get', { fields: 'photo_50' }, function (d) {
+                    if (d && d[0]) { a.user_name = d[0].first_name || ''; a.user_id = d[0].id || 0; saveAuth(a); }
+                    notify('VK Video: авторизован');
+                    Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                }, function () {
+                    notify('VK Video: авторизован');
+                    Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+                });
+            });
+
+            html.find('#vkvideo-back-btn').data('action', function () {
+                step = 'appid';
+                html.empty();
+                renderAppIdStep();
+                Lampa.Controller.collectionSet(html);
+                Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+            });
+        }
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -171,6 +239,7 @@
         var last = null;
         var allGroups = [];
         var loaded = false;
+        var pageOffset = 0;
 
         this.render = function () {
             if (!loaded) {
@@ -195,13 +264,10 @@
                 right: function () { Navigator.move('right'); },
                 up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
                 down: function () { Navigator.move('down'); },
-                back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
+                back: function () { Lampa.Activity.backward(); },
                 enter: function () {
-                    var focused = html.find('.selector.focus');
-                    if (focused.length) {
-                        var item = focused.data('item');
-                        if (item) openPlaylists(item);
-                    }
+                    var f = html.find('.selector.focus');
+                    if (f.length) { var item = f.data('item'); if (item) openPlaylists(item); }
                 }
             });
             Lampa.Controller.toggle('content');
@@ -212,25 +278,9 @@
         this.destroy = function () { scroll.destroy(); html.remove(); };
 
         function loadGroups() {
-            if (!isAuthorized()) {
-                var authBtn = $(
-                    '<div style="padding:3em;text-align:center">' +
-                        '<div style="font-size:1.3em;color:rgba(255,255,255,.7);margin-bottom:1.5em">Авторизуйтесь в VK</div>' +
-                        '<div class="simple-button selector" id="vkvideo-settings-btn" style="display:inline-block;padding:0.8em 2em;background:rgba(255,255,255,0.1);border-radius:0.5em;color:#fff">Настройки VK Video</div>' +
-                    '</div>'
-                );
-                body.html(authBtn);
-                authBtn.find('#vkvideo-settings-btn').on('hover:enter', function () {
-                    if (Lampa.Controller) Lampa.Controller.toggle('settings');
-                });
-                last = authBtn.find('#vkvideo-settings-btn')[0];
-                return;
-            }
             body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Загрузка...</div>');
-
             vkApi('groups.get', {
-                user_id: readAuth().user_id,
-                count: 500,
+                user_id: readAuth().user_id, count: 500,
                 fields: 'members_count,photo_50,photo_100,photo_200'
             }, function (data) {
                 allGroups = (data && data.items) || [];
@@ -243,11 +293,10 @@
                 renderPage();
             }, function (err) {
                 console.error('[VKVideo] groups.get error:', err);
-                body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка загрузки: ' + esc(String(err)) + '</div>');
+                body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка: ' + esc(String(err)) + '</div>');
             });
         }
 
-        var pageOffset = 0;
         function renderPage() {
             var chunk = allGroups.slice(pageOffset, pageOffset + PAGE_SIZE);
             pageOffset += chunk.length;
@@ -265,15 +314,13 @@
             Lampa.Activity.push({
                 title: group.name || 'Сообщество',
                 component: 'vkvideo_playlists',
-                group_id: group.id,
-                group_name: group.name,
-                page: 1
+                group_id: group.id, group_name: group.name, page: 1
             });
         }
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Playlists of a Community
+    // COMPONENT: Playlists
     // ═══════════════════════════════════════════════════════════════════
 
     function VKPlaylists(object) {
@@ -306,13 +353,10 @@
                 right: function () { Navigator.move('right'); },
                 up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
                 down: function () { Navigator.move('down'); },
-                back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
+                back: function () { Lampa.Activity.backward(); },
                 enter: function () {
-                    var focused = html.find('.selector.focus');
-                    if (focused.length) {
-                        var item = focused.data('item');
-                        if (item) openVideos(item);
-                    }
+                    var f = html.find('.selector.focus');
+                    if (f.length) { var item = f.data('item'); if (item) openVideos(item); }
                 }
             });
             Lampa.Controller.toggle('content');
@@ -324,45 +368,37 @@
 
         function loadAlbums() {
             body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Загрузка...</div>');
-            vkApi('video.getAlbums', {
-                owner_id: groupOwnerId,
-                count: 200,
-                need_system: 1
-            }, function (data) {
-                var items = (data && data.items) || [];
-                console.log('[VKVideo] albums:', items.length, 'for owner', groupOwnerId);
-                body.empty();
-                if (!items.length) {
-                    body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет плейлистов</div>');
-                    return;
-                }
-                var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
-                items.forEach(function (a) {
-                    var card = renderCard(a, 'album');
-                    card.on('hover:focus', function () { last = card[0]; });
-                    card.on('hover:enter', function () { openVideos(a); });
-                    row.append(card);
+            vkApi('video.getAlbums', { owner_id: groupOwnerId, count: 200, need_system: 1 },
+                function (data) {
+                    var items = (data && data.items) || [];
+                    console.log('[VKVideo] albums:', items.length);
+                    body.empty();
+                    if (!items.length) { body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет плейлистов</div>'); return; }
+                    var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
+                    items.forEach(function (a) {
+                        var card = renderCard(a, 'album');
+                        card.on('hover:focus', function () { last = card[0]; });
+                        card.on('hover:enter', function () { openVideos(a); });
+                        row.append(card);
+                    });
+                    body.append(row);
+                }, function (err) {
+                    console.error('[VKVideo] albums error:', err);
+                    body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка</div>');
                 });
-                body.append(row);
-            }, function (err) {
-                console.error('[VKVideo] albums error:', err);
-                body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка</div>');
-            });
         }
 
         function openVideos(album) {
             Lampa.Activity.push({
                 title: album.title || 'Плейлист',
                 component: 'vkvideo_videos',
-                owner_id: groupOwnerId,
-                album_id: album.id,
-                page: 1
+                owner_id: groupOwnerId, album_id: album.id, page: 1
             });
         }
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // COMPONENT: Videos in a Playlist
+    // COMPONENT: Videos
     // ═══════════════════════════════════════════════════════════════════
 
     function VKVideos(object) {
@@ -397,13 +433,10 @@
                 right: function () { Navigator.move('right'); },
                 up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
                 down: function () { Navigator.move('down'); },
-                back: function () { if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward(); },
+                back: function () { Lampa.Activity.backward(); },
                 enter: function () {
-                    var focused = html.find('.selector.focus');
-                    if (focused.length) {
-                        var item = focused.data('item');
-                        if (item) playVideo(item);
-                    }
+                    var f = html.find('.selector.focus');
+                    if (f.length) { var item = f.data('item'); if (item) playVideo(item); }
                 }
             });
             Lampa.Controller.toggle('content');
@@ -420,16 +453,16 @@
                       '&extended=1&v=' + VK_VERSION + '&access_token=' + readAuth().access_token;
 
             $.ajax({
-                url: url, method: 'POST',
+                url: VK_API + '/video.get', method: 'POST',
                 contentType: 'application/x-www-form-urlencoded', dataType: 'json', timeout: 15000,
-                data: 'v=' + VK_VERSION + '&access_token=' + readAuth().access_token,
+                data: 'owner_id=' + object.owner_id +
+                      (object.album_id ? '&album_id=' + object.album_id : '') +
+                      '&count=' + PAGE_SIZE + '&offset=' + ((page - 1) * PAGE_SIZE) +
+                      '&extended=1&v=' + VK_VERSION + '&access_token=' + readAuth().access_token,
                 success: function (r) {
                     var items = (r && r.response && r.response.items) || [];
                     console.log('[VKVideo] videos page', page, ':', items.length);
-                    if (!items.length && page === 1) {
-                        body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет видео</div>');
-                        return;
-                    }
+                    if (!items.length && page === 1) { body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет видео</div>'); return; }
                     if (items.length < PAGE_SIZE) ended = true;
                     var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
                     items.forEach(function (v) {
@@ -441,30 +474,21 @@
                     body.append(row);
                     page++;
                 },
-                error: function () {
-                    if (page === 1) body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка загрузки</div>');
-                }
+                error: function () { if (page === 1) body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка загрузки</div>'); }
             });
         }
 
         function playVideo(video) {
-            var vid = (video.owner_id || 0) + '_' + (video.id || 0);
-            vkApi('video.get', { videos: vid, extended: 1 }, function (data) {
-                var v = data && data.items && data.items[0];
-                if (!v) { notify('Видео не найдено'); return; }
-                var url = '';
-                if (v.files) {
-                    url = v.files.hls || v.files.mp4_1080 || v.files.mp4_720 ||
-                          v.files.mp4_480 || v.files.mp4_360 || v.files.mp4_240 || '';
-                }
-                if (url) {
-                    Lampa.Player.play({ url: url, title: v.title || video.title || 'VK', subtitles: [] });
-                } else if (v.player) {
-                    window.open(v.player, '_blank');
-                } else {
-                    notify('Не удалось получить ссылку');
-                }
-            }, function (e) { notify('Ошибка: ' + e); });
+            vkApi('video.get', { videos: (video.owner_id || 0) + '_' + (video.id || 0), extended: 1 },
+                function (data) {
+                    var v = data && data.items && data.items[0];
+                    if (!v) { notify('Видео не найдено'); return; }
+                    var url = '';
+                    if (v.files) url = v.files.hls || v.files.mp4_1080 || v.files.mp4_720 || v.files.mp4_480 || v.files.mp4_360 || v.files.mp4_240 || '';
+                    if (url) Lampa.Player.play({ url: url, title: v.title || video.title || 'VK', subtitles: [] });
+                    else if (v.player) window.open(v.player, '_blank');
+                    else notify('Не удалось получить ссылку');
+                }, function (e) { notify('Ошибка: ' + e); });
         }
     }
 
@@ -475,21 +499,12 @@
         if (!menu.length || menu.find('[data-sid="vkvideo"]').length) return;
         var icon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg>';
         var btn = $('<li class="menu__item selector" data-action="vkvideo_action" data-sid="vkvideo"><div class="menu__ico">' + icon + '</div><div class="menu__text">VK Video</div></li>');
-        btn.on('hover:enter', function () { Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 }); });
+        btn.on('hover:enter', function () {
+            if (isAuthorized()) Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
+            else Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_login', page: 1 });
+        });
         var last = menu.find('.menu__item').last();
         if (last.length) btn.insertAfter(last); else menu.append(btn);
-    }
-
-    // ─── Settings ────────────────────────────────────────────────────
-
-    function addSettings() {
-        if (!Lampa.SettingsApi) return;
-        Lampa.SettingsApi.addComponent({ component: 'vkvideo', icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg>', name: 'VK Video' });
-        Lampa.SettingsApi.addParam({ component: 'vkvideo', param: { type: 'title' }, field: { name: 'Авторизация VK' } });
-        Lampa.SettingsApi.addParam({ component: 'vkvideo', param: { name: 'vk_client_id', type: 'input', default: '', placeholder: 'VK App ID' }, field: { name: 'VK App ID (Standalone)' } });
-        Lampa.SettingsApi.addParam({ component: 'vkvideo', param: { name: 'vk_login', type: 'trigger', default: false }, field: { name: function () { return isAuthorized() ? 'Выйти' : 'Войти в VK'; } }, onChange: function () { if (isAuthorized()) logoutUser(); else { if (!storageGet('vk_client_id', '')) { notify('Введите App ID'); return; } loginUser(); } } });
-        Lampa.SettingsApi.addParam({ component: 'vkvideo', param: { type: 'title' }, field: { name: function () { return isAuthorized() ? 'Подключено: ' + (readAuth().user_name || readAuth().user_id) : 'Не подключено'; } } });
-        Lampa.SettingsApi.addParam({ component: 'vkvideo', param: { type: 'title' }, field: { name: 'vk.com/editapp?act=create → Standalone' } });
     }
 
     // ─── Styles ──────────────────────────────────────────────────────
@@ -497,14 +512,29 @@
     function addStyles() {
         if ($('#vkvideo-style').length) return;
         $('head').append('<style id="vkvideo-style">' +
+            /* Login */
+            '.vkvideo-login{display:flex;align-items:center;justify-content:center;height:100%;color:#fff}' +
+            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2.5em 3em;max-width:28em;width:90%;text-align:center}' +
+            '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
+            '.vkvideo-login__title{font-size:1.6em;font-weight:700;margin-bottom:0.5em}' +
+            '.vkvideo-login__desc{font-size:0.95em;color:rgba(255,255,255,0.6);margin-bottom:0.8em;line-height:1.4}' +
+            '.vkvideo-login__hint{font-size:0.8em;color:rgba(255,255,255,0.35);margin-bottom:1.5em}' +
+            '.vkvideo-login__link{font-size:0.7em;color:rgba(255,255,255,0.3);word-break:break-all;margin-bottom:1em;padding:0.5em;background:rgba(0,0,0,0.2);border-radius:0.3em}' +
+            '.vkvideo-login__field{margin-bottom:1.2em}' +
+            '.vkvideo-login__input{width:100%;padding:0.8em 1em;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:0.5em;color:#fff;font-size:1em;outline:none;box-sizing:border-box}' +
+            '.vkvideo-login__input:focus{border-color:rgba(255,255,255,0.3)}' +
+            '.vkvideo-login__btn{display:inline-block;padding:0.8em 2.5em;background:rgba(76,175,80,0.3);border-radius:0.5em;color:#fff;font-size:1em;cursor:pointer;margin-bottom:0.8em}' +
+            '.vkvideo-login__btn.focus{background:rgba(76,175,80,0.5);transform:scale(1.05)}' +
+            '.vkvideo-login__btn-secondary{display:inline-block;padding:0.6em 2em;background:rgba(255,255,255,0.06);border-radius:0.5em;color:rgba(255,255,255,0.5);font-size:0.9em;cursor:pointer}' +
+            '.vkvideo-login__btn-secondary.focus{background:rgba(255,255,255,0.15);color:#fff}' +
+            /* Module */
             '.vkvideo-module{padding:1em;height:100%}' +
             '.vkvideo-module .card{flex:0 0 14em;padding:0.5em;box-sizing:border-box}' +
-            '.vkvideo-module .card .card__view{background:#1b1d24;border-radius:0.35em;overflow:hidden;padding-bottom:56%}' +
+            '.vkvideo-module .card .card__view{background:#1b1d24;border-radius:0.35em;overflow:hidden;padding-bottom:56%;position:relative}' +
             '.vkvideo-module .card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}' +
             '.vkvideo-module .card .card__title{font-size:1em;margin-top:0.4em;line-height:1.2}' +
             '.vkvideo-module .card .card__subtitle{font-size:0.85em;color:rgba(255,255,255,0.5);margin-top:0.2em}' +
             '.vkvideo-module .card.focus .card__view{box-shadow:0 0 0 0.2em #fff}' +
-            '#vkvideo-settings-btn.focus{background:rgba(255,255,255,0.25)!important;transform:scale(1.05)}' +
         '</style>');
     }
 
@@ -513,15 +543,13 @@
     function startPlugin() {
         if (!window.Lampa || !window.$) return;
         addStyles();
-        addSettings();
+        Lampa.Component.add('vkvideo_login', VKLogin);
         Lampa.Component.add('vkvideo_communities', VKCommunities);
         Lampa.Component.add('vkvideo_playlists', VKPlaylists);
         Lampa.Component.add('vkvideo_videos', VKVideos);
         addMenu();
-        setInterval(function () {
-            if (window.appready && $('.menu .menu__list').eq(0).length) addMenu();
-        }, 4000);
-        console.log('[VKVideo] v3.0 loaded');
+        setInterval(function () { if (window.appready && $('.menu .menu__list').eq(0).length) addMenu(); }, 4000);
+        console.log('[VKVideo] v4.0 loaded');
     }
 
     if (window.appready) startPlugin();
