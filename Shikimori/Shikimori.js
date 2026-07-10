@@ -37,6 +37,7 @@
     var posterRequests = {};
     var fullResolveCache = {};
     var fullPollId = null;
+    var malIdCache = {};
 
     // ─── GraphQL Helper ──────────────────────────────────────────────
 
@@ -291,6 +292,35 @@
         if (parts.length === 1 && !isNaN(parts[0])) return parts[0] + ' год';
 
         return (map[parts[0]] || parts[0] || '') + (parts[1] ? ' ' + parts[1] : '');
+    }
+
+    // ─── MAL ID Fetch ───────────────────────────────────────────────────
+
+    /**
+     * Получить MAL ID для аниме Shikimori через REST API.
+     * Кеширует результат в malIdCache для повторных вызовов.
+     *
+     * @param {number|string} shikiId - ID аниме в Shikimori
+     * @param {Function} callback - Вызывается с MAL ID (число) или пустой строкой
+     */
+    function fetchMalId(shikiId, callback) {
+        if (!shikiId) { callback(''); return; }
+
+        if (malIdCache[shikiId] !== undefined) {
+            callback(malIdCache[shikiId]);
+            return;
+        }
+
+        var url = getShikiHost() + '/api/animes/' + encodeURIComponent(shikiId);
+
+        apiGetJson(url, function (anime) {
+            var malId = anime && anime.mal_id ? anime.mal_id : '';
+            malIdCache[shikiId] = malId;
+            callback(malId);
+        }, function () {
+            malIdCache[shikiId] = '';
+            callback('');
+        });
     }
 
     /** Маппинг slug типа аниме Shikimori в отображаемое название. */
@@ -855,32 +885,41 @@
             return;
         }
 
-        var armUrl = armLookupUrl(data.malId || data.id);
-
-        apiGetJson(armUrl, function (answer) {
-            var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
-            var type = answer && (answer.media_type || answer.type);
-
-            if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
-
-            if (tmdbId) {
-                fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
-                    if (poster) {
-                        finishPosterRequest(data.id, poster);
-                    } else {
-                        resolvePosterByTmdbSearch(data, function (searchPoster) {
-                            finishPosterRequest(data.id, searchPoster);
-                        });
-                    }
-                });
-            } else {
+        fetchMalId(data.id, function (malId) {
+            if (!malId) {
                 resolvePosterByTmdbSearch(data, function (searchPoster) {
-                    finishPosterRequest(data.id, searchPoster);
+                    finishPosterRequest(data.id, searchPoster || '');
                 });
+                return;
             }
-        }, function () {
-            resolvePosterByTmdbSearch(data, function (searchPoster) {
-                finishPosterRequest(data.id, searchPoster);
+
+            var armUrl = armLookupUrl(malId);
+
+            apiGetJson(armUrl, function (answer) {
+                var tmdbId = answer && (answer.themoviedb || answer.tmdb_id || answer.id);
+                var type = answer && (answer.media_type || answer.type);
+
+                if (!type) type = data.kind === 'movie' ? 'movie' : 'tv';
+
+                if (tmdbId) {
+                    fetchTmdbDetailsPoster(data, tmdbId, type, function (poster) {
+                        if (poster) {
+                            finishPosterRequest(data.id, poster);
+                        } else {
+                            resolvePosterByTmdbSearch(data, function (searchPoster) {
+                                finishPosterRequest(data.id, searchPoster || '');
+                            });
+                        }
+                    });
+                } else {
+                    resolvePosterByTmdbSearch(data, function (searchPoster) {
+                        finishPosterRequest(data.id, searchPoster || '');
+                    });
+                }
+            }, function () {
+                resolvePosterByTmdbSearch(data, function (searchPoster) {
+                    finishPosterRequest(data.id, searchPoster || '');
+                });
             });
         });
     }
@@ -1061,33 +1100,41 @@
      * @see {@link openLampaSearch} для ручного поиска Lampa
      */
     function openAnime(data) {
-        var url = armLookupUrl(data.malId || data.id);
         var expectedYear = getAnimeYear(data);
         var expectedType = data.kind === 'movie' ? 'movie' : 'tv';
 
-        var onSuccess = function (answer) {
-            if (answer && answer.themoviedb) {
-                var armType = answer.media_type || answer.type || '';
-
-                if (armType && armType !== expectedType) {
-                    fallbackSearch(data);
-                    return;
-                }
-
-                verifyTmdbResult(answer.themoviedb, expectedType, expectedYear, data, function (ok) {
-                    if (ok) {
-                        openTmdb(answer, data);
-                    } else {
-                        fallbackSearch(data);
-                    }
-                });
-            } else {
+        fetchMalId(data.id, function (malId) {
+            if (!malId) {
                 fallbackSearch(data);
+                return;
             }
-        };
 
-        apiGetJson(url, onSuccess, function () {
-            fallbackSearch(data);
+            var url = armLookupUrl(malId);
+
+            var onSuccess = function (answer) {
+                if (answer && answer.themoviedb) {
+                    var armType = answer.media_type || answer.type || '';
+
+                    if (armType && armType !== expectedType) {
+                        fallbackSearch(data);
+                        return;
+                    }
+
+                    verifyTmdbResult(answer.themoviedb, expectedType, expectedYear, data, function (ok) {
+                        if (ok) {
+                            openTmdb(answer, data);
+                        } else {
+                            fallbackSearch(data);
+                        }
+                    });
+                } else {
+                    fallbackSearch(data);
+                }
+            };
+
+            apiGetJson(url, onSuccess, function () {
+                fallbackSearch(data);
+            });
         });
     }
 
@@ -1118,20 +1165,35 @@
             var shikiEn = normalizeForCompare(shikiData.english);
             var shikiRu = normalizeForCompare(shikiData.russian);
 
-            if (tmdbName && shikiName) {
-                var nameMatch = tmdbName.indexOf(shikiName) !== -1 || shikiName.indexOf(tmdbName) !== -1;
-                var enMatch = shikiEn && (tmdbName.indexOf(shikiEn) !== -1 || shikiEn.indexOf(tmdbName) !== -1);
-                var ruMatch = shikiRu && (tmdbName.indexOf(shikiRu) !== -1 || shikiRu.indexOf(tmdbName) !== -1);
+            function isGoodNameMatch(a, b) {
+                if (!a || !b) return false;
+                if (a === b) return true;
 
-                if (!nameMatch && !enMatch && !ruMatch) {
-                    callback(false);
-                    return;
-                }
+                var aInB = b.indexOf(a) !== -1;
+                var bInA = a.indexOf(b) !== -1;
+
+                if (!aInB && !bInA) return false;
+
+                var shorter = aInB ? a : b;
+                var longer = aInB ? b : a;
+
+                return shorter.length >= longer.length * 0.55;
+            }
+
+            var nameMatch = isGoodNameMatch(tmdbName, shikiName);
+            var enMatch = isGoodNameMatch(tmdbName, shikiEn);
+            var ruMatch = isGoodNameMatch(tmdbName, shikiRu);
+
+            if (!nameMatch && !enMatch && !ruMatch) {
+                callback(false);
+                return;
             }
 
             callback(true);
         }, function () {
-            callback(true);
+            // При ошибке TMDB API (блокировка в РФ) — НЕ считаем результат валидным
+            // чтобы не открыть неправильную карточку
+            callback(false);
         });
     }
 
@@ -2667,6 +2729,7 @@
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
                         storageSet(POSTER_CACHE_KEY, {});
+                        malIdCache = {};
                         notify('Кэш поиска очищен');
                         Lampa.Controller.toggle('content');
                         return;
