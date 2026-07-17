@@ -1,0 +1,648 @@
+/**
+ * VK Player Plugin - Styles
+ */
+
+/* Сетка видео */
+.vk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 16px;
+}
+
+/* Карточка видео */
+.vk-card {
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a1a;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vk-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.vk-card__poster {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%; /* 16:9 */
+    overflow: hidden;
+}
+
+.vk-card__poster img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vk-card__duration {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.vk-card__title {
+    padding: 8px 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vk-card__meta {
+    padding: 0 12px 12px;
+    font-size: 12px;
+    color: #999;
+    display: flex;
+    gap: 8px;
+}
+
+/* Поиск */
+.vk-search {
+    padding: 16px;
+}
+
+.vk-search-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #333;
+    border-radius: 8px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 16px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.vk-search-input:focus {
+    border-color: #5181b8;
+}
+
+.vk-search-input::placeholder {
+    color: #666;
+}
+
+/* Кнопка "Загрузить ещё" */
+.vk-load-more {
+    text-align: center;
+    padding: 16px;
+    color: #5181b8;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.vk-load-more:hover {
+    color: #fff;
+}
+
+/* Модал авторизации */
+.vk-auth-modal {
+    padding: 16px;
+}
+
+.vk-auth-modal p {
+    margin-bottom: 12px;
+    color: #ccc;
+}
+
+.vk-auth-url {
+    font-size: 11px;
+    background: #f5f5f5;
+    padding: 8px;
+    border-radius: 4px;
+}
+
+.vk-token-input,
+.vk-userid-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+}
+
+.vk-token-input:focus,
+.vk-userid-input:focus {
+    border-color: #5181b8;
+}
+
+/* Пустое состояние */
+.vk-catalog .empty {
+    text-align: center;
+    padding: 48px 16px;
+    color: #999;
+}
+
+/* Адаптивность */
+@media (max-width: 768px) {
+    .vk-grid {
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+        gap: 12px;
+        padding: 12px;
+    }
+
+    .vk-card__title {
+        font-size: 13px;
+    }
+
+    .vk-card__meta {
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vk-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+        padding: 8px;
+    }
+}
+
+/* Фокус для TV навигации */
+.vk-card.selector:focus {
+    outline: 2px solid #5181b8;
+    outline-offset: 2px;
+}
+
+/* ===================== ГЛАВНОЕ МЕНЮ ===================== */
+.vk-menu-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.vk-menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+    background: #1a1a1a;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+    text-align: center;
+}
+
+.vk-menu-item:hover {
+    background: #2a2a2a;
+    transform: translateY(-2px);
+}
+
+.vk-menu-item__icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.vk-menu-item__title {
+    font-size: 14px;
+    color: #fff;
+    font-weight: 500;
+}
+
+/* ===================== ПОДПИСКИ ===================== */
+.vk-subs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.vk-sub-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: #1a1a1a;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.vk-sub-card:hover {
+    background: #2a2a2a;
+}
+
+.vk-sub-card__photo {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.vk-sub-card__photo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vk-sub-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.vk-sub-card__name {
+    font-size: 16px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vk-sub-card__members {
+    font-size: 12px;
+    color: #999;
+    margin-top: 4px;
+}
+
+.vk-sub-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #1a1a1a;
+    border-radius: 12px;
+    border: 2px dashed #333;
+    color: #5181b8;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.vk-sub-add:hover {
+    border-color: #5181b8;
+    color: #fff;
+}
+
+/* ===================== ПЛЕЙЛИСТЫ ===================== */
+.vk-playlists-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 16px;
+    padding: 24px;
+}
+
+.vk-playlist-card {
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #1a1a1a;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.vk-playlist-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+
+.vk-playlist-card__poster {
+    position: relative;
+    width: 100%;
+    padding-top: 56.25%;
+    overflow: hidden;
+    background: #2a2a2a;
+}
+
+.vk-playlist-card__poster img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.vk-playlist-card__empty {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+    color: #444;
+}
+
+.vk-playlist-card__count {
+    position: absolute;
+    bottom: 8px;
+    right: 8px;
+    background: rgba(0, 0, 0, 0.8);
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.vk-playlist-card__title {
+    padding: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.vk-playlist-add {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    border: 2px dashed #333;
+    color: #5181b8;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+.vk-playlist-add:hover {
+    border-color: #5181b8;
+    color: #fff;
+}
+
+/* ===================== МОДАЛКИ ===================== */
+.vk-playlist-modal {
+    padding: 16px;
+}
+
+.vk-playlist-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.vk-playlist-item:hover {
+    background: #2a2a2a;
+}
+
+.vk-playlist-item__name {
+    font-size: 14px;
+    color: #fff;
+}
+
+.vk-playlist-item__count {
+    font-size: 12px;
+    color: #999;
+}
+
+.vk-playlist-create {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    margin-top: 16px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    border: 2px dashed #333;
+    color: #5181b8;
+    cursor: pointer;
+    transition: border-color 0.2s;
+}
+
+.vk-playlist-create:hover {
+    border-color: #5181b8;
+}
+
+.vk-create-playlist,
+.vk-edit-playlist,
+.vk-add-sub-modal {
+    padding: 16px;
+}
+
+.vk-playlist-name-input,
+.vk-playlist-desc-input,
+.vk-community-input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #333;
+    border-radius: 4px;
+    background: #1a1a1a;
+    color: #fff;
+    font-size: 14px;
+    margin-bottom: 12px;
+    outline: none;
+}
+
+.vk-playlist-name-input:focus,
+.vk-playlist-desc-input:focus,
+.vk-community-input:focus {
+    border-color: #5181b8;
+}
+
+/* ===================== КОНТЕКСТНОЕ МЕНЮ ===================== */
+.vk-video-menu,
+.vk-playlist-menu {
+    padding: 16px;
+}
+
+.vk-video-menu__item,
+.vk-playlist-menu__item {
+    padding: 12px 16px;
+    background: #1a1a1a;
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    color: #fff;
+    transition: background 0.2s;
+}
+
+.vk-video-menu__item:hover,
+.vk-playlist-menu__item:hover {
+    background: #2a2a2a;
+}
+
+/* ===================== КНОПКА МЕНЮ НА КАРТОЧКЕ ===================== */
+.vk-card__menu-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    border-radius: 50%;
+    font-size: 16px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.vk-card:hover .vk-card__menu-btn {
+    opacity: 1;
+}
+
+.vk-card__menu-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+}
+
+/* ===================== ПУСТОЕ СОСТОЯНИЕ ===================== */
+.vk-empty {
+    text-align: center;
+    padding: 48px 24px;
+    color: #999;
+}
+
+.vk-empty p {
+    margin-bottom: 16px;
+}
+
+.vk-add-sub-btn,
+.vk-create-pl-btn {
+    display: inline-block;
+    padding: 12px 24px;
+    background: #5181b8;
+    color: #fff;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.vk-add-sub-btn:hover,
+.vk-create-pl-btn:hover {
+    background: #3d6a99;
+}
+
+/* ===================== ШАПКА СООБЩЕСТВА ===================== */
+.vk-community-header {
+    padding: 16px 24px;
+}
+
+.vk-community-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.vk-community-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 0 24px 24px;
+}
+
+/* ===================== ШАПКА ПЛЕЙЛИСТА ===================== */
+.vk-playlist-header {
+    padding: 16px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.vk-back-btn {
+    color: #5181b8;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.vk-back-btn:hover {
+    color: #fff;
+}
+
+.vk-playlist-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.vk-playlist-desc {
+    font-size: 14px;
+    color: #999;
+}
+
+.vk-playlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 16px;
+    padding: 0 24px 24px;
+}
+
+/* ===================== ИСТОРИЯ ===================== */
+.vk-history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+}
+
+.vk-history-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+}
+
+.vk-history-clear {
+    color: #e74c3c;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.vk-history-clear:hover {
+    background: rgba(231, 76, 60, 0.2);
+}
+
+/* Прогресс просмотра */
+.vk-card__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.5);
+}
+
+.vk-card__progress-bar {
+    height: 100%;
+    background: #5181b8;
+    transition: width 0.3s;
+}
+
+/* ===================== ИЗБРАННОЕ ===================== */
+.vk-favorites-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 24px;
+}
+
+.vk-favorites-title {
+    font-size: 18px;
+    font-weight: 500;
+    color: #fff;
+}
