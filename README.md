@@ -8,3 +8,6 @@ https://kartmansms.github.io/testing/donghua/donghua.js
 ```bibtex
 https://kartmansms.github.io/testing/VKVideo/VKVideo.js
 ```
+```bibtex
+https://kartmansms.github.io/testing/vkplayer/vkplayer.js
+```
