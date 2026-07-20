@@ -481,9 +481,14 @@
         if (params.genre_id) parts.push('genre_id[]=' + params.genre_id);
         if (params.release_type_id) parts.push('release_type_id[]=' + params.release_type_id);
         if (params.release_status_id) parts.push('release_status_id[]=' + params.release_status_id);
-        if (params.year_min) parts.push('year_min=' + params.year_min);
-        if (params.year_max) parts.push('year_max=' + params.year_max);
         if (params.country_id) parts.push('country_id[]=' + params.country_id);
+        if (params.year) {
+            parts.push('year_min=' + params.year);
+            parts.push('year_max=' + params.year);
+        } else {
+            if (params.year_min) parts.push('year_min=' + params.year_min);
+            if (params.year_max) parts.push('year_max=' + params.year_max);
+        }
 
         if (parts.length) url += '?' + parts.join('&');
 
@@ -527,14 +532,33 @@
         var url = getBaseUrl() + '/catalog.php';
 
         apiGetHtml(url, function (html) {
+            var genres = parseFilterOptions(html, 'genre_id[]');
+            var types = parseFilterOptions(html, 'release_type_id[]');
+            var statuses = parseFilterOptions(html, 'release_status_id[]');
+            var countries = parseFilterOptions(html, 'country_id[]');
+
+            var years = [];
+            try {
+                var yearRegex = /<select[^>]*name="year_min"[^>]*>([\s\S]*?)<\/select>/;
+                var yearMatch = html.match(yearRegex);
+                if (yearMatch) {
+                    var optRegex = /<option[^>]*value="(\d{4})"[^>]*>(\d{4})<\/option>/g;
+                    var m;
+                    while ((m = optRegex.exec(yearMatch[1])) !== null) {
+                        years.push({ value: m[1], title: m[2] });
+                    }
+                }
+            } catch (e) {}
+
             callback({
-                genres: parseFilterOptions(html, 'genre_id[]'),
-                types: parseFilterOptions(html, 'release_type_id[]'),
-                statuses: parseFilterOptions(html, 'release_status_id[]'),
-                countries: parseFilterOptions(html, 'country_id[]')
+                genres: genres,
+                types: types,
+                statuses: statuses,
+                countries: countries,
+                years: years
             });
         }, function () {
-            callback({ genres: [], types: [], statuses: [], countries: [] });
+            callback({ genres: [], types: [], statuses: [], countries: [], years: [] });
         });
     }
 
@@ -617,6 +641,12 @@
                 });
 
                 buildHeader();
+
+                fetchCatalogFilters(function (filters) {
+                    filtersCache = filters;
+                    renderActive();
+                });
+
                 load(false);
             }
 
@@ -741,10 +771,7 @@
                 var genreName = params.genre_id;
                 if (filtersCache) {
                     for (var g = 0; g < filtersCache.genres.length; g++) {
-                        if (filtersCache.genres[g].value === params.genre_id) {
-                            genreName = filtersCache.genres[g].title;
-                            break;
-                        }
+                        if (filtersCache.genres[g].value === params.genre_id) { genreName = filtersCache.genres[g].title; break; }
                     }
                 }
                 parts.push('\u0436\u0430\u043d\u0440: ' + genreName);
@@ -754,14 +781,33 @@
                 var typeName = params.release_type_id;
                 if (filtersCache) {
                     for (var t = 0; t < filtersCache.types.length; t++) {
-                        if (filtersCache.types[t].value === params.release_type_id) {
-                            typeName = filtersCache.types[t].title;
-                            break;
-                        }
+                        if (filtersCache.types[t].value === params.release_type_id) { typeName = filtersCache.types[t].title; break; }
                     }
                 }
                 parts.push('\u0442\u0438\u043f: ' + typeName);
             }
+
+            if (params.release_status_id) {
+                var statusName = params.release_status_id;
+                if (filtersCache) {
+                    for (var s = 0; s < filtersCache.statuses.length; s++) {
+                        if (filtersCache.statuses[s].value === params.release_status_id) { statusName = filtersCache.statuses[s].title; break; }
+                    }
+                }
+                parts.push('\u0441\u0442\u0430\u0442\u0443\u0441: ' + statusName);
+            }
+
+            if (params.country_id) {
+                var countryName = params.country_id;
+                if (filtersCache) {
+                    for (var c = 0; c < filtersCache.countries.length; c++) {
+                        if (filtersCache.countries[c].value === params.country_id) { countryName = filtersCache.countries[c].title; break; }
+                    }
+                }
+                parts.push('\u0441\u0442\u0440\u0430\u043d\u0430: ' + countryName);
+            }
+
+            if (params.year) parts.push('\u0433\u043e\u0434: ' + params.year);
 
             active.html(parts.length ?
                 '<span>\u0410\u043a\u0442\u0438\u0432\u043d\u043e:</span> ' + esc(parts.join(' / ')) :
@@ -790,6 +836,9 @@
                 search: next.search || '',
                 genre_id: next.genre_id || '',
                 release_type_id: next.release_type_id || '',
+                release_status_id: next.release_status_id || '',
+                country_id: next.country_id || '',
+                year: next.year || '',
                 sort: next.sort || ''
             });
         }
@@ -837,31 +886,41 @@
 
                 var genreName = '\u043b\u044e\u0431\u043e\u0439';
                 var typeName = '\u043b\u044e\u0431\u043e\u0439';
+                var statusName = '\u043b\u044e\u0431\u043e\u0439';
+                var countryName = '\u043b\u044e\u0431\u0430\u044f';
+                var yearName = params.year || '\u043b\u044e\u0431\u043e\u0439';
 
                 if (params.genre_id) {
                     for (var g = 0; g < filters.genres.length; g++) {
-                        if (filters.genres[g].value === params.genre_id) {
-                            genreName = filters.genres[g].title;
-                            break;
-                        }
+                        if (filters.genres[g].value === params.genre_id) { genreName = filters.genres[g].title; break; }
                     }
                 }
-
                 if (params.release_type_id) {
                     for (var t = 0; t < filters.types.length; t++) {
-                        if (filters.types[t].value === params.release_type_id) {
-                            typeName = filters.types[t].title;
-                            break;
-                        }
+                        if (filters.types[t].value === params.release_type_id) { typeName = filters.types[t].title; break; }
+                    }
+                }
+                if (params.release_status_id) {
+                    for (var s = 0; s < filters.statuses.length; s++) {
+                        if (filters.statuses[s].value === params.release_status_id) { statusName = filters.statuses[s].title; break; }
+                    }
+                }
+                if (params.country_id) {
+                    for (var c = 0; c < filters.countries.length; c++) {
+                        if (filters.countries[c].value === params.country_id) { countryName = filters.countries[c].title; break; }
                     }
                 }
 
                 var items = [
                     { title: '\u0416\u0430\u043d\u0440: ' + genreName, value: 'genre' },
-                    { title: '\u0422\u0438\u043f: ' + typeName, value: 'type' }
+                    { title: '\u0422\u0438\u043f: ' + typeName, value: 'type' },
+                    { title: '\u0421\u0442\u0430\u0442\u0443\u0441: ' + statusName, value: 'status' },
+                    { title: '\u0421\u0442\u0440\u0430\u043d\u0430: ' + countryName, value: 'country' },
+                    { title: '\u0413\u043e\u0434: ' + yearName, value: 'year' }
                 ];
 
-                if (params.genre_id || params.release_type_id || params.search) {
+                var hasFilter = params.genre_id || params.release_type_id || params.release_status_id || params.country_id || params.year || params.search;
+                if (hasFilter) {
                     items.push({ title: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b', value: 'reset' });
                 }
 
@@ -871,8 +930,11 @@
                     onSelect: function (item) {
                         if (item.value === 'genre') openGenreMenu(filters.genres);
                         else if (item.value === 'type') openTypeMenu(filters.types);
+                        else if (item.value === 'status') openStatusMenu(filters.statuses);
+                        else if (item.value === 'country') openCountryMenu(filters.countries);
+                        else if (item.value === 'year') openYearMenu(filters.years);
                         else if (item.value === 'reset') {
-                            openWith({ genre_id: '', release_type_id: '', page: 1 });
+                            openWith({ genre_id: '', release_type_id: '', release_status_id: '', country_id: '', year: '', page: 1 });
                         }
                     },
                     onBack: function () {
@@ -926,6 +988,72 @@
             });
         }
 
+        function openStatusMenu(statuses) {
+            var items = [{ title: '\u041b\u044e\u0431\u043e\u0439', value: '' }];
+
+            for (var i = 0; i < statuses.length; i++) {
+                items.push({
+                    title: (params.release_status_id === statuses[i].value ? '\u2713 ' : '') + statuses[i].title,
+                    value: statuses[i].value
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0421\u0442\u0430\u0442\u0443\u0441',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ release_status_id: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openCountryMenu(countries) {
+            var items = [{ title: '\u041b\u044e\u0431\u0430\u044f', value: '' }];
+
+            for (var i = 0; i < countries.length; i++) {
+                items.push({
+                    title: (params.country_id === countries[i].value ? '\u2713 ' : '') + countries[i].title,
+                    value: countries[i].value
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0421\u0442\u0440\u0430\u043d\u0430',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ country_id: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openYearMenu(years) {
+            var items = [{ title: '\u041b\u044e\u0431\u043e\u0439', value: '' }];
+
+            for (var i = 0; i < years.length; i++) {
+                items.push({
+                    title: (params.year === years[i].value ? '\u2713 ' : '') + years[i].title,
+                    value: years[i].value
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0413\u043e\u0434',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ year: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
         // ─── Data Loading ──────────────────────────────────────────────
 
         function load(append) {
@@ -962,7 +1090,10 @@
                     page: params.page,
                     sort: params.sort || '',
                     genre_id: params.genre_id || '',
-                    release_type_id: params.release_type_id || ''
+                    release_type_id: params.release_type_id || '',
+                    release_status_id: params.release_status_id || '',
+                    country_id: params.country_id || '',
+                    year: params.year || ''
                 };
 
                 fetchCatalogPage(catalogParams, function (items, hasNext) {
