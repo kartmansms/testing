@@ -150,7 +150,12 @@
         var url = getBaseUrl() + '/release/' + slug + '/';
 
         apiGetHtml(url, function (html) {
-            var info = { slug: slug, title: '', description: '', poster: '', year: 0, genres: [], type: '', status: '', episodes: [], playlistUrl: '' };
+            var info = {
+                slug: slug, title: '', original_title: '', english_title: '',
+                description: '', poster: '', year: 0, genres: [], type: '',
+                status: '', country: '', studio: '', age_rating: '',
+                duration: '', episodes: [], playlistUrl: '', ratings: []
+            };
 
             try {
                 // Parse JSON-LD
@@ -187,8 +192,48 @@
                         info.genres = r.genre_names || [];
                         info.type = r.release_type_name || '';
                         info.status = r.release_status_name || '';
+                        info.original_title = r.original_title || '';
+                        info.country = r.country_name || '';
+                        info.studio = r.studio_name || '';
+                        info.age_rating = r.age_rating || '';
+                        info.duration = r.duration || '';
                         if (!info.title) info.title = r.title || '';
                     }
+                }
+
+                // Parse English title from HTML
+                if (!info.english_title) {
+                    var engMatch = html.match(/<div[^>]*class="[^"]*original[^"]*"[^>]*>([^<]+)<\/div>/i);
+                    if (engMatch) info.english_title = engMatch[1].trim();
+                }
+
+                // Parse ratings from HTML
+                var ratingBlocks = html.match(/class="[^"]*rating[^"]*"[^>]*>[\s\S]*?<\/div>/gi);
+                if (ratingBlocks) {
+                    for (var ri = 0; ri < ratingBlocks.length; ri++) {
+                        var rb = ratingBlocks[ri];
+                        var sourceMatch = rb.match(/class="[^"]*source[^"]*"[^>]*>([^<]+)</i);
+                        var valueMatch = rb.match(/class="[^"]*value[^"]*"[^>]*>([^<]+)</i);
+                        if (sourceMatch && valueMatch) {
+                            info.ratings.push({
+                                source: sourceMatch[1].trim(),
+                                value: valueMatch[1].trim()
+                            });
+                        }
+                    }
+                }
+
+                // Fallback: parse ratings from catalogReleases
+                if (!info.ratings.length && catMatch) {
+                    try {
+                        var catData2 = JSON.parse(catMatch[1]);
+                        if (catData2.length) {
+                            var r2 = catData2[0];
+                            if (r2.kinopoisk_rating) info.ratings.push({ source: 'KinoPoisk', value: String(r2.kinopoisk_rating) });
+                            if (r2.imdb_rating) info.ratings.push({ source: 'IMDb', value: String(r2.imdb_rating) });
+                            if (r2.shikimori_rating) info.ratings.push({ source: 'Shikimori', value: String(r2.shikimori_rating) });
+                        }
+                    } catch (e2) {}
                 }
             } catch (e) {}
 
@@ -355,11 +400,46 @@
         }
 
         function renderInfo(info) {
-            var meta = [];
-            if (info.type) meta.push(info.type);
-            if (info.year) meta.push(info.year);
-            if (info.status) meta.push(info.status);
-            if (info.genres && info.genres.length) meta.push(info.genres.join(', '));
+            var fields = [];
+
+            if (info.original_title) fields.push({ label: '\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b\u044c\u043d\u043e\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435', value: info.original_title });
+            if (info.english_title) fields.push({ label: 'English title', value: info.english_title });
+            if (info.country) fields.push({ label: '\u0421\u0442\u0440\u0430\u043d\u0430 \u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0441\u0442\u0432\u0430', value: info.country });
+            if (info.studio) fields.push({ label: '\u0421\u0442\u0443\u0434\u0438\u044f', value: info.studio });
+            if (info.genres && info.genres.length) fields.push({ label: '\u0416\u0430\u043d\u0440\u044b', value: info.genres.join(', ') });
+            if (info.year) fields.push({ label: '\u0413\u043e\u0434 \u0432\u044b\u0445\u043e\u0434\u0430', value: info.year });
+            if (info.age_rating) fields.push({ label: '\u0412\u043e\u0437\u0440\u0430\u0441\u0442\u043d\u044b\u0435 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u0438\u044f', value: info.age_rating });
+            if (info.type) fields.push({ label: '\u0422\u0438\u043f', value: info.type });
+            if (info.status) fields.push({ label: '\u0421\u0442\u0430\u0442\u0443\u0441', value: info.status });
+            if (info.duration) fields.push({ label: '\u0414\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c', value: info.duration });
+
+            var fieldsHtml = '';
+            for (var fi = 0; fi < fields.length; fi++) {
+                fieldsHtml += '<div class="lightfamily-full__field">' +
+                    '<span class="lightfamily-full__field-label">' + esc(fields[fi].label) + ':</span> ' +
+                    '<span class="lightfamily-full__field-value">' + esc(fields[fi].value) + '</span>' +
+                '</div>';
+            }
+
+            var ratingsHtml = '';
+            if (info.ratings && info.ratings.length) {
+                ratingsHtml = '<div class="lightfamily-full__ratings">' +
+                    '<div class="lightfamily-full__ratings-label">\u0420\u0435\u0439\u0442\u0438\u043d\u0433\u0438:</div>' +
+                    '<div class="lightfamily-full__ratings-list">';
+                for (var ri = 0; ri < info.ratings.length; ri++) {
+                    var ratingClass = 'lightfamily-full__rating--default';
+                    var src = (info.ratings[ri].source || '').toLowerCase();
+                    if (src.indexOf('kinopoisk') !== -1 || src.indexOf('kp') !== -1) ratingClass = 'lightfamily-full__rating--kp';
+                    else if (src.indexOf('imdb') !== -1) ratingClass = 'lightfamily-full__rating--imdb';
+                    else if (src.indexOf('shikimori') !== -1 || src.indexOf('shiki') !== -1) ratingClass = 'lightfamily-full__rating--shiki';
+
+                    ratingsHtml += '<div class="lightfamily-full__rating ' + ratingClass + '">' +
+                        '<span class="lightfamily-full__rating-source">' + esc(info.ratings[ri].source) + '</span> ' +
+                        '<span class="lightfamily-full__rating-value">' + esc(info.ratings[ri].value) + '</span>' +
+                    '</div>';
+                }
+                ratingsHtml += '</div></div>';
+            }
 
             var htmlStr = '' +
                 '<div class="lightfamily-full__header">' +
@@ -368,8 +448,8 @@
                     '</div>' +
                     '<div class="lightfamily-full__info">' +
                         '<h1 class="lightfamily-full__title">' + esc(info.title) + '</h1>' +
-                        (meta.length ? '<div class="lightfamily-full__meta">' + esc(meta.join(' \u2022 ')) + '</div>' : '') +
-                        (info.description ? '<div class="lightfamily-full__desc">' + esc(info.description) + '</div>' : '') +
+                        fieldsHtml +
+                        ratingsHtml +
                     '</div>' +
                 '</div>';
 
@@ -1049,13 +1129,24 @@
             '.lightfamily-card__badge { position: absolute; top: 0.5em; left: 0.5em; background: rgba(0,0,0,0.7); color: #fff; padding: 0.2em 0.6em; font-size: 0.7em; border-radius: 0.3em; }' +
             '.lightfamily-card__meta { font-size: 0.75em; color: rgba(255,255,255,0.5); margin-top: 0.3em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
             '.lightfamily-empty, .lightfamily-loader { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
-            '.lightfamily-full__header { display: flex; gap: 1.5em; padding: 1em 0; }' +
-            '.lightfamily-full__poster { flex: 0 0 200px; }' +
-            '.lightfamily-full__poster img { width: 100%; border-radius: 0.5em; }' +
-            '.lightfamily-full__info { flex: 1; }' +
-            '.lightfamily-full__title { font-size: 1.6em; margin: 0 0 0.5em 0; color: #fff; }' +
-            '.lightfamily-full__meta { font-size: 0.9em; color: rgba(255,255,255,0.6); margin-bottom: 0.8em; }' +
-            '.lightfamily-full__desc { font-size: 0.9em; color: rgba(255,255,255,0.7); line-height: 1.5; max-height: 6em; overflow: hidden; }' +
+            '.lightfamily-full__header { display: flex; gap: 2em; padding: 1.5em 0; }' +
+            '.lightfamily-full__poster { flex: 0 0 250px; }' +
+            '.lightfamily-full__poster img { width: 100%; border-radius: 0.5em; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }' +
+            '.lightfamily-full__info { flex: 1; min-width: 0; }' +
+            '.lightfamily-full__title { font-size: 1.8em; font-weight: 700; margin: 0 0 1em 0; color: #fff; line-height: 1.2; }' +
+            '.lightfamily-full__field { padding: 0.35em 0; font-size: 0.95em; line-height: 1.5; }' +
+            '.lightfamily-full__field-label { font-weight: 700; color: rgba(255,255,255,0.9); }' +
+            '.lightfamily-full__field-value { color: rgba(255,255,255,0.7); }' +
+            '.lightfamily-full__ratings { margin-top: 1.2em; }' +
+            '.lightfamily-full__ratings-label { font-weight: 700; color: rgba(255,255,255,0.9); font-size: 0.95em; margin-bottom: 0.5em; }' +
+            '.lightfamily-full__ratings-list { display: flex; flex-wrap: wrap; gap: 0.6em; }' +
+            '.lightfamily-full__rating { display: inline-flex; align-items: center; gap: 0.5em; padding: 0.5em 1.2em; border-radius: 2em; font-size: 0.9em; font-weight: 600; border: 2px solid; }' +
+            '.lightfamily-full__rating--kp { color: #f5c518; border-color: #f5c518; background: rgba(245,197,24,0.1); }' +
+            '.lightfamily-full__rating--imdb { color: #f5c518; border-color: #f5c518; background: rgba(245,197,24,0.1); }' +
+            '.lightfamily-full__rating--shiki { color: #ff6b9d; border-color: #ff6b9d; background: rgba(255,107,157,0.1); }' +
+            '.lightfamily-full__rating--default { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }' +
+            '.lightfamily-full__rating-source { color: rgba(255,255,255,0.6); font-weight: 400; }' +
+            '.lightfamily-full__rating-value { color: inherit; font-weight: 700; }' +
             '.lightfamily-full__episodes-title { font-size: 1.2em; color: #fff; margin: 1em 0 0.5em; }' +
             '.lightfamily-full__episodes-list { display: flex; flex-direction: column; gap: 0.3em; }' +
             '.lightfamily-full__episode { display: flex; align-items: center; gap: 0.8em; padding: 0.6em 1em; }' +
