@@ -598,6 +598,7 @@
         var loading = false;
         var ended = false;
         var allItems = [];
+        var filtersCache = null;
 
         params.page = parseInt(params.page, 10) || 1;
 
@@ -728,8 +729,32 @@
             var parts = [];
 
             if (params.search) parts.push('\u043f\u043e\u0438\u0441\u043a: ' + params.search);
-            if (params.genre_id) parts.push('\u0436\u0430\u043d\u0440: ' + params.genre_id);
-            if (params.release_type_id) parts.push('\u0442\u0438\u043f: ' + params.release_type_id);
+
+            if (params.genre_id) {
+                var genreName = params.genre_id;
+                if (filtersCache) {
+                    for (var g = 0; g < filtersCache.genres.length; g++) {
+                        if (filtersCache.genres[g].value === params.genre_id) {
+                            genreName = filtersCache.genres[g].title;
+                            break;
+                        }
+                    }
+                }
+                parts.push('\u0436\u0430\u043d\u0440: ' + genreName);
+            }
+
+            if (params.release_type_id) {
+                var typeName = params.release_type_id;
+                if (filtersCache) {
+                    for (var t = 0; t < filtersCache.types.length; t++) {
+                        if (filtersCache.types[t].value === params.release_type_id) {
+                            typeName = filtersCache.types[t].title;
+                            break;
+                        }
+                    }
+                }
+                parts.push('\u0442\u0438\u043f: ' + typeName);
+            }
 
             active.html(parts.length ?
                 '<span>\u0410\u043a\u0442\u0438\u0432\u043d\u043e:</span> ' + esc(parts.join(' / ')) :
@@ -801,6 +826,8 @@
 
         function openFilters() {
             fetchCatalogFilters(function (filters) {
+                filtersCache = filters;
+
                 var genreName = '\u043b\u044e\u0431\u043e\u0439';
                 var typeName = '\u043b\u044e\u0431\u043e\u0439';
 
@@ -903,6 +930,13 @@
                 body.empty();
                 allItems = [];
                 ended = false;
+
+                if (!filtersCache) {
+                    fetchCatalogFilters(function (f) {
+                        filtersCache = f;
+                        renderActive();
+                    });
+                }
             }
 
             if (params.search) {
