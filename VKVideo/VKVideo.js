@@ -185,33 +185,34 @@
                     '\u0414\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c': 'duration'
                 };
 
-                var strongRegex = /<strong[^>]*>([^<]+)<\/strong>([\s\S]*?)(?=<strong|<div class="meta-item|<div class="full|<\/section|$)/gi;
+                var strongRegex = /<strong[^>]*>([^<]+)<\/strong>\s*([\s\S]*?)(?=<strong|<div class="meta-item|<div class="full|<\/section|$)/gi;
                 var sm;
                 while ((sm = strongRegex.exec(html)) !== null) {
                     var label = sm[1].trim().replace(/:$/, '');
-                    var rawValue = sm[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
                     var key = fieldMap[label];
-                    if (key && rawValue) {
-                        if (key === 'year') {
-                            var ym = rawValue.match(/(\d{4})/);
-                            if (ym) info.year = parseInt(ym[1], 10);
-                        } else if (key === 'genres') {
-                            var rawGenres = rawValue.split(/\s{2,}/);
-                            info.genres = [];
-                            for (var gi = 0; gi < rawGenres.length; gi++) {
-                                var g = rawGenres[gi].trim();
-                                if (g) info.genres.push(g);
-                            }
-                        } else if (key === 'status') {
-                            if (!info.status) info.status = rawValue.split(/\s{2,}/)[0].trim();
-                        } else {
-                            info[key] = rawValue.split(/\s{2,}/)[0].trim();
+                    if (!key) continue;
+
+                    var rawValue = sm[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+
+                    if (key === 'year') {
+                        var ym = rawValue.match(/(\d{4})/);
+                        if (ym) info.year = parseInt(ym[1], 10);
+                    } else if (key === 'genres') {
+                        var rawGenres = rawValue.split(/\s{2,}/);
+                        info.genres = [];
+                        for (var gi = 0; gi < rawGenres.length; gi++) {
+                            var g = rawGenres[gi].trim();
+                            if (g) info.genres.push(g);
                         }
+                    } else if (key === 'status') {
+                        if (!info.status) info.status = rawValue.split(/\s{2,}/)[0].trim();
+                    } else {
+                        info[key] = rawValue.split(/\s{3,}/)[0].trim();
                     }
                 }
 
                 // Parse ratings from .rating-item blocks
-                var ratingRegex = /<div class="rating-item[^"]*">([\s\S]*?)<\/div>\s*<\/div>/g;
+                var ratingRegex = /<div class="rating-item[^"]*">([\s\S]*?)(?=<div class="rating-item|<\/div>\s*<\/div>\s*<\/div>)/g;
                 var rm;
                 while ((rm = ratingRegex.exec(html)) !== null) {
                     var rSource = rm[1].match(/rating-source[^>]*>([^<]+)/);
@@ -235,7 +236,7 @@
                     var folderMatch = html.match(/lf_video_folder=([A-Za-z0-9_-]+)/);
                     if (folderMatch && folderMatch[1]) {
                         var folder = folderMatch[1];
-                        info.playlistUrl = getBaseUrl() + '/video/stream.php?path=' + encodeURIComponent(folder + '/playlist.txt');
+                        info.playlistUrl = getBaseUrl() + '/video/stream.php?path=' + encodeURIComponent(folder) + '/playlist.txt';
                     }
                 }
             } catch (e) {}
