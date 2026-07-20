@@ -421,10 +421,14 @@
                     items.push({
                         id: r.id,
                         title: r.title || '',
+                        original_title: '',
                         slug: r.url_alias || '',
                         poster: posterUrl(r.poster_url),
                         category: r.category_name || '',
-                        url: r.url || ('/release/' + r.url_alias + '/')
+                        year: 0,
+                        genres: [],
+                        type: '',
+                        status: ''
                     });
                 }
                 callback(items);
@@ -715,12 +719,12 @@
             addHeadButton('\u041f\u043e\u0438\u0441\u043a', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', openSearch);
             addHeadButton('\u0424\u0438\u043b\u044c\u0442\u0440\u044b', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>', openFilters);
 
-            addQuick('\u0412\u0441\u0435', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '' });
-            addQuick('\u0421\u0435\u0440\u0438\u0430\u043b\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '1' });
-            addQuick('\u0424\u0438\u043b\u044c\u043c\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '4' });
+            addQuick('\u0412\u0441\u0435', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '', release_status_id: '', country_id: '', year: '' });
+            addQuick('\u0421\u0435\u0440\u0438\u0430\u043b\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '1', release_status_id: '', country_id: '', year: '' });
+            addQuick('\u0424\u0438\u043b\u044c\u043c\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '4', release_status_id: '', country_id: '', year: '' });
 
-            if (params.search || params.genre_id || params.release_type_id) {
-                addQuick('\u0421\u0431\u0440\u043e\u0441', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '' }, true);
+            if (params.search || params.genre_id || params.release_type_id || params.release_status_id || params.country_id || params.year) {
+                addQuick('\u0421\u0431\u0440\u043e\u0441', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '', release_status_id: '', country_id: '', year: '' }, true);
             }
 
             renderActive();
@@ -855,27 +859,29 @@
         }
 
         function openSearch() {
+            var currentValue = params.search || '';
+
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
                 Lampa.Input.edit({
                     title: '\u041f\u043e\u0438\u0441\u043a Light Family',
-                    value: params.search || '',
+                    value: currentValue,
                     free: true
                 }, function (text) {
                     text = String(text || '').trim();
 
-                    if (!text) {
-                        notify('\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435');
-                    } else {
+                    if (text) {
                         openWith({ search: text });
+                    } else if (currentValue) {
+                        openWith({ search: '' });
                     }
 
                     Lampa.Controller.toggle('content');
                 });
             } else {
-                var value = window.prompt('\u041f\u043e\u0438\u0441\u043a Light Family', params.search || '');
+                var value = window.prompt('\u041f\u043e\u0438\u0441\u043a Light Family', currentValue);
                 if (value !== null) {
                     value = String(value || '').trim();
-                    if (value) openWith({ search: value });
+                    openWith({ search: value });
                 }
             }
         }
@@ -934,7 +940,7 @@
                         else if (item.value === 'country') openCountryMenu(filters.countries);
                         else if (item.value === 'year') openYearMenu(filters.years);
                         else if (item.value === 'reset') {
-                            openWith({ genre_id: '', release_type_id: '', release_status_id: '', country_id: '', year: '', page: 1 });
+                            openWith({ genre_id: '', release_type_id: '', release_status_id: '', country_id: '', year: '', search: '', page: 1 });
                         }
                     },
                     onBack: function () {
