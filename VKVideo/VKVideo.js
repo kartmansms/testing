@@ -335,7 +335,10 @@
                     fetchPlaylist(info.playlistUrl, function (eps) {
                         episodes = eps;
                         renderEpisodes(eps);
+                        if (scroll.update) scroll.update();
                     });
+                } else {
+                    if (scroll.update) scroll.update();
                 }
             });
         }
@@ -944,6 +947,8 @@
             }
 
             body.append(row);
+
+            if (scroll.update) scroll.update();
         }
     }
 
@@ -953,8 +958,9 @@
         if (document.getElementById('lightfamily-plugin-css')) return;
 
         var css = '' +
-            '.lightfamily-module { padding: 0 1.5em; }' +
-            '.lightfamily-head { display: flex; flex-wrap: wrap; gap: 0.5em; padding: 0.8em 0; }' +
+            '.lightfamily-module { padding: 1.2em 1.5em 2.5em; color: #fff; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }' +
+            '.lightfamily-module > .scroll { flex: 1; overflow: hidden; position: relative; width: 100%; }' +
+            '.lightfamily-head { display: flex; flex-wrap: wrap; gap: 0.5em; padding: 0 0 0.8em 0; }' +
             '.lightfamily-head__button { display: flex; align-items: center; gap: 0.4em; padding: 0.5em 1em; font-size: 0.9em; }' +
             '.lightfamily-head__button svg { width: 1.2em; height: 1.2em; }' +
             '.lightfamily-quick { display: flex; flex-wrap: wrap; gap: 0.4em; padding: 0.4em 0; }' +
