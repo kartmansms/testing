@@ -162,12 +162,69 @@
                 var ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
                 if (ldMatch) {
                     var ld = JSON.parse(ldMatch[1]);
-                    info.title = ld.name || '';
                     info.description = ld.description || '';
                     info.poster = ld.image || '';
                 }
 
-                // Parse lfNewPlayerData for playlist URL - find sourceUrl directly
+                // Parse title from <h1>
+                var h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/);
+                if (h1Match) info.title = h1Match[1].replace(/<[^>]+>/g, '').trim();
+
+                // Parse fields from <strong>Label:</strong> Value pattern
+                var fieldMap = {
+                    '\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b\u044c\u043d\u043e\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435': 'original_title',
+                    'English title': 'english_title',
+                    '\u0421\u0442\u0440\u0430\u043d\u0430 \u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0441\u0442\u0432\u0430': 'country',
+                    '\u0421\u0442\u0443\u0434\u0438\u044f': 'studio',
+                    '\u0416\u0430\u043d\u0440\u044b': 'genres',
+                    '\u0413\u043e\u0434 \u0432\u044b\u0445\u043e\u0434\u0430': 'year',
+                    '\u0412\u043e\u0437\u0440\u0430\u0441\u0442\u043d\u044b\u0435 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u0438\u044f': 'age_rating',
+                    '\u0422\u0438\u043f': 'type',
+                    '\u0421\u0442\u0430\u0442\u0443\u0441\u044b': 'status',
+                    '\u0421\u0442\u0430\u0442\u0443\u0441': 'status',
+                    '\u0414\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c': 'duration'
+                };
+
+                var strongRegex = /<strong[^>]*>([^<]+)<\/strong>([\s\S]*?)(?=<strong|<div class="meta-item|<div class="full|<\/section|$)/gi;
+                var sm;
+                while ((sm = strongRegex.exec(html)) !== null) {
+                    var label = sm[1].trim().replace(/:$/, '');
+                    var rawValue = sm[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+                    var key = fieldMap[label];
+                    if (key && rawValue) {
+                        if (key === 'year') {
+                            var ym = rawValue.match(/(\d{4})/);
+                            if (ym) info.year = parseInt(ym[1], 10);
+                        } else if (key === 'genres') {
+                            var rawGenres = rawValue.split(/\s{2,}/);
+                            info.genres = [];
+                            for (var gi = 0; gi < rawGenres.length; gi++) {
+                                var g = rawGenres[gi].trim();
+                                if (g) info.genres.push(g);
+                            }
+                        } else if (key === 'status') {
+                            if (!info.status) info.status = rawValue.split(/\s{2,}/)[0].trim();
+                        } else {
+                            info[key] = rawValue.split(/\s{2,}/)[0].trim();
+                        }
+                    }
+                }
+
+                // Parse ratings from .rating-item blocks
+                var ratingRegex = /<div class="rating-item[^"]*">([\s\S]*?)<\/div>\s*<\/div>/g;
+                var rm;
+                while ((rm = ratingRegex.exec(html)) !== null) {
+                    var rSource = rm[1].match(/rating-source[^>]*>([^<]+)/);
+                    var rValue = rm[1].match(/rating-value[^>]*>([^<]+)/);
+                    if (rSource && rValue) {
+                        info.ratings.push({
+                            source: rSource[1].trim(),
+                            value: rValue[1].trim()
+                        });
+                    }
+                }
+
+                // Parse lfNewPlayerData for playlist URL
                 var srcMatch = html.match(/sourceUrl\s*:\s*"([^"]+playlist\.txt[^"]*)"/);
                 if (srcMatch) {
                     info.playlistUrl = srcMatch[1].replace(/\\\//g, '/');
@@ -180,60 +237,6 @@
                         var folder = folderMatch[1];
                         info.playlistUrl = getBaseUrl() + '/video/stream.php?path=' + encodeURIComponent(folder + '/playlist.txt');
                     }
-                }
-
-                // Parse catalog data for extra info
-                var catMatch = html.match(/catalogReleases\s*=\s*(\[[\s\S]*?\]);/);
-                if (catMatch) {
-                    var catData = JSON.parse(catMatch[1]);
-                    if (catData.length) {
-                        var r = catData[0];
-                        info.year = r.year || 0;
-                        info.genres = r.genre_names || [];
-                        info.type = r.release_type_name || '';
-                        info.status = r.release_status_name || '';
-                        info.original_title = r.original_title || '';
-                        info.country = r.country_name || '';
-                        info.studio = r.studio_name || '';
-                        info.age_rating = r.age_rating || '';
-                        info.duration = r.duration || '';
-                        if (!info.title) info.title = r.title || '';
-                    }
-                }
-
-                // Parse English title from HTML
-                if (!info.english_title) {
-                    var engMatch = html.match(/<div[^>]*class="[^"]*original[^"]*"[^>]*>([^<]+)<\/div>/i);
-                    if (engMatch) info.english_title = engMatch[1].trim();
-                }
-
-                // Parse ratings from HTML
-                var ratingBlocks = html.match(/class="[^"]*rating[^"]*"[^>]*>[\s\S]*?<\/div>/gi);
-                if (ratingBlocks) {
-                    for (var ri = 0; ri < ratingBlocks.length; ri++) {
-                        var rb = ratingBlocks[ri];
-                        var sourceMatch = rb.match(/class="[^"]*source[^"]*"[^>]*>([^<]+)</i);
-                        var valueMatch = rb.match(/class="[^"]*value[^"]*"[^>]*>([^<]+)</i);
-                        if (sourceMatch && valueMatch) {
-                            info.ratings.push({
-                                source: sourceMatch[1].trim(),
-                                value: valueMatch[1].trim()
-                            });
-                        }
-                    }
-                }
-
-                // Fallback: parse ratings from catalogReleases
-                if (!info.ratings.length && catMatch) {
-                    try {
-                        var catData2 = JSON.parse(catMatch[1]);
-                        if (catData2.length) {
-                            var r2 = catData2[0];
-                            if (r2.kinopoisk_rating) info.ratings.push({ source: 'KinoPoisk', value: String(r2.kinopoisk_rating) });
-                            if (r2.imdb_rating) info.ratings.push({ source: 'IMDb', value: String(r2.imdb_rating) });
-                            if (r2.shikimori_rating) info.ratings.push({ source: 'Shikimori', value: String(r2.shikimori_rating) });
-                        }
-                    } catch (e2) {}
                 }
             } catch (e) {}
 
