@@ -335,10 +335,7 @@
                     fetchPlaylist(info.playlistUrl, function (eps) {
                         episodes = eps;
                         renderEpisodes(eps);
-                        if (scroll.update) scroll.update();
                     });
-                } else {
-                    if (scroll.update) scroll.update();
                 }
             });
         }
@@ -947,8 +944,6 @@
             }
 
             body.append(row);
-
-            if (scroll.update) scroll.update();
         }
     }
 
