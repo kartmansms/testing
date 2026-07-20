@@ -609,6 +609,13 @@
                 scrollContainer.append(body);
                 html.append(head).append(quick).append(active).append(scrollContainer);
 
+                scrollContainer.on('scroll', function () {
+                    var el = scrollContainer[0];
+                    if (el && el.scrollHeight - el.scrollTop - el.clientHeight < 200) {
+                        if (!loading && !ended) loadNextPage();
+                    }
+                });
+
                 buildHeader();
                 load(false);
             }
