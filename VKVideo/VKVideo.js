@@ -171,54 +171,40 @@
         });
     }
 
-    // ─── Catalog HTML Parsing ──────────────────────────────────────────
+    // ─── Catalog JSON Parsing ──────────────────────────────────────────
 
-    function parseCatalogHtml(html) {
-        var doc = $(html);
+    function parseCatalogJson(html) {
         var items = [];
 
-        doc.find('.release-card').each(function () {
-            var card = $(this);
-            var linkEl = card.find('a').first();
-            var imgEl = card.find('img');
-            var titleEl = card.find('h4');
+        try {
+            var match = html.match(/catalogReleases\s*=\s*(\[[\s\S]*?\]);/);
+            if (!match) return items;
 
-            var href = linkEl.attr('href') || '';
-            var slug = href.replace(/^\/release\//, '').replace(/\/$/, '');
-            var img = imgEl.attr('src') || '';
-            var title = titleEl.text().trim();
+            var data = JSON.parse(match[1]);
 
-            if (title && slug) {
+            for (var i = 0; i < data.length; i++) {
+                var r = data[i];
                 items.push({
-                    id: slug,
-                    title: title,
-                    slug: slug,
-                    poster: posterUrl(img),
-                    category: '',
-                    url: href
+                    id: r.id,
+                    title: r.title || '',
+                    original_title: r.original_title || '',
+                    slug: r.url_alias || '',
+                    poster: posterUrl(r.poster_url),
+                    category: r.category_name || '',
+                    year: r.year || 0,
+                    genres: r.genre_names || [],
+                    type: r.release_type_name || '',
+                    status: r.release_status_name || ''
                 });
             }
-        });
+        } catch (e) {}
 
         return items;
     }
 
-    function parseCatalogPagination(html) {
-        var doc = $(html);
-        var nextUrl = '';
-
-        doc.find('.pagination a, .page-link, a[href*="page="]').each(function () {
-            var el = $(this);
-            var text = el.text().trim().toLowerCase();
-            var href = el.attr('href') || '';
-
-            if (text === '\u00bb' || text === '>' || text === '\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f' || text === 'next' ||
-                el.hasClass('next') || el.hasClass('page-next')) {
-                nextUrl = href;
-            }
-        });
-
-        return nextUrl;
+    function parseCatalogHasNext(html) {
+        var match = html.match(/pagination-next/);
+        return !!match;
     }
 
     function fetchCatalogPage(params, callback) {
@@ -226,7 +212,6 @@
 
         var parts = [];
         if (params.page && params.page > 1) parts.push('page=' + params.page);
-        if (params.search) parts.push('search=' + encodeURIComponent(params.search));
         if (params.sort) parts.push('sort=' + params.sort);
         if (params.genre_id) parts.push('genre_id[]=' + params.genre_id);
         if (params.release_type_id) parts.push('release_type_id[]=' + params.release_type_id);
@@ -238,12 +223,12 @@
         if (parts.length) url += '?' + parts.join('&');
 
         apiGetHtml(url, function (html) {
-            var items = parseCatalogHtml(html);
-            var nextUrl = parseCatalogPagination(html);
-            callback(items, nextUrl);
+            var items = parseCatalogJson(html);
+            var hasNext = parseCatalogHasNext(html);
+            callback(items, hasNext);
         }, function () {
             notify('Light Family: \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043a\u0430\u0442\u0430\u043b\u043e\u0433');
-            callback([], '');
+            callback([], false);
         });
     }
 
@@ -293,17 +278,28 @@
                 '</svg>'
             );
 
-            var catBadge = data.category ?
-                '<div class="lightfamily-card__badge">' + esc(data.category) + '</div>' : '';
+            var badges = '';
+            if (data.category) {
+                badges += '<div class="lightfamily-card__badge">' + esc(data.category) + '</div>';
+            }
+
+            var meta = [];
+            if (data.type) meta.push(data.type);
+            if (data.year) meta.push(data.year);
+            if (data.genres && data.genres.length) meta.push(data.genres.slice(0, 2).join(', '));
+
+            var metaHtml = meta.length ?
+                '<div class="lightfamily-card__meta">' + esc(meta.join(' \u2022 ')) + '</div>' : '';
 
             var element = $(
                 '<div class="card lightfamily selector" data-slug="' + esc(data.slug) + '">' +
                     '<div class="card__view">' +
                         '<img class="card__img" src="' + esc(imgSrc || noPoster) + '" ' +
                             (imgSrc ? 'onerror="this.src=\'' + noPoster + '\'"' : '') + ' />' +
-                        catBadge +
+                        badges +
                     '</div>' +
                     '<div class="card__title">' + esc(data.title) + '</div>' +
+                    metaHtml +
                 '</div>'
             );
 
@@ -654,7 +650,7 @@
                     release_type_id: params.release_type_id || ''
                 };
 
-                fetchCatalogPage(catalogParams, function (items) {
+                fetchCatalogPage(catalogParams, function (items, hasNext) {
                     loading = false;
 
                     if (!append) allItems = items;
@@ -662,7 +658,7 @@
 
                     renderCards(items, append);
 
-                    if (items.length < PAGE_LIMIT) ended = true;
+                    if (!hasNext) ended = true;
                 });
             }
         }
@@ -720,6 +716,7 @@
             '.lightfamily-body .cards-list { display: flex; flex-wrap: wrap; gap: 1em; }' +
             '.lightfamily-body .card { width: calc(16.666% - 1em); min-width: 120px; }' +
             '.lightfamily-card__badge { position: absolute; top: 0.5em; left: 0.5em; background: rgba(0,0,0,0.7); color: #fff; padding: 0.2em 0.6em; font-size: 0.7em; border-radius: 0.3em; }' +
+            '.lightfamily-card__meta { font-size: 0.75em; color: rgba(255,255,255,0.5); margin-top: 0.3em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
             '.lightfamily-empty { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
             '';
 
