@@ -160,12 +160,18 @@
                     info.poster = ld.image || '';
                 }
 
-                // Parse lfNewPlayerData for playlist URL
-                var plMatch = html.match(/lfNewPlayerData\s*=\s*\{([\s\S]*?)\};/);
-                if (plMatch) {
-                    var srcMatch = plMatch[1].match(/sourceUrl\s*:\s*"([^"]+)"/);
-                    if (srcMatch) {
-                        info.playlistUrl = srcMatch[1].replace(/\\\//g, '/');
+                // Parse lfNewPlayerData for playlist URL - find sourceUrl directly
+                var srcMatch = html.match(/sourceUrl\s*:\s*"([^"]+playlist\.txt[^"]*)"/);
+                if (srcMatch) {
+                    info.playlistUrl = srcMatch[1].replace(/\\\//g, '/');
+                }
+
+                // Fallback: construct playlist URL from lf_video_folder
+                if (!info.playlistUrl) {
+                    var folderMatch = html.match(/lf_video_folder=([A-Za-z0-9_-]+)/);
+                    if (folderMatch && folderMatch[1]) {
+                        var folder = folderMatch[1];
+                        info.playlistUrl = getBaseUrl() + '/video/stream.php?path=' + encodeURIComponent(folder + '/playlist.txt');
                     }
                 }
 
@@ -332,10 +338,19 @@
                 renderInfo(info);
 
                 if (info.playlistUrl) {
+                    body.append($('<div class="lightfamily-loader lightfamily-episodes-loader">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0441\u0435\u0440\u0438\u0439...</div>'));
+
                     fetchPlaylist(info.playlistUrl, function (eps) {
+                        body.find('.lightfamily-episodes-loader').remove();
                         episodes = eps;
-                        renderEpisodes(eps);
+                        if (eps.length) {
+                            renderEpisodes(eps);
+                        } else {
+                            body.append($('<div class="lightfamily-full__episodes-empty">\u0421\u0435\u0440\u0438\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b</div>'));
+                        }
                     });
+                } else {
+                    body.append($('<div class="lightfamily-full__episodes-empty">\u0412\u0438\u0434\u0435\u043e \u043d\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e \u0434\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u0440\u0435\u043b\u0438\u0437\u0430</div>'));
                 }
             });
         }
