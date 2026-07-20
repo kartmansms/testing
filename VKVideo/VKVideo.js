@@ -1,9 +1,8 @@
 /**
- * VK Video Plugin for Lampa v4.0.0
+ * Light Family Plugin for Lampa v1.0.0
  *
- * Просмотр видео из сообществ VK.com.
- * Авторизация — прямо в окне плагина.
- * Навигация: Авторизация → Сообщества → Плейлисты → Видео
+ * Интеграция каталога аниме lightfamily.online для медиа-центра Lampa.
+ * Каталог, поиск, постеры, фильтры.
  *
  * @author kartmansms
  * @license MIT
@@ -12,555 +11,753 @@
 (function () {
     'use strict';
 
-    if (window.plugin_vkvideo_ready) return;
-    window.plugin_vkvideo_ready = true;
+    if (window.plugin_lightfamily_ready) return;
+    window.plugin_lightfamily_ready = true;
 
-    var VK_API = 'https://api.vk.com/method';
-    var VK_OAUTH = 'https://oauth.vk.com/authorize';
-    var VK_VERSION = '5.199';
-    var AUTH_KEY = 'vkvideo_auth_v4';
-    var PAGE_SIZE = 40;
+    var SETTINGS_KEY = 'lightfamily_settings_v1';
+    var BASE_URL_DEFAULT = 'https://lightfamily.online';
+    var PAGE_LIMIT = 24;
 
-    // --- Storage ---
+    // ─── Storage Helpers ───────────────────────────────────────────────
 
-    function storageGet(key, fb) {
-        try { var v = Lampa.Storage.get(key); if (v !== undefined && v !== null) return v; } catch (e) {}
-        return fb || null;
-    }
-    function storageSet(key, val) { try { Lampa.Storage.set(key, val); } catch (e) {} }
+    function storageGet(key, fallback) {
+        var value;
 
-    // --- Auth ---
+        try {
+            if (window.Lampa && Lampa.Storage && Lampa.Storage.get) {
+                value = Lampa.Storage.get(key, fallback);
+                return value === undefined || value === null ? fallback : value;
+            }
+        } catch (e) {}
 
-    function defaultAuth() { return { client_id: '', access_token: '', user_id: 0, user_name: '' }; }
-    function readAuth() {
-        var b = defaultAuth(), s = storageGet(AUTH_KEY, {});
-        if (!s || typeof s !== 'object') s = {};
-        for (var k in s) { if (s.hasOwnProperty(k)) b[k] = s[k]; }
-        return b;
-    }
-    function saveAuth(a) { storageSet(AUTH_KEY, a || defaultAuth()); }
-    function isAuthorized() { return !!(readAuth().access_token); }
-
-    function notify(t) { if (Lampa.Noty) Lampa.Noty.show(t); else console.log('[VKVideo] ' + t); }
-    function esc(v) { var d = document.createElement('div'); d.appendChild(document.createTextNode(v || '')); return d.innerHTML; }
-
-    // --- VK API ---
-
-    function vkApi(method, params, ok, err) {
-        var a = readAuth();
-        params = params || {}; params.v = VK_VERSION;
-        if (a.access_token && !params.access_token) params.access_token = a.access_token;
-        var parts = [];
-        for (var k in params) {
-            if (params.hasOwnProperty(k) && params[k] !== undefined && params[k] !== null)
-                parts.push(encodeURIComponent(k) + '=' + encodeURIComponent(params[k]));
+        try {
+            var raw = localStorage.getItem(key);
+            if (raw) {
+                try { return JSON.parse(raw); } catch (e) { return fallback; }
+            }
+            return fallback;
+        } catch (err) {
+            return fallback;
         }
-        $.ajax({
-            url: VK_API + '/' + method, method: 'POST',
-            contentType: 'application/x-www-form-urlencoded', dataType: 'json', timeout: 15000,
-            data: parts.join('&'),
-            success: function (r) {
-                if (r && r.error) { console.error('[VKVideo]', r.error.error_msg); if (err) err(r.error.error_msg); }
-                else if (r && r.response !== undefined) ok(r.response);
-                else if (err) err('Empty');
-            },
-            error: function (x, s, e) { if (err) err(e || s); }
+    }
+
+    function storageSet(key, value) {
+        try {
+            if (window.Lampa && Lampa.Storage && Lampa.Storage.set) {
+                Lampa.Storage.set(key, value);
+                return;
+            }
+        } catch (e) {}
+
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (err) {}
+    }
+
+    // ─── Settings ──────────────────────────────────────────────────────
+
+    function defaults() {
+        return {
+            base_url: BASE_URL_DEFAULT
+        };
+    }
+
+    function readSettings() {
+        var base = defaults();
+        var saved = storageGet(SETTINGS_KEY, {});
+
+        if (!saved || typeof saved !== 'object') saved = {};
+
+        for (var key in saved) {
+            if (saved.hasOwnProperty(key)) base[key] = saved[key];
+        }
+
+        return base;
+    }
+
+    function getBaseUrl() {
+        return (readSettings().base_url || BASE_URL_DEFAULT).replace(/\/$/, '');
+    }
+
+    // ─── Utilities ─────────────────────────────────────────────────────
+
+    function notify(message) {
+        if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
+        else if (window.console) console.log(message);
+    }
+
+    function esc(value) {
+        value = value === undefined || value === null ? '' : String(value);
+        return value.replace(/[&<>"']/g, function (s) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[s];
         });
     }
 
-    // --- Card rendering ---
-
-    function renderCard(item, type) {
-        var img = '';
-        if (type === 'group') img = item.photo_200 || item.photo_100 || item.photo_50 || '';
-        else if (type === 'album') img = (item.image && item.image.length) ? item.image[item.image.length - 1].url : '';
-        else img = (item.image && item.image.length) ? item.image[item.image.length - 1].url :
-                  (item.first_frame && item.first_frame.length) ? item.first_frame[item.first_frame.length - 1].url : '';
-
-        var title = item.name || item.title || 'Без названия';
-        var overview = '';
-        if (type === 'group') overview = (item.members_count || 0) + ' участников';
-        else if (type === 'album') overview = (item.count || 0) + ' видео';
-        else { var dur = item.duration || 0; overview = Math.floor(dur / 60) + ':' + ((dur % 60) < 10 ? '0' : '') + (dur % 60); }
-
-        var el = $(
-            '<div class="card selector" data-type="' + type + '">' +
-                '<div class="card__view"><img class="card__img" src="' + img + '" onerror="this.style.display=\'none\'"></div>' +
-                '<div class="card__title">' + esc(title) + '</div>' +
-                (overview ? '<div class="card__subtitle">' + esc(overview) + '</div>' : '') +
-            '</div>'
-        );
-        el.data('item', item);
-        return el;
+    function posterUrl(path) {
+        if (!path) return '';
+        if (/^https?:\/\//.test(path)) return path;
+        return getBaseUrl() + (path.indexOf('/') === 0 ? path : '/' + path);
     }
 
-    function makeScroll() {
-        var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
-        scroll.onWheel = function (step) {
-            var en = Lampa.Controller.enabled && Lampa.Controller.enabled();
-            if (en && en.name !== 'content') Lampa.Controller.toggle('content');
-            if (step > 0) Navigator.move('down'); else Navigator.move('up');
-        };
-        return scroll;
+    function releaseUrl(slug) {
+        return getBaseUrl() + '/release/' + slug + '/';
     }
 
-    // ==================== COMPONENT: Login ====================
+    // ─── Network ───────────────────────────────────────────────────────
 
-    function VKLogin(object) {
-        var html = $('<div class="vkvideo-login"></div>');
-        var clientId = storageGet('vk_client_id', '');
-        var step = clientId ? 'token' : 'appid';
-
-        this.render = function () {
-            html.empty();
-            if (step === 'appid') renderAppIdStep();
-            else renderTokenStep();
-            return html;
-        };
-        this.create = this.render;
-
-        this.start = function () {
-            Lampa.Controller.add('content', {
-                toggle: function () {
-                    Lampa.Controller.collectionSet(html);
-                    var first = html.find('.selector').first();
-                    Lampa.Controller.collectionFocus(first, html);
-                },
-                left: function () { Lampa.Controller.toggle('menu'); },
-                right: function () { Navigator.move('right'); },
-                up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
-                down: function () { if (Navigator.canmove('down')) Navigator.move('down'); },
-                back: function () { Lampa.Activity.backward(); },
-                enter: function () {
-                    var f = html.find('.selector.focus');
-                    if (f.length) { var act = f.data('action'); if (act) act(); }
-                }
-            });
-            Lampa.Controller.toggle('content');
-        };
-
-        this.stop = function () {};
-        this.pause = function () {};
-        this.destroy = function () { html.remove(); };
-
-        function inputDialog(title, value, callback) {
-            if (Lampa.Input && Lampa.Input.edit) {
-                Lampa.Input.edit({ title: title, value: value, free: true }, function (result) {
-                    callback(String(result || '').trim());
-                });
-            } else {
-                var val = window.prompt(title, value || '');
-                if (val !== null) callback(val.trim());
-            }
-        }
-
-        function restoreFocus() {
-            Lampa.Controller.collectionSet(html);
-            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
-        }
-
-        function renderAppIdStep() {
-            var currentId = storageGet('vk_client_id', '');
-            html.html(
-                '<div class="vkvideo-login__box">' +
-                    '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
-                    '<div class="vkvideo-login__title">VK Video</div>' +
-                    '<div class="vkvideo-login__hint">id.vk.ru/about/business/go - Moi prilozheniya<br>Platforma: Web. Tip: Publichnoe</div>' +
-                    (currentId ? '<div class="vkvideo-login__saved">Tekushchiy App ID: ' + esc(currentId) + '</div>' : '') +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-appid">Vvesti App ID</div>' +
-                    (currentId ? '<div class="vkvideo-login__btn selector" id="vkvideo-to-token">Dalee &rarr;</div>' : '') +
-                '</div>'
-            );
-
-            html.find('#vkvideo-input-appid').data('action', function () {
-                inputDialog('VK App ID', storageGet('vk_client_id', ''), function (val) {
-                    if (!val) { notify('Введите App ID'); return; }
-                    storageSet('vk_client_id', val);
-                    clientId = val;
-                    notify('App ID сохранён: ' + val);
-                    step = 'token';
-                    rebuild();
-                });
-            });
-
-            html.find('#vkvideo-to-token').data('action', function () {
-                step = 'token';
-                rebuild();
-            });
-        }
-
-        function renderTokenStep() {
-            var authUrl = VK_OAUTH + '?client_id=' + clientId + '&display=page&redirect_uri=' +
-                encodeURIComponent('https://oauth.vk.com/blank.html') +
-                '&scope=video,groups,offline&response_type=token&v=' + VK_VERSION;
-
-            html.html(
-                '<div class="vkvideo-login__box">' +
-                    '<div class="vkvideo-login__icon"><svg viewBox="0 0 24 24" width="48" height="48" fill="rgba(255,255,255,0.3)"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg></div>' +
-                    '<div class="vkvideo-login__title">Avtorizatsiya VK</div>' +
-                    '<div class="vkvideo-login__desc">1. Otkroyte ssylku na telefone</div>' +
-                    '<div class="vkvideo-login__link">' + authUrl + '</div>' +
-                    '<div class="vkvideo-login__desc">2. Skopiruyte token iz URL posle #</div>' +
-                    '<div class="vkvideo-login__btn selector" id="vkvideo-input-token">Vvesti token</div>' +
-                    '<div class="vkvideo-login__btn-secondary selector" id="vkvideo-back-appid">&larr; Nazad</div>' +
-                '</div>'
-            );
-
-            html.find('#vkvideo-input-token').data('action', function () {
-                inputDialog('Access Token', '', function (val) {
-                    if (!val) { notify('Токен не введён'); return; }
-                    var token = '';
-                    var m = val.match(/access_token=([a-f0-9]+)/i);
-                    if (m) token = m[1];
-                    else if (/^[a-f0-9]{20,}$/.test(val)) token = val;
-                    if (!token) { notify('Некорректный токен'); return; }
-
-                    var a = readAuth();
-                    a.access_token = token;
-                    saveAuth(a);
-
-                    notify('Проверка...');
-                    vkApi('users.get', { fields: 'photo_50' }, function (d) {
-                        if (d && d[0]) {
-                            a.user_name = d[0].first_name || '';
-                            a.user_id = d[0].id || 0;
-                            saveAuth(a);
-                        }
-                        notify('Авторизован: ' + (readAuth().user_name || ''));
-                        Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-                    }, function () {
-                        notify('Авторизован');
-                        Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-                    });
-                });
-            });
-
-            html.find('#vkvideo-back-appid').data('action', function () {
-                step = 'appid';
-                rebuild();
-            });
-        }
-
-        function rebuild() {
-            html.empty();
-            if (step === 'appid') renderAppIdStep();
-            else renderTokenStep();
-            Lampa.Controller.collectionSet(html);
-            Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
-        }
-    }
-
-    // ==================== COMPONENT: Communities ====================
-
-    function VKCommunities(object) {
-        var html = $('<div class="vkvideo-module"></div>');
-        var scroll = makeScroll();
-        var body = $('<div></div>');
-        var last = null;
-        var allGroups = [];
-        var loaded = false;
-        var pageOffset = 0;
-
-        this.render = function () {
-            if (!loaded) {
-                loaded = true;
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-                scroll.onEnd = function () { if (allGroups.length) renderPage(); };
-                loadGroups();
-            }
-            return html;
-        };
-        this.create = this.render;
-
-        this.start = function () {
-            Lampa.Controller.add('content', {
-                toggle: function () {
-                    Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
-                },
-                left: function () { if (Navigator.canmove('left')) Navigator.move('left'); else Lampa.Controller.toggle('menu'); },
-                right: function () { Navigator.move('right'); },
-                up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
-                down: function () { Navigator.move('down'); },
-                back: function () { Lampa.Activity.backward(); },
-                enter: function () {
-                    var f = html.find('.selector.focus');
-                    if (f.length) { var item = f.data('item'); if (item) openPlaylists(item); }
-                }
-            });
-            Lampa.Controller.toggle('content');
-        };
-
-        this.stop = function () {};
-        this.pause = function () {};
-        this.destroy = function () { scroll.destroy(); html.remove(); };
-
-        function loadGroups() {
-            body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Загрузка...</div>');
-            vkApi('groups.get', {
-                user_id: readAuth().user_id, count: 500,
-                fields: 'members_count,photo_50,photo_100,photo_200'
-            }, function (data) {
-                allGroups = (data && data.items) || [];
-                console.log('[VKVideo] groups:', allGroups.length);
-                body.empty();
-                if (!allGroups.length) {
-                    body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет сообществ</div>');
+    function apiGet(url, success, error) {
+        if (window.Lampa && typeof Lampa.Reguest === 'function') {
+            try {
+                var network = new Lampa.Reguest();
+                if (typeof network.timeout === 'function') network.timeout(12000);
+                if (typeof network.silent === 'function') {
+                    network.silent(url, success, error || function () {});
                     return;
                 }
-                renderPage();
-            }, function (err) {
-                console.error('[VKVideo] groups.get error:', err);
-                body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка: ' + esc(String(err)) + '</div>');
+            } catch (e) {}
+        }
+
+        if (window.$) {
+            $.ajax({
+                url: url,
+                dataType: 'json',
+                timeout: 12000,
+                success: success,
+                error: error || function () {}
+            });
+        } else {
+            if (error) error();
+        }
+    }
+
+    function apiGetHtml(url, success, error) {
+        if (window.$) {
+            $.ajax({
+                url: url,
+                dataType: 'html',
+                timeout: 15000,
+                success: success,
+                error: error || function () {}
+            });
+        } else if (error) {
+            error();
+        }
+    }
+
+    // ─── Search API ────────────────────────────────────────────────────
+
+    function searchReleases(query, limit, callback) {
+        var url = getBaseUrl() + '/api/search.php?query=' + encodeURIComponent(query) +
+            '&field=titles&limit=' + (limit || 20);
+
+        apiGet(url, function (data) {
+            if (data && data.success && data.results) {
+                var items = [];
+                for (var i = 0; i < data.results.length; i++) {
+                    var r = data.results[i];
+                    items.push({
+                        id: r.id,
+                        title: r.title || '',
+                        slug: r.url_alias || '',
+                        poster: posterUrl(r.poster_url),
+                        category: r.category_name || '',
+                        url: r.url || ('/release/' + r.url_alias + '/')
+                    });
+                }
+                callback(items);
+            } else {
+                callback([]);
+            }
+        }, function () {
+            callback([]);
+        });
+    }
+
+    // ─── Catalog HTML Parsing ──────────────────────────────────────────
+
+    function parseCatalogHtml(html) {
+        var doc = $(html);
+        var items = [];
+
+        doc.find('.release-card').each(function () {
+            var card = $(this);
+            var linkEl = card.find('a').first();
+            var imgEl = card.find('img');
+            var titleEl = card.find('h4');
+
+            var href = linkEl.attr('href') || '';
+            var slug = href.replace(/^\/release\//, '').replace(/\/$/, '');
+            var img = imgEl.attr('src') || '';
+            var title = titleEl.text().trim();
+
+            if (title && slug) {
+                items.push({
+                    id: slug,
+                    title: title,
+                    slug: slug,
+                    poster: posterUrl(img),
+                    category: '',
+                    url: href
+                });
+            }
+        });
+
+        return items;
+    }
+
+    function parseCatalogPagination(html) {
+        var doc = $(html);
+        var nextUrl = '';
+
+        doc.find('.pagination a, .page-link, a[href*="page="]').each(function () {
+            var el = $(this);
+            var text = el.text().trim().toLowerCase();
+            var href = el.attr('href') || '';
+
+            if (text === '\u00bb' || text === '>' || text === '\u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0430\u044f' || text === 'next' ||
+                el.hasClass('next') || el.hasClass('page-next')) {
+                nextUrl = href;
+            }
+        });
+
+        return nextUrl;
+    }
+
+    function fetchCatalogPage(params, callback) {
+        var url = getBaseUrl() + '/catalog.php';
+
+        var parts = [];
+        if (params.page && params.page > 1) parts.push('page=' + params.page);
+        if (params.search) parts.push('search=' + encodeURIComponent(params.search));
+        if (params.sort) parts.push('sort=' + params.sort);
+        if (params.genre_id) parts.push('genre_id[]=' + params.genre_id);
+        if (params.release_type_id) parts.push('release_type_id[]=' + params.release_type_id);
+        if (params.release_status_id) parts.push('release_status_id[]=' + params.release_status_id);
+        if (params.year_min) parts.push('year_min=' + params.year_min);
+        if (params.year_max) parts.push('year_max=' + params.year_max);
+        if (params.country_id) parts.push('country_id[]=' + params.country_id);
+
+        if (parts.length) url += '?' + parts.join('&');
+
+        apiGetHtml(url, function (html) {
+            var items = parseCatalogHtml(html);
+            var nextUrl = parseCatalogPagination(html);
+            callback(items, nextUrl);
+        }, function () {
+            notify('Light Family: \u043d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u043a\u0430\u0442\u0430\u043b\u043e\u0433');
+            callback([], '');
+        });
+    }
+
+    // ─── Catalog Options Parsing ───────────────────────────────────────
+
+    function parseFilterOptions(html, selectName) {
+        var doc = $(html);
+        var options = [];
+
+        doc.find('select[name="' + selectName + '"] option').each(function () {
+            var val = $(this).attr('value');
+            var text = $(this).text().trim();
+            if (val && text && text !== '\u041e\u0442' && text !== '\u0414\u043e') {
+                options.push({ value: val, title: text });
+            }
+        });
+
+        return options;
+    }
+
+    function fetchCatalogFilters(callback) {
+        var url = getBaseUrl() + '/catalog.php';
+
+        apiGetHtml(url, function (html) {
+            callback({
+                genres: parseFilterOptions(html, 'genre_id[]'),
+                types: parseFilterOptions(html, 'release_type_id[]'),
+                statuses: parseFilterOptions(html, 'release_status_id[]'),
+                countries: parseFilterOptions(html, 'country_id[]')
+            });
+        }, function () {
+            callback({ genres: [], types: [], statuses: [], countries: [] });
+        });
+    }
+
+    // ─── Card Component ────────────────────────────────────────────────
+
+    function Card(data) {
+        this.data = data;
+
+        this.render = function () {
+            var imgSrc = data.poster || '';
+            var noPoster = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="200" height="300">' +
+                '<rect width="100%" height="100%" fill="#22252d"/>' +
+                '<text x="50%" y="50%" fill="#777" font-family="Arial" font-size="16" text-anchor="middle">\u041d\u0435\u0442 \u043f\u043e\u0441\u0442\u0435\u0440\u0430</text>' +
+                '</svg>'
+            );
+
+            var catBadge = data.category ?
+                '<div class="lightfamily-card__badge">' + esc(data.category) + '</div>' : '';
+
+            var element = $(
+                '<div class="card lightfamily selector" data-slug="' + esc(data.slug) + '">' +
+                    '<div class="card__view">' +
+                        '<img class="card__img" src="' + esc(imgSrc || noPoster) + '" ' +
+                            (imgSrc ? 'onerror="this.src=\'' + noPoster + '\'"' : '') + ' />' +
+                        catBadge +
+                    '</div>' +
+                    '<div class="card__title">' + esc(data.title) + '</div>' +
+                '</div>'
+            );
+
+            return element;
+        };
+    }
+
+    // ─── Catalog Component ─────────────────────────────────────────────
+
+    function Catalog(object) {
+        var params = object || {};
+        var scroll = new Lampa.Scroll({
+            mask: true,
+            over: true,
+            step: 250
+        });
+
+        var html = $('<div class="lightfamily-module"></div>');
+        var head = $('<div class="lightfamily-head"></div>');
+        var quick = $('<div class="lightfamily-quick"></div>');
+        var active = $('<div class="lightfamily-active"></div>');
+        var body = $('<div class="lightfamily-body"></div>');
+
+        var last = null;
+        var rendered = false;
+        var loading = false;
+        var ended = false;
+        var allItems = [];
+
+        params.page = parseInt(params.page, 10) || 1;
+
+        this.render = function () {
+            if (!rendered) {
+                rendered = true;
+
+                html.append(head).append(quick).append(active).append(scroll.render());
+                scroll.append(body);
+                scroll.minus();
+
+                scroll.onWheel = function (step) {
+                    var enabled = Lampa.Controller.enabled && Lampa.Controller.enabled();
+                    if (enabled && enabled.name !== 'content') Lampa.Controller.toggle('content');
+                    if (step > 0) Navigator.move('down');
+                    else Navigator.move('up');
+                };
+
+                scroll.onEnd = function () {
+                    if (!loading && !ended) loadNextPage();
+                };
+
+                buildHeader();
+                load(false);
+            }
+
+            return html;
+        };
+
+        this.create = this.render;
+
+        this.start = function () {
+            Lampa.Controller.add('content', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(html);
+
+                    var focusTarget = null;
+                    if (last) focusTarget = last;
+
+                    Lampa.Controller.collectionFocus(focusTarget || html.find('.selector').first(), html);
+                },
+                left: function () {
+                    if (Navigator.canmove('left')) Navigator.move('left');
+                    else Lampa.Controller.toggle('menu');
+                },
+                right: function () {
+                    Navigator.move('right');
+                },
+                up: function () {
+                    if (Navigator.canmove('up')) Navigator.move('up');
+                    else Lampa.Controller.toggle('head');
+                },
+                down: function () {
+                    Navigator.move('down');
+                },
+                back: function () {
+                    if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
+                },
+                enter: function () {
+                    var focused = html.find('.selector.focus');
+                    if (focused.length) {
+                        var slug = focused.data('slug');
+                        if (slug) openRelease(slug);
+                    }
+                }
+            });
+
+            Lampa.Controller.toggle('content');
+        };
+
+        this.stop = function () {};
+        this.pause = function () {};
+        this.destroy = function () {
+            html.off();
+            scroll.render().off();
+            scroll.destroy();
+            html.remove();
+        };
+
+        // ─── Header & Navigation ───────────────────────────────────────
+
+        function buildHeader() {
+            head.empty();
+            quick.empty();
+            active.empty();
+
+            addHeadButton('\u0413\u043b\u0430\u0432\u043d\u0430\u044f', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>', function () {
+                openWith({ page: 1, sort: '', search: '', genre_id: '', release_type_id: '' });
+            });
+
+            addHeadButton('\u041f\u043e\u0438\u0441\u043a', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>', openSearch);
+            addHeadButton('\u0424\u0438\u043b\u044c\u0442\u0440\u044b', '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg>', openFilters);
+
+            addQuick('\u0412\u0441\u0435', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '' });
+            addQuick('\u0421\u0435\u0440\u0438\u0430\u043b\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '1' });
+            addQuick('\u0424\u0438\u043b\u044c\u043c\u044b', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '4' });
+
+            if (params.search || params.genre_id || params.release_type_id) {
+                addQuick('\u0421\u0431\u0440\u043e\u0441', { page: 1, sort: '', search: '', genre_id: '', release_type_id: '' }, true);
+            }
+
+            renderActive();
+        }
+
+        function addHeadButton(title, iconSvg, action) {
+            var btn = $('<div class="simple-button selector lightfamily-head__button">' + iconSvg + '<span>' + esc(title) + '</span></div>');
+
+            btn.on('hover:focus nav_focus', function () {
+                last = btn[0];
+            });
+
+            btn.on('hover:enter click tap', action);
+            head.append(btn);
+        }
+
+        function addQuick(title, values, reset) {
+            var selected = !reset;
+
+            if (selected) {
+                for (var key in values) {
+                    if (String(params[key] || '') !== String(values[key] || '')) {
+                        selected = false;
+                        break;
+                    }
+                }
+            }
+
+            var btn = $('<div class="simple-button selector lightfamily-chip' + (selected ? ' lightfamily-chip--active' : '') + '">' + esc(title) + '</div>');
+
+            btn.on('hover:focus nav_focus', function () {
+                last = btn[0];
+            });
+
+            btn.on('hover:enter click tap', function () {
+                openWith(values);
+            });
+
+            quick.append(btn);
+        }
+
+        function renderActive() {
+            var parts = [];
+
+            if (params.search) parts.push('\u043f\u043e\u0438\u0441\u043a: ' + params.search);
+            if (params.genre_id) parts.push('\u0436\u0430\u043d\u0440: ' + params.genre_id);
+            if (params.release_type_id) parts.push('\u0442\u0438\u043f: ' + params.release_type_id);
+
+            active.html(parts.length ?
+                '<span>\u0410\u043a\u0442\u0438\u0432\u043d\u043e:</span> ' + esc(parts.join(' / ')) :
+                '<span>Light Family</span> \u043a\u0430\u0442\u0430\u043b\u043e\u0433 \u0430\u043d\u0438\u043c\u0435');
+        }
+
+        function openWith(values) {
+            var next = {};
+
+            for (var key in params) {
+                if (params[key] !== undefined && params[key] !== null && params[key] !== '') next[key] = params[key];
+            }
+
+            next.page = values.hasOwnProperty('page') ? values.page : 1;
+
+            for (var key2 in values) {
+                if (values[key2] === '') delete next[key2];
+                else next[key2] = values[key2];
+            }
+
+            Lampa.Activity.push({
+                url: '',
+                title: 'Light Family',
+                component: 'lightfamily',
+                page: next.page,
+                search: next.search || '',
+                genre_id: next.genre_id || '',
+                release_type_id: next.release_type_id || '',
+                sort: next.sort || ''
             });
         }
 
-        function renderPage() {
-            var chunk = allGroups.slice(pageOffset, pageOffset + PAGE_SIZE);
-            pageOffset += chunk.length;
-            var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
-            chunk.forEach(function (g) {
-                var card = renderCard(g, 'group');
-                card.on('hover:focus', function () { last = card[0]; });
-                card.on('hover:enter', function () { openPlaylists(g); });
-                row.append(card);
+        // ─── Actions ───────────────────────────────────────────────────
+
+        function openRelease(slug) {
+            var url = releaseUrl(slug);
+
+            if (window.Lampa && Lampa.Utils && Lampa.Utils.openUrl) {
+                Lampa.Utils.openUrl(url);
+            } else if (window.open) {
+                window.open(url, '_blank');
+            } else {
+                notify('\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435: ' + url);
+            }
+        }
+
+        function openSearch() {
+            if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
+                Lampa.Input.edit({
+                    title: '\u041f\u043e\u0438\u0441\u043a Light Family',
+                    value: params.search || '',
+                    free: true
+                }, function (text) {
+                    text = String(text || '').trim();
+
+                    if (!text) {
+                        notify('\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435');
+                    } else {
+                        openWith({ search: text });
+                    }
+
+                    Lampa.Controller.toggle('content');
+                });
+            } else {
+                var value = window.prompt('\u041f\u043e\u0438\u0441\u043a Light Family', params.search || '');
+                if (value !== null) {
+                    value = String(value || '').trim();
+                    if (value) openWith({ search: value });
+                }
+            }
+        }
+
+        function openFilters() {
+            fetchCatalogFilters(function (filters) {
+                var items = [
+                    { title: '\u0416\u0430\u043d\u0440: ' + (params.genre_id || '\u043b\u044e\u0431\u043e\u0439'), value: 'genre' },
+                    { title: '\u0422\u0438\u043f: ' + (params.release_type_id || '\u043b\u044e\u0431\u043e\u0439'), value: 'type' }
+                ];
+
+                if (params.genre_id || params.release_type_id || params.search) {
+                    items.push({ title: '\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c \u0444\u0438\u043b\u044c\u0442\u0440\u044b', value: 'reset' });
+                }
+
+                Lampa.Select.show({
+                    title: '\u0424\u0438\u043b\u044c\u0442\u0440\u044b Light Family',
+                    items: items,
+                    onSelect: function (item) {
+                        if (item.value === 'genre') openGenreMenu(filters.genres);
+                        else if (item.value === 'type') openTypeMenu(filters.types);
+                        else if (item.value === 'reset') {
+                            openWith({ genre_id: '', release_type_id: '', page: 1 });
+                        }
+                    },
+                    onBack: function () {
+                        Lampa.Controller.toggle('content');
+                    }
+                });
             });
+        }
+
+        function openGenreMenu(genres) {
+            var items = [{ title: '\u041b\u044e\u0431\u043e\u0439', value: '' }];
+
+            for (var i = 0; i < genres.length; i++) {
+                items.push({
+                    title: (params.genre_id === genres[i].value ? '\u2713 ' : '') + genres[i].title,
+                    value: genres[i].value
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0416\u0430\u043d\u0440',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ genre_id: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        function openTypeMenu(types) {
+            var items = [{ title: '\u041b\u044e\u0431\u043e\u0439', value: '' }];
+
+            for (var i = 0; i < types.length; i++) {
+                items.push({
+                    title: (params.release_type_id === types[i].value ? '\u2713 ' : '') + types[i].title,
+                    value: types[i].value
+                });
+            }
+
+            Lampa.Select.show({
+                title: '\u0422\u0438\u043f',
+                items: items,
+                onSelect: function (item) {
+                    openWith({ release_type_id: item.value, page: 1 });
+                },
+                onBack: function () {
+                    openFilters();
+                }
+            });
+        }
+
+        // ─── Data Loading ──────────────────────────────────────────────
+
+        function load(append) {
+            if (loading) return;
+
+            loading = true;
+
+            if (!append) {
+                body.empty();
+                allItems = [];
+                ended = false;
+            }
+
+            if (params.search) {
+                searchReleases(params.search, 50, function (items) {
+                    loading = false;
+
+                    if (!append) allItems = items;
+                    else allItems = allItems.concat(items);
+
+                    renderCards(items, append);
+
+                    if (items.length < 10) ended = true;
+                });
+            } else {
+                var catalogParams = {
+                    page: params.page,
+                    sort: params.sort || '',
+                    genre_id: params.genre_id || '',
+                    release_type_id: params.release_type_id || ''
+                };
+
+                fetchCatalogPage(catalogParams, function (items) {
+                    loading = false;
+
+                    if (!append) allItems = items;
+                    else allItems = allItems.concat(items);
+
+                    renderCards(items, append);
+
+                    if (items.length < PAGE_LIMIT) ended = true;
+                });
+            }
+        }
+
+        function loadNextPage() {
+            params.page = (params.page || 1) + 1;
+            load(true);
+        }
+
+        function renderCards(items, append) {
+            if (!append) body.empty();
+
+            if (!items.length && !append) {
+                body.html('<div class="lightfamily-empty">\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e</div>');
+                return;
+            }
+
+            var row = $('<div class="cards-list"></div>');
+
+            for (var i = 0; i < items.length; i++) {
+                var card = new Card(items[i]);
+                var element = card.render();
+
+                element.on('hover:focus nav_focus', (function (el) {
+                    return function () { last = el[0]; };
+                })(element));
+
+                element.on('hover:enter click tap', (function (slug) {
+                    return function () { openRelease(slug); };
+                })(items[i].slug));
+
+                row.append(element);
+            }
+
             body.append(row);
         }
-
-        function openPlaylists(group) {
-            Lampa.Activity.push({
-                title: group.name || 'Сообщество',
-                component: 'vkvideo_playlists',
-                group_id: group.id, group_name: group.name, page: 1
-            });
-        }
     }
 
-    // ==================== COMPONENT: Playlists ====================
-
-    function VKPlaylists(object) {
-        var html = $('<div class="vkvideo-module"></div>');
-        var scroll = makeScroll();
-        var body = $('<div></div>');
-        var last = null;
-        var loaded = false;
-        var groupOwnerId = -(object.group_id || 0);
-
-        this.render = function () {
-            if (!loaded) {
-                loaded = true;
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-                loadAlbums();
-            }
-            return html;
-        };
-        this.create = this.render;
-
-        this.start = function () {
-            Lampa.Controller.add('content', {
-                toggle: function () {
-                    Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
-                },
-                left: function () { if (Navigator.canmove('left')) Navigator.move('left'); else Lampa.Controller.toggle('menu'); },
-                right: function () { Navigator.move('right'); },
-                up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
-                down: function () { Navigator.move('down'); },
-                back: function () { Lampa.Activity.backward(); },
-                enter: function () {
-                    var f = html.find('.selector.focus');
-                    if (f.length) { var item = f.data('item'); if (item) openVideos(item); }
-                }
-            });
-            Lampa.Controller.toggle('content');
-        };
-
-        this.stop = function () {};
-        this.pause = function () {};
-        this.destroy = function () { scroll.destroy(); html.remove(); };
-
-        function loadAlbums() {
-            body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Загрузка...</div>');
-            vkApi('video.getAlbums', { owner_id: groupOwnerId, count: 200, need_system: 1 },
-                function (data) {
-                    var items = (data && data.items) || [];
-                    console.log('[VKVideo] albums:', items.length);
-                    body.empty();
-                    if (!items.length) { body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет плейлистов</div>'); return; }
-                    var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
-                    items.forEach(function (a) {
-                        var card = renderCard(a, 'album');
-                        card.on('hover:focus', function () { last = card[0]; });
-                        card.on('hover:enter', function () { openVideos(a); });
-                        row.append(card);
-                    });
-                    body.append(row);
-                }, function (err) {
-                    console.error('[VKVideo] albums error:', err);
-                    body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка</div>');
-                });
-        }
-
-        function openVideos(album) {
-            Lampa.Activity.push({
-                title: album.title || 'Плейлист',
-                component: 'vkvideo_videos',
-                owner_id: groupOwnerId, album_id: album.id, page: 1
-            });
-        }
-    }
-
-    // ==================== COMPONENT: Videos ====================
-
-    function VKVideos(object) {
-        var html = $('<div class="vkvideo-module"></div>');
-        var scroll = makeScroll();
-        var body = $('<div></div>');
-        var last = null;
-        var loaded = false;
-        var page = 1;
-        var ended = false;
-
-        this.render = function () {
-            if (!loaded) {
-                loaded = true;
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-                scroll.onEnd = function () { if (!ended) loadVideos(); };
-                loadVideos();
-            }
-            return html;
-        };
-        this.create = this.render;
-
-        this.start = function () {
-            Lampa.Controller.add('content', {
-                toggle: function () {
-                    Lampa.Controller.collectionSet(html);
-                    Lampa.Controller.collectionFocus(last || html.find('.selector').first(), html);
-                },
-                left: function () { if (Navigator.canmove('left')) Navigator.move('left'); else Lampa.Controller.toggle('menu'); },
-                right: function () { Navigator.move('right'); },
-                up: function () { if (Navigator.canmove('up')) Navigator.move('up'); },
-                down: function () { Navigator.move('down'); },
-                back: function () { Lampa.Activity.backward(); },
-                enter: function () {
-                    var f = html.find('.selector.focus');
-                    if (f.length) { var item = f.data('item'); if (item) playVideo(item); }
-                }
-            });
-            Lampa.Controller.toggle('content');
-        };
-
-        this.stop = function () {};
-        this.pause = function () {};
-        this.destroy = function () { scroll.destroy(); html.remove(); };
-
-        function loadVideos() {
-            $.ajax({
-                url: VK_API + '/video.get', method: 'POST',
-                contentType: 'application/x-www-form-urlencoded', dataType: 'json', timeout: 15000,
-                data: 'owner_id=' + object.owner_id +
-                      (object.album_id ? '&album_id=' + object.album_id : '') +
-                      '&count=' + PAGE_SIZE + '&offset=' + ((page - 1) * PAGE_SIZE) +
-                      '&extended=1&v=' + VK_VERSION + '&access_token=' + readAuth().access_token,
-                success: function (r) {
-                    var items = (r && r.response && r.response.items) || [];
-                    console.log('[VKVideo] videos page', page, ':', items.length);
-                    if (!items.length && page === 1) { body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Нет видео</div>'); return; }
-                    if (items.length < PAGE_SIZE) ended = true;
-                    var row = $('<div style="display:flex;flex-wrap:wrap;padding:0.5em"></div>');
-                    items.forEach(function (v) {
-                        var card = renderCard(v, 'video');
-                        card.on('hover:focus', function () { last = card[0]; });
-                        card.on('hover:enter', function () { playVideo(v); });
-                        row.append(card);
-                    });
-                    body.append(row);
-                    page++;
-                },
-                error: function () { if (page === 1) body.html('<div style="padding:2em;text-align:center;color:rgba(255,255,255,.5)">Ошибка загрузки</div>'); }
-            });
-        }
-
-        function playVideo(video) {
-            vkApi('video.get', { videos: (video.owner_id || 0) + '_' + (video.id || 0), extended: 1 },
-                function (data) {
-                    var v = data && data.items && data.items[0];
-                    if (!v) { notify('Видео не найдено'); return; }
-                    var url = '';
-                    if (v.files) url = v.files.hls || v.files.mp4_1080 || v.files.mp4_720 || v.files.mp4_480 || v.files.mp4_360 || v.files.mp4_240 || '';
-                    if (url) Lampa.Player.play({ url: url, title: v.title || video.title || 'VK', subtitles: [] });
-                    else if (v.player) window.open(v.player, '_blank');
-                    else notify('Не удалось получить ссылку');
-                }, function (e) { notify('Ошибка: ' + e); });
-        }
-    }
-
-    // --- Menu ---
-
-    function addMenu() {
-        var menu = $('.menu .menu__list').eq(0);
-        if (!menu.length || menu.find('[data-sid="vkvideo"]').length) return;
-        var icon = '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M18 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-6 6l4 4h-3v4h-2v-4H8l4-4z"/></svg>';
-        var btn = $('<li class="menu__item selector" data-action="vkvideo_action" data-sid="vkvideo"><div class="menu__ico">' + icon + '</div><div class="menu__text">VK Video</div></li>');
-        btn.on('hover:enter', function () {
-            if (isAuthorized()) Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_communities', page: 1 });
-            else Lampa.Activity.push({ title: 'VK Video', component: 'vkvideo_login', page: 1 });
-        });
-        var last = menu.find('.menu__item').last();
-        if (last.length) btn.insertAfter(last); else menu.append(btn);
-    }
-
-    // --- Styles ---
+    // ─── CSS Styles ────────────────────────────────────────────────────
 
     function addStyles() {
-        if ($('#vkvideo-style').length) return;
-        $('head').append('<style id="vkvideo-style">' +
-            '.vkvideo-login{height:100%;color:#fff;display:flex;align-items:flex-start;justify-content:center;padding-top:8vh}' +
-            '.vkvideo-login__box{background:rgba(255,255,255,0.05);border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center}' +
-            '.vkvideo-login__icon{margin-bottom:1em;opacity:0.5}' +
-            '.vkvideo-login__title{font-size:1.6em;font-weight:700;margin-bottom:0.5em}' +
-            '.vkvideo-login__desc{font-size:0.95em;color:rgba(255,255,255,0.6);margin-bottom:0.8em;line-height:1.4}' +
-            '.vkvideo-login__hint{font-size:0.8em;color:rgba(255,255,255,0.35);margin-bottom:1.5em}' +
-            '.vkvideo-login__link{font-size:0.7em;color:rgba(255,255,255,0.3);word-break:break-all;margin-bottom:1em;padding:0.5em;background:rgba(0,0,0,0.2);border-radius:0.3em}' +
-            '.vkvideo-login__btn{display:inline-block;padding:0.8em 2.5em;background:rgba(76,175,80,0.3);border-radius:0.5em;color:#fff;font-size:1em;cursor:pointer;margin-bottom:0.8em}' +
-            '.vkvideo-login__btn.focus{background:rgba(76,175,80,0.5);transform:scale(1.05)}' +
-            '.vkvideo-login__saved{font-size:0.85em;color:rgba(255,255,255,0.4);margin-bottom:1em}' +
-            '.vkvideo-login__btn-secondary{display:inline-block;padding:0.6em 2em;background:rgba(255,255,255,0.06);border-radius:0.5em;color:rgba(255,255,255,0.5);font-size:0.9em;cursor:pointer}' +
-            '.vkvideo-login__btn-secondary.focus{background:rgba(255,255,255,0.15);color:#fff}' +
-            '.vkvideo-module{padding:1em;height:100%}' +
-            '.vkvideo-module .card{flex:0 0 14em;padding:0.5em;box-sizing:border-box}' +
-            '.vkvideo-module .card .card__view{background:#1b1d24;border-radius:0.35em;overflow:hidden;padding-bottom:56%;position:relative}' +
-            '.vkvideo-module .card .card__img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}' +
-            '.vkvideo-module .card .card__title{font-size:1em;margin-top:0.4em;line-height:1.2}' +
-            '.vkvideo-module .card .card__subtitle{font-size:0.85em;color:rgba(255,255,255,0.5);margin-top:0.2em}' +
-            '.vkvideo-module .card.focus .card__view{box-shadow:0 0 0 0.2em #fff}' +
-        '</style>');
+        if (document.getElementById('lightfamily-plugin-css')) return;
+
+        var css = '' +
+            '.lightfamily-module { padding: 0 1.5em; }' +
+            '.lightfamily-head { display: flex; flex-wrap: wrap; gap: 0.5em; padding: 0.8em 0; }' +
+            '.lightfamily-head__button { display: flex; align-items: center; gap: 0.4em; padding: 0.5em 1em; font-size: 0.9em; }' +
+            '.lightfamily-head__button svg { width: 1.2em; height: 1.2em; }' +
+            '.lightfamily-quick { display: flex; flex-wrap: wrap; gap: 0.4em; padding: 0.4em 0; }' +
+            '.lightfamily-chip { padding: 0.4em 1em; font-size: 0.8em; border-radius: 1em; opacity: 0.7; }' +
+            '.lightfamily-chip--active { opacity: 1; background: rgba(255,255,255,0.15); }' +
+            '.lightfamily-active { padding: 0.5em 0; font-size: 0.85em; color: rgba(255,255,255,0.6); }' +
+            '.lightfamily-active span { color: rgba(255,255,255,0.4); }' +
+            '.lightfamily-body { padding: 0.5em 0; }' +
+            '.lightfamily-body .cards-list { display: flex; flex-wrap: wrap; gap: 1em; }' +
+            '.lightfamily-body .card { width: calc(16.666% - 1em); min-width: 120px; }' +
+            '.lightfamily-card__badge { position: absolute; top: 0.5em; left: 0.5em; background: rgba(0,0,0,0.7); color: #fff; padding: 0.2em 0.6em; font-size: 0.7em; border-radius: 0.3em; }' +
+            '.lightfamily-empty { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
+            '';
+
+        var style = document.createElement('style');
+        style.id = 'lightfamily-plugin-css';
+        style.textContent = css;
+        document.head.appendChild(style);
     }
 
-    // --- Start ---
+    // ─── Registration & Start ──────────────────────────────────────────
+
+    function add() {
+        addStyles();
+
+        Lampa.Component.add('lightfamily', Catalog);
+
+        Lampa.Manifest.plugins = {
+            type: 'other',
+            version: '1.0.0',
+            name: 'Light Family',
+            description: '\u041a\u0430\u0442\u0430\u043b\u043e\u0433 \u0430\u043d\u0438\u043c\u0435 lightfamily.online',
+            component: 'lightfamily'
+        };
+
+        Lampa.Manifest.plugins.push({
+            name: 'Light Family',
+            component: 'lightfamily'
+        });
+    }
 
     function startPlugin() {
-        if (!window.Lampa || !window.$) return;
-        addStyles();
-        Lampa.Component.add('vkvideo_login', VKLogin);
-        Lampa.Component.add('vkvideo_communities', VKCommunities);
-        Lampa.Component.add('vkvideo_playlists', VKPlaylists);
-        Lampa.Component.add('vkvideo_videos', VKVideos);
-        addMenu();
-        setInterval(function () { if (window.appready && $('.menu .menu__list').eq(0).length) addMenu(); }, 4000);
-        console.log('[VKVideo] v4.0 loaded');
+        if (window.appready) add();
+        else {
+            Lampa.Listener.follow('app', function (e) {
+                if (e.type === 'ready') add();
+            });
+        }
     }
 
-    if (window.appready) startPlugin();
-    else if (window.Lampa && Lampa.Listener) {
-        Lampa.Listener.follow('app', function (e) { if (e.type === 'ready') startPlugin(); });
-    }
+    startPlugin();
 })();
