@@ -500,16 +500,25 @@
     // ─── Catalog Options Parsing ───────────────────────────────────────
 
     function parseFilterOptions(html, selectName) {
-        var doc = $(html);
         var options = [];
 
-        doc.find('select[name="' + selectName + '"] option').each(function () {
-            var val = $(this).attr('value');
-            var text = $(this).text().trim();
-            if (val && text && text !== '\u041e\u0442' && text !== '\u0414\u043e') {
-                options.push({ value: val, title: text });
+        try {
+            var escapedName = selectName.replace(/\[\]/g, '\\[\\]');
+            var selectRegex = new RegExp('<select[^>]*name="' + escapedName + '"[^>]*>([\\s\\S]*?)</select>');
+            var selectMatch = html.match(selectRegex);
+
+            if (selectMatch) {
+                var optionRegex = /<option[^>]*value="([^"]*)"[^>]*>([^<]+)<\/option>/g;
+                var optMatch;
+                while ((optMatch = optionRegex.exec(selectMatch[1])) !== null) {
+                    var val = optMatch[1];
+                    var text = optMatch[2].trim();
+                    if (val && text && text !== '\u041e\u0442' && text !== '\u0414\u043e') {
+                        options.push({ value: val, title: text });
+                    }
+                }
             }
-        });
+        } catch (e) {}
 
         return options;
     }
@@ -792,9 +801,30 @@
 
         function openFilters() {
             fetchCatalogFilters(function (filters) {
+                var genreName = '\u043b\u044e\u0431\u043e\u0439';
+                var typeName = '\u043b\u044e\u0431\u043e\u0439';
+
+                if (params.genre_id) {
+                    for (var g = 0; g < filters.genres.length; g++) {
+                        if (filters.genres[g].value === params.genre_id) {
+                            genreName = filters.genres[g].title;
+                            break;
+                        }
+                    }
+                }
+
+                if (params.release_type_id) {
+                    for (var t = 0; t < filters.types.length; t++) {
+                        if (filters.types[t].value === params.release_type_id) {
+                            typeName = filters.types[t].title;
+                            break;
+                        }
+                    }
+                }
+
                 var items = [
-                    { title: '\u0416\u0430\u043d\u0440: ' + (params.genre_id || '\u043b\u044e\u0431\u043e\u0439'), value: 'genre' },
-                    { title: '\u0422\u0438\u043f: ' + (params.release_type_id || '\u043b\u044e\u0431\u043e\u0439'), value: 'type' }
+                    { title: '\u0416\u0430\u043d\u0440: ' + genreName, value: 'genre' },
+                    { title: '\u0422\u0438\u043f: ' + typeName, value: 'type' }
                 ];
 
                 if (params.genre_id || params.release_type_id || params.search) {
