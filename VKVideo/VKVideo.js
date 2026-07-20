@@ -266,8 +266,8 @@
 
     function FullCard(object) {
         var data = object || {};
-        var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
         var html = $('<div class="lightfamily-module lightfamily-full"></div>');
+        var scrollContainer = $('<div class="lightfamily-scroll"></div>');
         var body = $('<div class="lightfamily-full-body"></div>');
         var rendered = false;
         var episodes = [];
@@ -275,9 +275,8 @@
         this.render = function () {
             if (!rendered) {
                 rendered = true;
-                html.append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
+                scrollContainer.append(body);
+                html.append(scrollContainer);
                 loadData();
             }
             return html;
@@ -321,8 +320,6 @@
         this.pause = function () {};
         this.destroy = function () {
             html.off();
-            scroll.render().off();
-            scroll.destroy();
             html.remove();
         };
 
@@ -579,16 +576,12 @@
 
     function Catalog(object) {
         var params = object || {};
-        var scroll = new Lampa.Scroll({
-            mask: true,
-            over: true,
-            step: 250
-        });
 
         var html = $('<div class="lightfamily-module"></div>');
         var head = $('<div class="lightfamily-head"></div>');
         var quick = $('<div class="lightfamily-quick"></div>');
         var active = $('<div class="lightfamily-active"></div>');
+        var scrollContainer = $('<div class="lightfamily-scroll"></div>');
         var body = $('<div class="lightfamily-body"></div>');
 
         var last = null;
@@ -603,20 +596,8 @@
             if (!rendered) {
                 rendered = true;
 
-                html.append(head).append(quick).append(active).append(scroll.render());
-                scroll.append(body);
-                scroll.minus();
-
-                scroll.onWheel = function (step) {
-                    var enabled = Lampa.Controller.enabled && Lampa.Controller.enabled();
-                    if (enabled && enabled.name !== 'content') Lampa.Controller.toggle('content');
-                    if (step > 0) Navigator.move('down');
-                    else Navigator.move('up');
-                };
-
-                scroll.onEnd = function () {
-                    if (!loading && !ended) loadNextPage();
-                };
+                scrollContainer.append(body);
+                html.append(head).append(quick).append(active).append(scrollContainer);
 
                 buildHeader();
                 load(false);
@@ -670,8 +651,6 @@
         this.pause = function () {};
         this.destroy = function () {
             html.off();
-            scroll.render().off();
-            scroll.destroy();
             html.remove();
         };
 
@@ -969,18 +948,18 @@
 
         var css = '' +
             '.lightfamily-module { padding: 1.2em 1.5em 2.5em; color: #fff; height: 100%; display: flex; flex-direction: column; box-sizing: border-box; }' +
-            '.lightfamily-module > .scroll { flex: 1; overflow: hidden; position: relative; width: 100%; }' +
-            '.lightfamily-head { display: flex; flex-wrap: wrap; gap: 0.5em; padding: 0 0 0.8em 0; }' +
+            '.lightfamily-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; min-height: 0; -webkit-overflow-scrolling: touch; }' +
+            '.lightfamily-head { display: flex; flex-wrap: wrap; gap: 0.5em; padding: 0 0 0.8em 0; flex-shrink: 0; }' +
             '.lightfamily-head__button { display: flex; align-items: center; gap: 0.4em; padding: 0.5em 1em; font-size: 0.9em; }' +
             '.lightfamily-head__button svg { width: 1.2em; height: 1.2em; }' +
-            '.lightfamily-quick { display: flex; flex-wrap: wrap; gap: 0.4em; padding: 0.4em 0; }' +
+            '.lightfamily-quick { display: flex; flex-wrap: wrap; gap: 0.4em; padding: 0.4em 0; flex-shrink: 0; }' +
             '.lightfamily-chip { padding: 0.4em 1em; font-size: 0.8em; border-radius: 1em; opacity: 0.7; }' +
             '.lightfamily-chip--active { opacity: 1; background: rgba(255,255,255,0.15); }' +
-            '.lightfamily-active { padding: 0.5em 0; font-size: 0.85em; color: rgba(255,255,255,0.6); }' +
+            '.lightfamily-active { padding: 0.5em 0; font-size: 0.85em; color: rgba(255,255,255,0.6); flex-shrink: 0; }' +
             '.lightfamily-active span { color: rgba(255,255,255,0.4); }' +
             '.lightfamily-body { padding: 0.5em 0; }' +
-            '.lightfamily-body .cards-list { display: flex; flex-wrap: wrap; gap: 1em; }' +
-            '.lightfamily-body .card { width: calc(16.666% - 1em); min-width: 120px; }' +
+            '.lightfamily-body .cards-list { display: flex; flex-wrap: wrap; gap: 1em; width: 100%; }' +
+            '.lightfamily-body .card { width: calc(16.666% - 1em); min-width: 120px; position: relative; flex-shrink: 0; }' +
             '.lightfamily-card__badge { position: absolute; top: 0.5em; left: 0.5em; background: rgba(0,0,0,0.7); color: #fff; padding: 0.2em 0.6em; font-size: 0.7em; border-radius: 0.3em; }' +
             '.lightfamily-card__meta { font-size: 0.75em; color: rgba(255,255,255,0.5); margin-top: 0.3em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
             '.lightfamily-empty, .lightfamily-loader { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
