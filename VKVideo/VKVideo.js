@@ -142,6 +142,259 @@
         }
     }
 
+    // ─── Release Details ───────────────────────────────────────────────
+
+    function fetchReleaseDetails(slug, callback) {
+        var url = getBaseUrl() + '/release/' + slug + '/';
+
+        apiGetHtml(url, function (html) {
+            var info = { slug: slug, title: '', description: '', poster: '', year: 0, genres: [], type: '', status: '', episodes: [], playlistUrl: '' };
+
+            try {
+                // Parse JSON-LD
+                var ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+                if (ldMatch) {
+                    var ld = JSON.parse(ldMatch[1]);
+                    info.title = ld.name || '';
+                    info.description = ld.description || '';
+                    info.poster = ld.image || '';
+                }
+
+                // Parse lfNewPlayerData for playlist URL
+                var plMatch = html.match(/lfNewPlayerData\s*=\s*\{([\s\S]*?)\};/);
+                if (plMatch) {
+                    var srcMatch = plMatch[1].match(/sourceUrl\s*:\s*"([^"]+)"/);
+                    if (srcMatch) {
+                        info.playlistUrl = srcMatch[1].replace(/\\\//g, '/');
+                    }
+                }
+
+                // Parse catalog data for extra info
+                var catMatch = html.match(/catalogReleases\s*=\s*(\[[\s\S]*?\]);/);
+                if (catMatch) {
+                    var catData = JSON.parse(catMatch[1]);
+                    if (catData.length) {
+                        var r = catData[0];
+                        info.year = r.year || 0;
+                        info.genres = r.genre_names || [];
+                        info.type = r.release_type_name || '';
+                        info.status = r.release_status_name || '';
+                        if (!info.title) info.title = r.title || '';
+                    }
+                }
+            } catch (e) {}
+
+            callback(info);
+        }, function () {
+            callback(null);
+        });
+    }
+
+    function fetchPlaylist(playlistUrl, callback) {
+        if (!playlistUrl) { callback([]); return; }
+
+        apiGet(playlistUrl, function (data) {
+            if (Array.isArray(data)) {
+                var episodes = [];
+                for (var f = 0; f < data.length; f++) {
+                    var folder = data[f];
+                    if (folder.folder && Array.isArray(folder.folder)) {
+                        for (var e = 0; e < folder.folder.length; e++) {
+                            var ep = folder.folder[e];
+                            episodes.push({
+                                title: ep.title || ('Episode ' + (e + 1)),
+                                file: ep.file || '',
+                                skip: ep.skip || '',
+                                folder: folder.title || ''
+                            });
+                        }
+                    }
+                }
+                callback(episodes);
+            } else {
+                callback([]);
+            }
+        }, function () {
+            callback([]);
+        });
+    }
+
+    // ─── Player ────────────────────────────────────────────────────────
+
+    function playEpisode(episode, releaseTitle) {
+        if (!episode || !episode.file) {
+            notify('\u041d\u0435\u0442 \u0444\u0430\u0439\u043b\u0430 \u0434\u043b\u044f \u0432\u043e\u0441\u043f\u0440\u043e\u043f\u0438\u0437\u0432\u0435\u0434\u0435\u043d\u0438\u044f');
+            return;
+        }
+
+        // Try Lampa's built-in player
+        if (window.Lampa && Lampa.Player) {
+            try {
+                Lampa.Player.play({
+                    url: episode.file,
+                    title: releaseTitle + ' - ' + episode.title,
+                    type: 'dash'
+                });
+                return;
+            } catch (e) {}
+        }
+
+        // Try Lampa.Activity player overlay
+        if (window.Lampa && Lampa.Activity) {
+            try {
+                Lampa.Activity.push({
+                    url: episode.file,
+                    title: releaseTitle + ' - ' + episode.title,
+                    component: 'player',
+                    type: 'dash'
+                });
+                return;
+            } catch (e) {}
+        }
+
+        // Fallback: open in browser
+        window.open(episode.file, '_blank');
+    }
+
+    // ─── Full Card Component ───────────────────────────────────────────
+
+    function FullCard(object) {
+        var data = object || {};
+        var scroll = new Lampa.Scroll({ mask: true, over: true, step: 250 });
+        var html = $('<div class="lightfamily-module lightfamily-full"></div>');
+        var body = $('<div class="lightfamily-full-body"></div>');
+        var rendered = false;
+        var episodes = [];
+
+        this.render = function () {
+            if (!rendered) {
+                rendered = true;
+                html.append(scroll.render());
+                scroll.append(body);
+                scroll.minus();
+                loadData();
+            }
+            return html;
+        };
+
+        this.create = this.render;
+
+        this.start = function () {
+            Lampa.Controller.add('content', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(html);
+                    Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
+                },
+                left: function () {
+                    if (Navigator.canmove('left')) Navigator.move('left');
+                    else Lampa.Controller.toggle('menu');
+                },
+                right: function () { Navigator.move('right'); },
+                up: function () {
+                    if (Navigator.canmove('up')) Navigator.move('up');
+                    else Lampa.Controller.toggle('head');
+                },
+                down: function () { Navigator.move('down'); },
+                back: function () {
+                    if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
+                },
+                enter: function () {
+                    var focused = html.find('.selector.focus');
+                    if (focused.length) {
+                        var idx = parseInt(focused.data('episode'), 10);
+                        if (!isNaN(idx) && episodes[idx]) {
+                            playEpisode(episodes[idx], data.title);
+                        }
+                    }
+                }
+            });
+            Lampa.Controller.toggle('content');
+        };
+
+        this.stop = function () {};
+        this.pause = function () {};
+        this.destroy = function () {
+            html.off();
+            scroll.render().off();
+            scroll.destroy();
+            html.remove();
+        };
+
+        function loadData() {
+            body.html('<div class="lightfamily-loader">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...</div>');
+
+            fetchReleaseDetails(data.slug, function (info) {
+                if (!info) {
+                    body.html('<div class="lightfamily-empty">\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435</div>');
+                    return;
+                }
+
+                renderInfo(info);
+
+                if (info.playlistUrl) {
+                    fetchPlaylist(info.playlistUrl, function (eps) {
+                        episodes = eps;
+                        renderEpisodes(eps);
+                    });
+                }
+            });
+        }
+
+        function renderInfo(info) {
+            var meta = [];
+            if (info.type) meta.push(info.type);
+            if (info.year) meta.push(info.year);
+            if (info.status) meta.push(info.status);
+            if (info.genres && info.genres.length) meta.push(info.genres.join(', '));
+
+            var htmlStr = '' +
+                '<div class="lightfamily-full__header">' +
+                    '<div class="lightfamily-full__poster">' +
+                        '<img src="' + esc(info.poster) + '" onerror="this.style.display=\'none\'" />' +
+                    '</div>' +
+                    '<div class="lightfamily-full__info">' +
+                        '<h1 class="lightfamily-full__title">' + esc(info.title) + '</h1>' +
+                        (meta.length ? '<div class="lightfamily-full__meta">' + esc(meta.join(' \u2022 ')) + '</div>' : '') +
+                        (info.description ? '<div class="lightfamily-full__desc">' + esc(info.description) + '</div>' : '') +
+                    '</div>' +
+                '</div>';
+
+            body.append($(htmlStr));
+        }
+
+        function renderEpisodes(eps) {
+            if (!eps.length) {
+                body.append($('<div class="lightfamily-full__episodes-empty">\u0421\u0435\u0440\u0438\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b</div>'));
+                return;
+            }
+
+            var container = $('<div class="lightfamily-full__episodes"></div>');
+            container.append($('<h2 class="lightfamily-full__episodes-title">\u0421\u0435\u0440\u0438\u0438</h2>'));
+
+            var list = $('<div class="lightfamily-full__episodes-list"></div>');
+
+            for (var i = 0; i < eps.length; i++) {
+                var ep = eps[i];
+                var label = ep.folder ? ep.folder + ' / ' + ep.title : ep.title;
+                var btn = $('<div class="simple-button selector lightfamily-full__episode" data-episode="' + i + '">' +
+                    '<span class="lightfamily-full__episode-num">' + (i + 1) + '</span>' +
+                    '<span class="lightfamily-full__episode-title">' + esc(label) + '</span>' +
+                '</div>');
+
+                btn.on('hover:enter click tap', (function (idx) {
+                    return function () {
+                        playEpisode(episodes[idx], data.title);
+                    };
+                })(i));
+
+                list.append(btn);
+            }
+
+            container.append(list);
+            body.append(container);
+        }
+    }
+
     // ─── Search API ────────────────────────────────────────────────────
 
     function searchReleases(query, limit, callback) {
@@ -509,15 +762,12 @@
         // ─── Actions ───────────────────────────────────────────────────
 
         function openRelease(slug) {
-            var url = releaseUrl(slug);
-
-            if (window.Lampa && Lampa.Utils && Lampa.Utils.openUrl) {
-                Lampa.Utils.openUrl(url);
-            } else if (window.open) {
-                window.open(url, '_blank');
-            } else {
-                notify('\u041e\u0442\u043a\u0440\u043e\u0439\u0442\u0435: ' + url);
-            }
+            Lampa.Activity.push({
+                url: '',
+                title: 'Light Family',
+                component: 'lightfamily-full',
+                slug: slug
+            });
         }
 
         function openSearch() {
@@ -717,7 +967,20 @@
             '.lightfamily-body .card { width: calc(16.666% - 1em); min-width: 120px; }' +
             '.lightfamily-card__badge { position: absolute; top: 0.5em; left: 0.5em; background: rgba(0,0,0,0.7); color: #fff; padding: 0.2em 0.6em; font-size: 0.7em; border-radius: 0.3em; }' +
             '.lightfamily-card__meta { font-size: 0.75em; color: rgba(255,255,255,0.5); margin-top: 0.3em; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }' +
-            '.lightfamily-empty { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
+            '.lightfamily-empty, .lightfamily-loader { text-align: center; padding: 3em 0; color: rgba(255,255,255,0.4); font-size: 1.1em; }' +
+            '.lightfamily-full__header { display: flex; gap: 1.5em; padding: 1em 0; }' +
+            '.lightfamily-full__poster { flex: 0 0 200px; }' +
+            '.lightfamily-full__poster img { width: 100%; border-radius: 0.5em; }' +
+            '.lightfamily-full__info { flex: 1; }' +
+            '.lightfamily-full__title { font-size: 1.6em; margin: 0 0 0.5em 0; color: #fff; }' +
+            '.lightfamily-full__meta { font-size: 0.9em; color: rgba(255,255,255,0.6); margin-bottom: 0.8em; }' +
+            '.lightfamily-full__desc { font-size: 0.9em; color: rgba(255,255,255,0.7); line-height: 1.5; max-height: 6em; overflow: hidden; }' +
+            '.lightfamily-full__episodes-title { font-size: 1.2em; color: #fff; margin: 1em 0 0.5em; }' +
+            '.lightfamily-full__episodes-list { display: flex; flex-direction: column; gap: 0.3em; }' +
+            '.lightfamily-full__episode { display: flex; align-items: center; gap: 0.8em; padding: 0.6em 1em; }' +
+            '.lightfamily-full__episode-num { flex: 0 0 2em; text-align: center; color: rgba(255,255,255,0.5); font-size: 0.9em; }' +
+            '.lightfamily-full__episode-title { flex: 1; }' +
+            '.lightfamily-full__episodes-empty { color: rgba(255,255,255,0.4); padding: 1em 0; }' +
             '';
 
         var style = document.createElement('style');
@@ -765,6 +1028,7 @@
         addStyles();
 
         Lampa.Component.add('lightfamily', Catalog);
+        Lampa.Component.add('lightfamily-full', FullCard);
 
         Lampa.Manifest.plugins = {
             type: 'other',
