@@ -729,6 +729,39 @@
         document.head.appendChild(style);
     }
 
+    // ─── Menu ──────────────────────────────────────────────────────────
+
+    function addMenu() {
+        var menu = $('.menu .menu__list').eq(0);
+
+        if (!menu.length || $('.menu__item.selector[data-action="lightfamily"]').length) return;
+
+        var button = $(
+            '<li class="menu__item selector" data-action="lightfamily">' +
+                '<div class="menu__ico">' +
+                    '<svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="#f5a623" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" xmlns="http://www.w3.org/2000/svg">' +
+                        '<circle cx="12" cy="12" r="10"/>' +
+                        '<path d="M8 14s1.5 2 4 2 4-2 4-2"/>' +
+                        '<line x1="9" y1="9" x2="9.01" y2="9"/>' +
+                        '<line x1="15" y1="9" x2="15.01" y2="9"/>' +
+                    '</svg>' +
+                '</div>' +
+                '<div class="menu__text">Light Family</div>' +
+            '</li>'
+        );
+
+        button.on('hover:enter click tap mouseup', function () {
+            Lampa.Activity.push({
+                url: '',
+                title: 'Light Family',
+                component: 'lightfamily',
+                page: 1
+            });
+        });
+
+        menu.append(button);
+    }
+
     // ─── Registration & Start ──────────────────────────────────────────
 
     function add() {
@@ -751,10 +784,15 @@
     }
 
     function startPlugin() {
-        if (window.appready) add();
-        else {
+        if (!window.Lampa || !window.$) return;
+
+        add();
+
+        if (window.appready) {
+            addMenu();
+        } else {
             Lampa.Listener.follow('app', function (e) {
-                if (e.type === 'ready') add();
+                if (e.type === 'ready') addMenu();
             });
         }
     }
