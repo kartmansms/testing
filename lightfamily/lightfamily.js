@@ -154,7 +154,7 @@
                 slug: slug, title: '', original_title: '', english_title: '',
                 description: '', poster: '', year: 0, genres: [], type: '',
                 status: '', country: '', studio: '', age_rating: '',
-                duration: '', episodes: [], playlistUrl: '', ratings: []
+                duration: '', episodes: [], playlistUrl: '', ratings: [], players: []
             };
 
             try {
@@ -238,6 +238,30 @@
                         var folder = folderMatch[1];
                         info.playlistUrl = getBaseUrl() + '/video/stream.php?path=' + encodeURIComponent(folder) + '/playlist.txt';
                     }
+                }
+
+                // Parse player buttons
+                var playerRegex = /<a[^>]*class="release-player-seg[^"]*"[^>]*href="([^"]+)"[^>]*>[\s\S]*?<strong>([^<]+)<\/strong>\s*<span>([^<]+)<\/span>/g;
+                var pm;
+                while ((pm = playerRegex.exec(html)) !== null) {
+                    var playerUrl = pm[1];
+                    var playerName = pm[2].trim();
+                    var playerEpisodes = pm[3].trim();
+                    var isDisabled = pm[0].indexOf('is-disabled') !== -1;
+
+                    var playerKey = playerName.toLowerCase();
+                    var icon = 'P';
+                    if (playerKey.indexOf('lf') !== -1) icon = 'LF';
+                    else if (playerKey.indexOf('kodik') !== -1) icon = 'K';
+                    else if (playerKey.indexOf('rutube') !== -1) icon = 'R';
+
+                    info.players.push({
+                        name: playerName,
+                        icon: icon,
+                        episodes: playerEpisodes,
+                        url: playerUrl,
+                        disabled: isDisabled
+                    });
                 }
             } catch (e) {}
 
@@ -445,6 +469,23 @@
                 ratingsHtml += '</div></div>';
             }
 
+            var playersHtml = '';
+            if (info.players && info.players.length) {
+                playersHtml = '<div class="lightfamily-full__players">';
+                for (var pi = 0; pi < info.players.length; pi++) {
+                    var p = info.players[pi];
+                    var disabledClass = p.disabled ? ' lightfamily-full__player--disabled' : '';
+                    playersHtml += '<div class="lightfamily-full__player selector' + disabledClass + '" data-player-url="' + esc(p.url) + '" data-player-name="' + esc(p.name) + '">' +
+                        '<span class="lightfamily-full__player-icon">' + esc(p.icon) + '</span>' +
+                        '<span class="lightfamily-full__player-info">' +
+                            '<span class="lightfamily-full__player-name">' + esc(p.name) + '</span>' +
+                            '<span class="lightfamily-full__player-episodes">' + esc(p.episodes) + '</span>' +
+                        '</span>' +
+                    '</div>';
+                }
+                playersHtml += '</div>';
+            }
+
             var htmlStr = '' +
                 '<div class="lightfamily-full__header">' +
                     '<div class="lightfamily-full__poster">' +
@@ -454,6 +495,7 @@
                         '<h1 class="lightfamily-full__title">' + esc(info.title) + '</h1>' +
                         fieldsHtml +
                         ratingsHtml +
+                        playersHtml +
                     '</div>' +
                 '</div>' +
                 (info.description ?
@@ -463,6 +505,19 @@
                     '</div>' : '');
 
             body.append($(htmlStr));
+
+            body.find('.lightfamily-full__player').on('hover:enter click tap', function () {
+                var playerUrl = $(this).data('player-url');
+                var playerName = $(this).data('player-name');
+                if (playerUrl) {
+                    var fullUrl = getBaseUrl() + playerUrl;
+                    if (window.Lampa && Lampa.Utils && Lampa.Utils.openUrl) {
+                        Lampa.Utils.openUrl(fullUrl);
+                    } else {
+                        window.open(fullUrl, '_blank');
+                    }
+                }
+            });
         }
 
         function renderEpisodes(eps) {
@@ -1156,6 +1211,17 @@
             '.lightfamily-full__rating--default { color: rgba(255,255,255,0.7); border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.05); }' +
             '.lightfamily-full__rating-source { color: rgba(255,255,255,0.6); font-weight: 400; }' +
             '.lightfamily-full__rating-value { color: inherit; font-weight: 700; }' +
+            '.lightfamily-full__players { display: flex; flex-wrap: wrap; gap: 0.8em; margin-top: 1.2em; }' +
+            '.lightfamily-full__player { display: flex; align-items: center; gap: 0.6em; padding: 0.6em 1em; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.12); border-radius: 0.6em; cursor: pointer; transition: all 0.2s; }' +
+            '.lightfamily-full__player:hover, .lightfamily-full__player.focus { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.25); }' +
+            '.lightfamily-full__player--disabled { opacity: 0.4; cursor: default; }' +
+            '.lightfamily-full__player-icon { width: 2.5em; height: 2.5em; display: flex; align-items: center; justify-content: center; border-radius: 0.5em; font-weight: 700; font-size: 0.85em; color: #fff; }' +
+            '.lightfamily-full__player:nth-child(1) .lightfamily-full__player-icon { background: #6366f1; }' +
+            '.lightfamily-full__player:nth-child(2) .lightfamily-full__player-icon { background: #8b5cf6; }' +
+            '.lightfamily-full__player:nth-child(3) .lightfamily-full__player-icon { background: #0ea5e9; }' +
+            '.lightfamily-full__player-info { display: flex; flex-direction: column; gap: 0.1em; }' +
+            '.lightfamily-full__player-name { font-weight: 600; font-size: 0.9em; }' +
+            '.lightfamily-full__player-episodes { font-size: 0.75em; color: rgba(255,255,255,0.5); }' +
             '.lightfamily-full__episodes-title { font-size: 1.2em; color: #fff; margin: 1em 0 0.5em; }' +
             '.lightfamily-full__episodes-list { display: flex; flex-direction: column; gap: 0.3em; }' +
             '.lightfamily-full__episode { display: flex; align-items: center; gap: 0.8em; padding: 0.6em 1em; }' +
