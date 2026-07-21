@@ -455,7 +455,12 @@
                         fieldsHtml +
                         ratingsHtml +
                     '</div>' +
-                '</div>';
+                '</div>' +
+                (info.description ?
+                    '<div class="lightfamily-full__description">' +
+                        '<h2 class="lightfamily-full__description-title">\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435</h2>' +
+                        '<div class="lightfamily-full__description-text">' + esc(info.description) + '</div>' +
+                    '</div>' : '');
 
             body.append($(htmlStr));
         }
@@ -1157,6 +1162,9 @@
             '.lightfamily-full__episode-num { flex: 0 0 2em; text-align: center; color: rgba(255,255,255,0.5); font-size: 0.9em; }' +
             '.lightfamily-full__episode-title { flex: 1; }' +
             '.lightfamily-full__episodes-empty { color: rgba(255,255,255,0.4); padding: 1em 0; }' +
+            '.lightfamily-full__description { margin-top: 1.5em; padding: 1.5em; background: rgba(255,255,255,0.05); border-radius: 0.8em; border: 1px solid rgba(255,255,255,0.08); }' +
+            '.lightfamily-full__description-title { font-size: 1.2em; font-weight: 700; color: #fff; margin: 0 0 0.8em 0; }' +
+            '.lightfamily-full__description-text { font-size: 0.95em; line-height: 1.6; color: rgba(255,255,255,0.75); }' +
             '';
 
         var style = document.createElement('style');
