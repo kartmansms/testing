@@ -1143,7 +1143,7 @@
             '.lightfamily-full__poster img { width: 100%; border-radius: 0.5em; box-shadow: 0 4px 20px rgba(0,0,0,0.4); }' +
             '.lightfamily-full__info { flex: 1; min-width: 0; }' +
             '.lightfamily-full__title { font-size: 1.8em; font-weight: 700; margin: 0 0 1em 0; color: #fff; line-height: 1.2; }' +
-            '.lightfamily-full__field { padding: 0.35em 0; font-size: 0.95em; line-height: 1.5; }' +
+            '.lightfamily-full__field { padding: 0.15em 0; font-size: 0.9em; line-height: 1.3; }' +
             '.lightfamily-full__field-label { font-weight: 700; color: rgba(255,255,255,0.9); }' +
             '.lightfamily-full__field-value { color: rgba(255,255,255,0.7); }' +
             '.lightfamily-full__ratings { margin-top: 1.2em; }' +
