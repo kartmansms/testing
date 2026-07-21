@@ -302,39 +302,68 @@
 
     // ─── Player ────────────────────────────────────────────────────────
 
-    function playEpisode(episode, releaseTitle) {
-        if (!episode || !episode.file) {
-            notify('\u041d\u0435\u0442 \u0444\u0430\u0439\u043b\u0430 \u0434\u043b\u044f \u0432\u043e\u0441\u043f\u0440\u043e\u043f\u0438\u0437\u0432\u0435\u0434\u0435\u043d\u0438\u044f');
-            return;
-        }
+    function openInSystemPlayer(url, title) {
+        if (!url) return;
 
-        // Try Lampa's built-in player
-        if (window.Lampa && Lampa.Player) {
+        // Try Lampa's player first
+        if (window.Lampa && Lampa.Player && typeof Lampa.Player.play === 'function') {
             try {
                 Lampa.Player.play({
-                    url: episode.file,
-                    title: releaseTitle + ' - ' + episode.title,
+                    url: url,
+                    title: title || '',
                     type: 'dash'
                 });
                 return;
             } catch (e) {}
         }
 
-        // Try Lampa.Activity player overlay
-        if (window.Lampa && Lampa.Activity) {
+        // Try Lampa's video component
+        if (window.Lampa && Lampa.Component && Lampa.Component.get('video')) {
             try {
                 Lampa.Activity.push({
-                    url: episode.file,
-                    title: releaseTitle + ' - ' + episode.title,
-                    component: 'player',
+                    url: url,
+                    title: title || '',
+                    component: 'video',
                     type: 'dash'
                 });
                 return;
             } catch (e) {}
         }
 
-        // Fallback: open in browser
-        window.open(episode.file, '_blank');
+        // Try opening with system handler (shows player selection on Android/Windows)
+        if (window.navigator && window.navigator.userAgent && /Android/i.test(window.navigator.userAgent)) {
+            window.location.href = 'intent:' + url + '#Intent;action=android.intent.action.VIEW;type=video/mp4;end';
+        } else {
+            window.open(url, '_blank');
+        }
+    }
+
+    function openWatchPage(slug, episode, playerName) {
+        var url = getBaseUrl() + '/release/' + slug + '/watch/' + episode + '/?player=' + playerName;
+
+        // Try to fetch the page and extract iframe/video URL
+        apiGetHtml(url, function (html) {
+            // Try to find iframe src
+            var iframeMatch = html.match(/<iframe[^>]*src="([^"]+)"/);
+            if (iframeMatch) {
+                var iframeUrl = iframeMatch[1];
+                // Try to play the iframe URL directly
+                openInSystemPlayer(iframeUrl, playerName);
+                return;
+            }
+
+            // Try to find video URL
+            var videoMatch = html.match(/(?:videoUrl|file|src|stream)[^=]*=\s*["']([^"']+\.(?:mp4|m3u8|mpd|m3u))/);
+            if (videoMatch) {
+                openInSystemPlayer(videoMatch[1], playerName);
+                return;
+            }
+
+            // Fallback: open the watch page URL
+            openInSystemPlayer(url, playerName);
+        }, function () {
+            openInSystemPlayer(url, playerName);
+        });
     }
 
     // ─── Full Card Component ───────────────────────────────────────────
@@ -382,8 +411,8 @@
                     var focused = html.find('.selector.focus');
                     if (focused.length) {
                         var idx = parseInt(focused.data('episode'), 10);
-                        if (!isNaN(idx) && episodes[idx]) {
-                            playEpisode(episodes[idx], data.title);
+                        if (!isNaN(idx) && episodes[idx] && episodes[idx].file) {
+                            openInSystemPlayer(episodes[idx].file, data.title + ' - ' + episodes[idx].title);
                         }
                     }
                 }
@@ -509,13 +538,61 @@
             body.find('.lightfamily-full__player').on('hover:enter click tap', function () {
                 var playerUrl = $(this).data('player-url');
                 var playerName = $(this).data('player-name');
-                if (playerUrl) {
+
+                if (!playerUrl) return;
+
+                var isLF = playerName.toLowerCase().indexOf('lf') !== -1;
+                var isKodik = playerName.toLowerCase().indexOf('kodik') !== -1;
+                var isRutube = playerName.toLowerCase().indexOf('rutube') !== -1;
+
+                if (isLF && info.playlistUrl) {
+                    // Show LF episode list
+                    fetchPlaylist(info.playlistUrl, function (eps) {
+                        if (eps.length) {
+                            showPlayerEpisodes(eps, info.title, 'LF');
+                        } else {
+                            notify('\u0421\u0435\u0440\u0438\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b');
+                        }
+                    });
+                } else if (isKodik) {
+                    // Kodik - extract episode from URL and open in Lampa
+                    var epMatch = playerUrl.match(/\/watch\/(\d+)/);
+                    var epNum = epMatch ? parseInt(epMatch[1], 10) : 1;
+                    openWatchPage(info.slug, epNum, 'kodik');
+                } else if (isRutube) {
+                    // Rutube - extract episode from URL and open in Lampa
+                    var epMatch2 = playerUrl.match(/\/watch\/(\d+)/);
+                    var epNum2 = epMatch2 ? parseInt(epMatch2[1], 10) : 1;
+                    openWatchPage(info.slug, epNum2, 'rutube');
+                } else {
+                    // Unknown player - open the page
                     var fullUrl = getBaseUrl() + playerUrl;
-                    if (window.Lampa && Lampa.Utils && Lampa.Utils.openUrl) {
-                        Lampa.Utils.openUrl(fullUrl);
-                    } else {
-                        window.open(fullUrl, '_blank');
+                    openInSystemPlayer(fullUrl, info.title);
+                }
+            });
+        }
+
+        function showPlayerEpisodes(eps, title, playerIcon) {
+            var items = [];
+            for (var i = 0; i < eps.length; i++) {
+                var ep = eps[i];
+                var label = ep.folder ? ep.folder + ' / ' + ep.title : ep.title;
+                items.push({
+                    title: label,
+                    episode: ep
+                });
+            }
+
+            Lampa.Select.show({
+                title: title + ' \u2014 ' + playerIcon,
+                items: items,
+                onSelect: function (item) {
+                    if (item.episode && item.episode.file) {
+                        openInSystemPlayer(item.episode.file, title + ' - ' + item.title);
                     }
+                },
+                onBack: function () {
+                    Lampa.Controller.toggle('content');
                 }
             });
         }
@@ -541,7 +618,9 @@
 
                 btn.on('hover:enter click tap', (function (idx) {
                     return function () {
-                        playEpisode(episodes[idx], data.title);
+                        if (episodes[idx] && episodes[idx].file) {
+                            openInSystemPlayer(episodes[idx].file, data.title + ' - ' + episodes[idx].title);
+                        }
                     };
                 })(i));
 
