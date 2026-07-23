@@ -341,29 +341,12 @@
     function openWatchPage(slug, episode, playerName) {
         var url = getBaseUrl() + '/release/' + slug + '/watch/' + episode + '/?player=' + playerName;
 
-        // Try to fetch the page and extract iframe/video URL
-        apiGetHtml(url, function (html) {
-            // Try to find iframe src
-            var iframeMatch = html.match(/<iframe[^>]*src="([^"]+)"/);
-            if (iframeMatch) {
-                var iframeUrl = iframeMatch[1];
-                // Try to play the iframe URL directly
-                openInSystemPlayer(iframeUrl, playerName);
-                return;
-            }
-
-            // Try to find video URL
-            var videoMatch = html.match(/(?:videoUrl|file|src|stream)[^=]*=\s*["']([^"']+\.(?:mp4|m3u8|mpd|m3u))/);
-            if (videoMatch) {
-                openInSystemPlayer(videoMatch[1], playerName);
-                return;
-            }
-
-            // Fallback: open the watch page URL
-            openInSystemPlayer(url, playerName);
-        }, function () {
-            openInSystemPlayer(url, playerName);
-        });
+        // Kodik and Rutube are web players - open in browser
+        if (window.navigator && window.navigator.userAgent && /Android/i.test(window.navigator.userAgent)) {
+            window.location.href = url;
+        } else {
+            window.open(url, '_blank');
+        }
     }
 
     // ─── Full Card Component ───────────────────────────────────────────
