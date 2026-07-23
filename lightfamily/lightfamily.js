@@ -266,18 +266,18 @@
                 }
 
                 // Parse seasons
-                var seasonsMatch = html.match(/<div class="seasons-grid">([\s\S]*?)<\/div>\s*<\/div>/);
-                if (seasonsMatch) {
+                var seasonsSection = html.match(/Сезоны([\s\S]*?)(?=Похожие релизы|Комментарии|<\/section)/);
+                if (seasonsSection) {
                     var seasonCardRegex = /<div class="season-card[^"]*">\s*<a href="([^"]+)">([\s\S]*?)<\/a>\s*<\/div>/g;
                     var scm;
-                    while ((scm = seasonCardRegex.exec(seasonsMatch[1])) !== null) {
+                    while ((scm = seasonCardRegex.exec(seasonsSection[1])) !== null) {
                         var sUrl = scm[1];
                         var sSlug = sUrl.replace(/^\/release\//, '').replace(/\/$/, '');
                         var sTitle = (scm[2].match(/<h3[^>]*>([^<]+)<\/h3>/) || [])[1] || '';
                         var sYear = (scm[2].match(/<span class="season-year">(\d+)<\/span>/) || [])[1] || '';
                         var sPoster = (scm[2].match(/src="([^"]+)"/) || [])[1] || '';
 
-                        if (sTitle && sSlug !== slug) {
+                        if (sTitle && sSlug) {
                             info.seasons.push({
                                 title: sTitle.trim(),
                                 slug: sSlug,
@@ -289,11 +289,11 @@
                 }
 
                 // Parse similar releases
-                var similarMatch = html.match(/Похожие релизы[\s\S]*?<div class="releases-grid">([\s\S]*?)<\/div>/);
-                if (similarMatch) {
-                    var similarCardRegex = /<div class="release-card"[^>]*>[\s\S]*?<a href="\/release\/([^"]+)\/">[\s\S]*?<img src="([^"]+)"[\s\S]*?alt="([^"]+)"[\s\S]*?<h4[^>]*>([^<]+)<\/h4>/g;
+                var similarSection = html.match(/Похожие релизы([\s\S]*?)(?=Комментарии|<\/section)/);
+                if (similarSection) {
+                    var similarCardRegex = /<div class="release-card"[^>]*>[\s\S]*?<a href="\/release\/([^"]+)\/">[\s\S]*?<img src="([^"]+)"[\s\S]*?alt="([^"]*)"[\s\S]*?<h4[^>]*>([^<]+)<\/h4>/g;
                     var sim;
-                    while ((sim = similarCardRegex.exec(similarMatch[1])) !== null) {
+                    while ((sim = similarCardRegex.exec(similarSection[1])) !== null) {
                         var simSlug = sim[1];
                         var simPoster = sim[2];
                         var simTitle = sim[4] || sim[3];
