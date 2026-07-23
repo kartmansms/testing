@@ -173,19 +173,29 @@
 
                 // Parse fields from <strong>Label:</strong> Value pattern
                 var fieldMap = {
-                    '\u041e\u0440\u0438\u0433\u0438\u043d\u0430\u043b\u044c\u043d\u043e\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0435': 'original_title',
-                    'English title': 'english_title',
                     '\u0421\u0442\u0440\u0430\u043d\u0430 \u043f\u0440\u043e\u0438\u0437\u0432\u043e\u0434\u0441\u0442\u0432\u0430': 'country',
                     '\u0421\u0442\u0443\u0434\u0438\u044f': 'studio',
                     '\u0416\u0430\u043d\u0440\u044b': 'genres',
                     '\u0413\u043e\u0434 \u0432\u044b\u0445\u043e\u0434\u0430': 'year',
-                    '\u0412\u043e\u0437\u0440\u0430\u0441\u0442\u043d\u044b\u0435 \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0435\u043d\u0438\u044f': 'age_rating',
                     '\u0422\u0438\u043f': 'type',
                     '\u0421\u0442\u0430\u0442\u0443\u0441\u044b': 'status',
-                    '\u0421\u0442\u0430\u0442\u0443\u0441': 'status',
-                    '\u0414\u043b\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0441\u0442\u044c': 'duration'
+                    '\u0421\u0442\u0430\u0442\u0443\u0441': 'status'
                 };
 
+                // Parse fields from data-field spans
+                var fieldSpanRegex = /<span data-field="([^"]+)"[^>]*>([^<]+)<\/span>/g;
+                var fsm;
+                while ((fsm = fieldSpanRegex.exec(html)) !== null) {
+                    var fKey = fsm[1];
+                    var fVal = fsm[2].trim();
+
+                    if (fKey === 'original_title') info.original_title = fVal;
+                    else if (fKey === 'english_title') info.english_title = fVal;
+                    else if (fKey === 'age_rating_id') info.age_rating = fVal;
+                    else if (fKey === 'duration') info.duration = fVal + ' \u043c\u0438\u043d.';
+                }
+
+                // Parse fields from <strong>Label:</strong> pattern
                 var strongRegex = /<strong[^>]*>([^<]+)<\/strong>\s*([\s\S]*?)(?=<strong|<div class="meta-item|<div class="full|<\/section|$)/gi;
                 var sm;
                 while ((sm = strongRegex.exec(html)) !== null) {
@@ -207,7 +217,7 @@
                         }
                     } else if (key === 'status') {
                         if (!info.status) info.status = rawValue.split(/\s{2,}/)[0].trim();
-                    } else {
+                    } else if (!info[key]) {
                         info[key] = rawValue.split(/\s{3,}/)[0].trim();
                     }
                 }
