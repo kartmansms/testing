@@ -557,14 +557,11 @@
                             var html = '';
                             for (var si = 0; si < info.seasons.length; si++) {
                                 var s = info.seasons[si];
-                                html += '<div class="lightfamily-full__season selector" data-slug="' + esc(s.slug) + '">' +
-                                    '<div class="lightfamily-full__season-poster">' +
+                                html += '<div class="lightfamily-full__similar-card selector" data-slug="' + esc(s.slug) + '">' +
+                                    '<div class="lightfamily-full__similar-poster">' +
                                         '<img src="' + esc(s.poster) + '" onerror="this.style.display=\'none\'" />' +
                                     '</div>' +
-                                    '<div class="lightfamily-full__season-info">' +
-                                        '<div class="lightfamily-full__season-title">' + esc(s.title) + '</div>' +
-                                        (s.year ? '<div class="lightfamily-full__season-year">' + esc(s.year) + '</div>' : '') +
-                                    '</div>' +
+                                    '<div class="lightfamily-full__similar-title">' + esc(s.title) + '</div>' +
                                 '</div>';
                             }
                             return html;
@@ -629,14 +626,9 @@
                 }
             });
 
-            body.find('.lightfamily-full__season').on('hover:enter click tap', function () {
+            body.find('.lightfamily-full__similar-card').on('hover:enter click tap', function () {
                 var sSlug = $(this).data('slug');
                 if (sSlug) openRelease(sSlug);
-            });
-
-            body.find('.lightfamily-full__similar-card').on('hover:enter click tap', function () {
-                var rSlug = $(this).data('slug');
-                if (rSlug) openRelease(rSlug);
             });
         }
 
@@ -1346,13 +1338,6 @@
             '.lightfamily-full__description-text { font-size: 0.95em; line-height: 1.6; color: rgba(255,255,255,0.75); }' +
             '.lightfamily-full__section-title { font-size: 1.2em; font-weight: 700; color: #fff; margin: 1.5em 0 0.8em 0; }' +
             '.lightfamily-full__seasons-grid { display: flex; flex-wrap: wrap; gap: 1em; }' +
-            '.lightfamily-full__season { display: flex; gap: 0.8em; padding: 0.8em; background: rgba(255,255,255,0.05); border-radius: 0.6em; border: 1px solid rgba(255,255,255,0.08); min-width: 200px; flex: 0 0 auto; }' +
-            '.lightfamily-full__season:hover, .lightfamily-full__season.focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }' +
-            '.lightfamily-full__season-poster { flex: 0 0 60px; }' +
-            '.lightfamily-full__season-poster img { width: 100%; border-radius: 0.3em; }' +
-            '.lightfamily-full__season-info { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.2em; }' +
-            '.lightfamily-full__season-title { font-weight: 600; font-size: 0.9em; }' +
-            '.lightfamily-full__season-year { font-size: 0.8em; color: rgba(255,255,255,0.5); }' +
             '.lightfamily-full__similar-grid { display: flex; flex-wrap: wrap; gap: 1em; }' +
             '.lightfamily-full__similar-card { flex: 0 0 140px; cursor: pointer; }' +
             '.lightfamily-full__similar-card:hover, .lightfamily-full__similar-card.focus { transform: translateY(-2px); }' +
