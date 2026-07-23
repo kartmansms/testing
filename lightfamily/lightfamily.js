@@ -441,6 +441,7 @@
                 },
                 down: function () { Navigator.move('down'); },
                 back: function () {
+                    Lampa.Controller.toggle('content');
                     if (Lampa.Activity && Lampa.Activity.backward) Lampa.Activity.backward();
                 },
                 enter: function () {
