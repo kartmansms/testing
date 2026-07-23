@@ -464,6 +464,8 @@
             body.html('<div class="lightfamily-loader">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...</div>');
 
             fetchReleaseDetails(data.slug, function (info) {
+                body.empty();
+
                 if (!info) {
                     body.html('<div class="lightfamily-empty">\u041d\u0435 \u0443\u0434\u0430\u043b\u043e\u0441\u044c \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435</div>');
                     return;
