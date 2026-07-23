@@ -154,7 +154,8 @@
                 slug: slug, title: '', original_title: '', english_title: '',
                 description: '', poster: '', year: 0, genres: [], type: '',
                 status: '', country: '', studio: '', age_rating: '',
-                duration: '', episodes: [], playlistUrl: '', ratings: [], players: []
+                duration: '', episodes: [], playlistUrl: '', ratings: [], players: [],
+                seasons: [], similar: []
             };
 
             try {
@@ -263,6 +264,49 @@
                         disabled: isDisabled
                     });
                 }
+
+                // Parse seasons
+                var seasonsMatch = html.match(/<div class="seasons-grid">([\s\S]*?)<\/div>\s*<\/div>/);
+                if (seasonsMatch) {
+                    var seasonCardRegex = /<div class="season-card[^"]*">\s*<a href="([^"]+)">([\s\S]*?)<\/a>\s*<\/div>/g;
+                    var scm;
+                    while ((scm = seasonCardRegex.exec(seasonsMatch[1])) !== null) {
+                        var sUrl = scm[1];
+                        var sSlug = sUrl.replace(/^\/release\//, '').replace(/\/$/, '');
+                        var sTitle = (scm[2].match(/<h3[^>]*>([^<]+)<\/h3>/) || [])[1] || '';
+                        var sYear = (scm[2].match(/<span class="season-year">(\d+)<\/span>/) || [])[1] || '';
+                        var sPoster = (scm[2].match(/src="([^"]+)"/) || [])[1] || '';
+
+                        if (sTitle && sSlug !== slug) {
+                            info.seasons.push({
+                                title: sTitle.trim(),
+                                slug: sSlug,
+                                year: sYear,
+                                poster: posterUrl(sPoster)
+                            });
+                        }
+                    }
+                }
+
+                // Parse similar releases
+                var similarMatch = html.match(/Похожие релизы[\s\S]*?<div class="releases-grid">([\s\S]*?)<\/div>/);
+                if (similarMatch) {
+                    var similarCardRegex = /<div class="release-card"[^>]*>[\s\S]*?<a href="\/release\/([^"]+)\/">[\s\S]*?<img src="([^"]+)"[\s\S]*?alt="([^"]+)"[\s\S]*?<h4[^>]*>([^<]+)<\/h4>/g;
+                    var sim;
+                    while ((sim = similarCardRegex.exec(similarMatch[1])) !== null) {
+                        var simSlug = sim[1];
+                        var simPoster = sim[2];
+                        var simTitle = sim[4] || sim[3];
+
+                        if (simTitle && simSlug) {
+                            info.similar.push({
+                                title: simTitle.trim(),
+                                slug: simSlug,
+                                poster: posterUrl(simPoster)
+                            });
+                        }
+                    }
+                }
             } catch (e) {}
 
             callback(info);
@@ -357,7 +401,6 @@
         var scrollContainer = $('<div class="lightfamily-scroll"></div>');
         var body = $('<div class="lightfamily-full-body"></div>');
         var rendered = false;
-        var episodes = [];
 
         this.render = function () {
             if (!rendered) {
@@ -393,10 +436,8 @@
                 enter: function () {
                     var focused = html.find('.selector.focus');
                     if (focused.length) {
-                        var idx = parseInt(focused.data('episode'), 10);
-                        if (!isNaN(idx) && episodes[idx] && episodes[idx].file) {
-                            openInSystemPlayer(episodes[idx].file, data.title + ' - ' + episodes[idx].title);
-                        }
+                        var slug = focused.data('slug');
+                        if (slug) openRelease(slug);
                     }
                 }
             });
@@ -420,22 +461,6 @@
                 }
 
                 renderInfo(info);
-
-                if (info.playlistUrl) {
-                    body.append($('<div class="lightfamily-loader lightfamily-episodes-loader">\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u0441\u0435\u0440\u0438\u0439...</div>'));
-
-                    fetchPlaylist(info.playlistUrl, function (eps) {
-                        body.find('.lightfamily-episodes-loader').remove();
-                        episodes = eps;
-                        if (eps.length) {
-                            renderEpisodes(eps);
-                        } else {
-                            body.append($('<div class="lightfamily-full__episodes-empty">\u0421\u0435\u0440\u0438\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b</div>'));
-                        }
-                    });
-                } else {
-                    body.append($('<div class="lightfamily-full__episodes-empty">\u0412\u0438\u0434\u0435\u043e \u043d\u0435 \u0434\u043e\u0441\u0442\u0443\u043f\u043d\u043e \u0434\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u0440\u0435\u043b\u0438\u0437\u0430</div>'));
-                }
             });
         }
 
@@ -514,6 +539,47 @@
                     '<div class="lightfamily-full__description">' +
                         '<h2 class="lightfamily-full__description-title">\u041e\u043f\u0438\u0441\u0430\u043d\u0438\u0435</h2>' +
                         '<div class="lightfamily-full__description-text">' + esc(info.description) + '</div>' +
+                    '</div>' : '') +
+                (info.seasons && info.seasons.length ?
+                    '<div class="lightfamily-full__seasons">' +
+                        '<h2 class="lightfamily-full__section-title">\u0421\u0435\u0437\u043e\u043d\u044b</h2>' +
+                        '<div class="lightfamily-full__seasons-grid">' +
+                        (function () {
+                            var html = '';
+                            for (var si = 0; si < info.seasons.length; si++) {
+                                var s = info.seasons[si];
+                                html += '<div class="lightfamily-full__season selector" data-slug="' + esc(s.slug) + '">' +
+                                    '<div class="lightfamily-full__season-poster">' +
+                                        '<img src="' + esc(s.poster) + '" onerror="this.style.display=\'none\'" />' +
+                                    '</div>' +
+                                    '<div class="lightfamily-full__season-info">' +
+                                        '<div class="lightfamily-full__season-title">' + esc(s.title) + '</div>' +
+                                        (s.year ? '<div class="lightfamily-full__season-year">' + esc(s.year) + '</div>' : '') +
+                                    '</div>' +
+                                '</div>';
+                            }
+                            return html;
+                        })() +
+                        '</div>' +
+                    '</div>' : '') +
+                (info.similar && info.similar.length ?
+                    '<div class="lightfamily-full__similar">' +
+                        '<h2 class="lightfamily-full__section-title">\u041f\u043e\u0445\u043e\u0436\u0438\u0435 \u0440\u0435\u043b\u0438\u0437\u044b</h2>' +
+                        '<div class="lightfamily-full__similar-grid">' +
+                        (function () {
+                            var html = '';
+                            for (var ri = 0; ri < info.similar.length; ri++) {
+                                var r = info.similar[ri];
+                                html += '<div class="lightfamily-full__similar-card selector" data-slug="' + esc(r.slug) + '">' +
+                                    '<div class="lightfamily-full__similar-poster">' +
+                                        '<img src="' + esc(r.poster) + '" onerror="this.style.display=\'none\'" />' +
+                                    '</div>' +
+                                    '<div class="lightfamily-full__similar-title">' + esc(r.title) + '</div>' +
+                                '</div>';
+                            }
+                            return html;
+                        })() +
+                        '</div>' +
                     '</div>' : '');
 
             body.append($(htmlStr));
@@ -553,6 +619,16 @@
                     openInSystemPlayer(fullUrl, info.title);
                 }
             });
+
+            body.find('.lightfamily-full__season').on('hover:enter click tap', function () {
+                var sSlug = $(this).data('slug');
+                if (sSlug) openRelease(sSlug);
+            });
+
+            body.find('.lightfamily-full__similar-card').on('hover:enter click tap', function () {
+                var rSlug = $(this).data('slug');
+                if (rSlug) openRelease(rSlug);
+            });
         }
 
         function showPlayerEpisodes(eps, title, playerIcon) {
@@ -578,40 +654,6 @@
                     Lampa.Controller.toggle('content');
                 }
             });
-        }
-
-        function renderEpisodes(eps) {
-            if (!eps.length) {
-                body.append($('<div class="lightfamily-full__episodes-empty">\u0421\u0435\u0440\u0438\u0438 \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b</div>'));
-                return;
-            }
-
-            var container = $('<div class="lightfamily-full__episodes"></div>');
-            container.append($('<h2 class="lightfamily-full__episodes-title">\u0421\u0435\u0440\u0438\u0438</h2>'));
-
-            var list = $('<div class="lightfamily-full__episodes-list"></div>');
-
-            for (var i = 0; i < eps.length; i++) {
-                var ep = eps[i];
-                var label = ep.folder ? ep.folder + ' / ' + ep.title : ep.title;
-                var btn = $('<div class="simple-button selector lightfamily-full__episode" data-episode="' + i + '">' +
-                    '<span class="lightfamily-full__episode-num">' + (i + 1) + '</span>' +
-                    '<span class="lightfamily-full__episode-title">' + esc(label) + '</span>' +
-                '</div>');
-
-                btn.on('hover:enter click tap', (function (idx) {
-                    return function () {
-                        if (episodes[idx] && episodes[idx].file) {
-                            openInSystemPlayer(episodes[idx].file, data.title + ' - ' + episodes[idx].title);
-                        }
-                    };
-                })(i));
-
-                list.append(btn);
-            }
-
-            container.append(list);
-            body.append(container);
         }
     }
 
@@ -1293,6 +1335,21 @@
             '.lightfamily-full__description { margin-top: 1.5em; padding: 1.5em; background: rgba(255,255,255,0.05); border-radius: 0.8em; border: 1px solid rgba(255,255,255,0.08); }' +
             '.lightfamily-full__description-title { font-size: 1.2em; font-weight: 700; color: #fff; margin: 0 0 0.8em 0; }' +
             '.lightfamily-full__description-text { font-size: 0.95em; line-height: 1.6; color: rgba(255,255,255,0.75); }' +
+            '.lightfamily-full__section-title { font-size: 1.2em; font-weight: 700; color: #fff; margin: 1.5em 0 0.8em 0; }' +
+            '.lightfamily-full__seasons-grid { display: flex; flex-wrap: wrap; gap: 1em; }' +
+            '.lightfamily-full__season { display: flex; gap: 0.8em; padding: 0.8em; background: rgba(255,255,255,0.05); border-radius: 0.6em; border: 1px solid rgba(255,255,255,0.08); min-width: 200px; flex: 0 0 auto; }' +
+            '.lightfamily-full__season:hover, .lightfamily-full__season.focus { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }' +
+            '.lightfamily-full__season-poster { flex: 0 0 60px; }' +
+            '.lightfamily-full__season-poster img { width: 100%; border-radius: 0.3em; }' +
+            '.lightfamily-full__season-info { flex: 1; display: flex; flex-direction: column; justify-content: center; gap: 0.2em; }' +
+            '.lightfamily-full__season-title { font-weight: 600; font-size: 0.9em; }' +
+            '.lightfamily-full__season-year { font-size: 0.8em; color: rgba(255,255,255,0.5); }' +
+            '.lightfamily-full__similar-grid { display: flex; flex-wrap: wrap; gap: 1em; }' +
+            '.lightfamily-full__similar-card { flex: 0 0 140px; cursor: pointer; }' +
+            '.lightfamily-full__similar-card:hover, .lightfamily-full__similar-card.focus { transform: translateY(-2px); }' +
+            '.lightfamily-full__similar-poster { border-radius: 0.5em; overflow: hidden; margin-bottom: 0.5em; }' +
+            '.lightfamily-full__similar-poster img { width: 100%; aspect-ratio: 2/3; object-fit: cover; }' +
+            '.lightfamily-full__similar-title { font-size: 0.8em; line-height: 1.2; color: rgba(255,255,255,0.8); overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }' +
             '';
 
         var style = document.createElement('style');
