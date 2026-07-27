@@ -425,7 +425,7 @@
         this.create = this.render;
 
         this.start = function () {
-            Lampa.Controller.add('content', {
+            Lampa.Controller.add('lightfamily-full', {
                 toggle: function () {
                     Lampa.Controller.collectionSet(html);
                     Lampa.Controller.collectionFocus(html.find('.selector').first(), html);
@@ -452,7 +452,7 @@
                     }
                 }
             });
-            Lampa.Controller.toggle('content');
+            Lampa.Controller.toggle('lightfamily-full');
         };
 
         this.stop = function () {};
