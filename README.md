@@ -6,8 +6,5 @@ https://kartmansms.github.io/testing/Shikimori/Shikimori.js
 https://kartmansms.github.io/testing/donghua/donghua.js
 ```
 ```bibtex
-https://kartmansms.github.io/testing/VKVideo/VKVideo.js
-```
-```bibtex
-https://kartmansms.github.io/testing/vkplayer/vkplayer.js
+https://kartmansms.github.io/testing/vkvideo/vkvideo.js
 ```
