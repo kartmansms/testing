@@ -1873,7 +1873,9 @@
             })
             Lampa.SettingsApi.addParam({
                 component: 'vkv',
-                param: { name: 'vkv_proxy', type: 'input', placeholder: 'https://vk-proxy.example.workers.dev', default: '' },
+                // values обязателен и для input (строка): иначе Params.select кладёт в реестр
+                // undefined и отрисовка настроек падает на values[name][key]
+                param: { name: 'vkv_proxy', type: 'input', values: '', placeholder: 'https://vk-proxy.example.workers.dev', default: '' },
                 field: { name: lang('vkv_proxy'), description: lang('vkv_proxy_d') }
             })
             Lampa.SettingsApi.addParam({
