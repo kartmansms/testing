@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.8
+ * Shikimori Plugin for Lampa v3.2.9
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -12,6 +12,16 @@
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
+ *
+ * Изменения 3.2.9 (фокус на ТВ):
+ * - Возврат фокуса после закрытия ввода по «Назад»: restoreCatalogFocus()
+ *   возвращает контроллер каталога и ставит фокус на элемент, с которого
+ *   открывали меню (раньше пульт переставал двигать фокус)
+ * - Страховка на keydown: если каталог активен, а фокуса нет ни на одном
+ *   элементе — фокус ставится на первый, без перезапуска Lampa
+ * - Полная страница: после сохранения оценки и по «Назад» в меню списка
+ *   возвращается контроллер 'full_start', а не каталога (навигация по карточке
+ *   больше не ломается)
  *
  * Изменения 3.2.8 (вход с ТВ):
  * - Код авторизации можно вставлять как ссылку: `...?code=XXXX`, с пробелами
@@ -346,6 +356,71 @@
     function notify(message) {
         if (window.Lampa && Lampa.Noty && Lampa.Noty.show) Lampa.Noty.show(message);
         else if (window.console) console.log(message);
+    }
+
+    /**
+     * Вернуть управление и фокус каталогу.
+     *
+     * Штатные экраны Lampa (клавиатура ввода, меню выбора) не всегда возвращают
+     * контроллер, если закрыть их по «Назад» — тогда пульт перестаёт двигать
+     * фокус и помогает только перезапуск. Функция идемпотентна: её можно звать
+     * несколько раз подряд, лишний раз она ничего не ломает.
+     *
+     * @param {jQuery} [preferred] - Элемент, на который желательно вернуть фокус
+     */
+    function restoreCatalogFocus(preferred) {
+        try {
+            if (!window.Lampa || !Lampa.Controller) return;
+
+            var module = $('.Shikimori-module');
+
+            if (!module.length) return;
+
+            Lampa.Controller.toggle('content');
+            Lampa.Controller.collectionSet(module);
+
+            var target = null;
+
+            if (preferred && preferred.length) {
+                var attached = document && document.contains ? document.contains(preferred[0]) : true;
+
+                if (attached) target = preferred[0];
+            }
+
+            if (!target) {
+                var focused = module.find('.selector.focus');
+
+                if (focused.length) target = focused[0];
+            }
+
+            if (!target) {
+                var first = module.find('.selector');
+
+                if (first.length) target = first[0];
+            }
+
+            if (target) Lampa.Controller.collectionFocus(target, module);
+        } catch (e) {}
+    }
+
+    /**
+     * Вернуть управление экрану, с которого открывалось меню.
+     *
+     * На полной странице это контроллер Lampa 'full_start', в каталоге — наш
+     * 'content'. Безусловный toggle('content') на полной странице ломал
+     * навигацию: «активным» становился каталог, хотя на экране карточка.
+     */
+    function restoreScreenFocus() {
+        try {
+            if (!window.Lampa || !Lampa.Controller) return;
+
+            if ($('.full-start-new, .full-start').last().length) {
+                Lampa.Controller.toggle('full_start');
+                return;
+            }
+        } catch (e) {}
+
+        restoreCatalogFocus();
     }
 
     /** Экранирование HTML-сущностей в строке. */
@@ -1785,6 +1860,7 @@
                 free: true
             }, function (value) {
                 sendAuthCode(value, callback);
+                restoreCatalogFocus();
             });
         });
     }
@@ -1855,12 +1931,7 @@
         });
 
         function restoreFocus() {
-            if (!btnElement) return;
-
-            try {
-                Lampa.Controller.collectionSet($('.Shikimori-module'));
-                Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
-            } catch (e) {}
+            restoreCatalogFocus(btnElement);
         }
 
         /**
@@ -1881,12 +1952,6 @@
             }
 
             overlay.remove();
-
-            try {
-                if (window.Lampa && Lampa.Controller && Lampa.Controller.toggle) {
-                    Lampa.Controller.toggle('content');
-                }
-            } catch (e) {}
 
             restoreFocus();
         }
@@ -2284,7 +2349,7 @@
                     }
                 },
                 onBack: function () {
-                    Lampa.Controller.toggle('content');
+                    restoreScreenFocus();
                 }
             });
         }
@@ -2333,7 +2398,7 @@
                 updateBtnLabel();
 
                 notify('Успешно сохранено в Shikimori');
-                Lampa.Controller.toggle('content');
+                restoreScreenFocus();
             });
         }
 
@@ -2351,7 +2416,7 @@
                 updateBtnLabel();
 
                 notify('Удалено из списка Shikimori');
-                Lampa.Controller.toggle('content');
+                restoreScreenFocus();
             });
         }
     }
@@ -2943,12 +3008,7 @@
                         search: text
                     });
 
-                    Lampa.Controller.toggle('content');
-
-                    if (btnElement) {
-                        Lampa.Controller.collectionSet(html);
-                        Lampa.Controller.collectionFocus(btnElement, html);
-                    }
+                    restoreCatalogFocus(btnElement);
                 });
             } else {
                 value = window.prompt('Поиск Shikimori', value);
@@ -3484,12 +3544,7 @@
                     if (onReturn) {
                         onReturn();
                     } else {
-                        Lampa.Controller.toggle('content');
-
-                        if (btnElement) {
-                            Lampa.Controller.collectionSet(html);
-                            Lampa.Controller.collectionFocus(btnElement, html);
-                        }
+                        restoreCatalogFocus(btnElement);
                     }
                 });
             } else {
@@ -4280,6 +4335,38 @@
                 if (qrModalClose) qrModalClose();
             });
         }
+
+        /**
+         * Страховка от потерянного фокуса.
+         *
+         * Если каталог активен, а в нём нет ни одного сфокусированного элемента
+         * (бывает после закрытия ввода или меню по «Назад»), ставим фокус на
+         * первый элемент. Без этого пульт «мёртв» и помогает только перезапуск.
+         */
+        $(document).on('keydown', function () {
+            if (!window.Lampa || !Lampa.Controller) return;
+
+            var module = $('.Shikimori-module');
+
+            if (!module.length) return;
+            if (module.find('.selector.focus').length) return;
+
+            var current = null;
+
+            try {
+                current = Lampa.Controller.enabled ? Lampa.Controller.enabled() : null;
+            } catch (e) {
+                return;
+            }
+
+            if (!current || current.name !== 'content') return;
+
+            Lampa.Controller.collectionSet(module);
+
+            var first = module.find('.selector');
+
+            if (first.length) Lampa.Controller.collectionFocus(first[0], module);
+        });
 
         if (window.appready) {
             addMenu();
