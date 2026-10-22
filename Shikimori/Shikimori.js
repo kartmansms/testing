@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.0
+ * Shikimori Plugin for Lampa v3.2.4
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -12,6 +12,40 @@
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
+ *
+ * Изменения 3.2.4 (этап 2 — стабильность и слабые ТВ):
+ * - Полная страница: работа по событию 'complite' вместо опроса каждые 1.8 с;
+ *   'build' (приходит на каждую строку карточки) и 'start' больше не запускают запросы
+ * - Один параллельный refresh токена вместо нескольких (Shikimori ротирует
+ *   refresh_token, из-за чего пользователя выбрасывало из профиля)
+ * - Номер страницы фиксируется только после успешного ответа — при обрыве сети
+ *   страницы больше не теряются
+ * - Кнопка «Повторить» на экране ошибки загрузки
+ * - Пустой результат поиска постера больше не кешируется
+ * - Кеш постеров ограничен 600 записями и пишется одним заходом (было 28 записей подряд)
+ * - Каталог: 28 карточек на страницу, сборка через DocumentFragment,
+ *   ленивая загрузка постеров через IntersectionObserver
+ *
+ * Изменения 3.2.3:
+ * - Постер на полной странице: если TMDB-картинка не загрузилась (серый
+ *   img_broken.svg), подставляется постер Shikimori — карточка больше не пустая
+ * - poster_path в объекте карточки оставлен относительным путём TMDB
+ *
+ * Изменения 3.2.2:
+ * - Исправлен фильтр по жанрам: openFilters() больше не принимает элемент кнопки
+ *   за список жанров (из-за этого loadGenres() не вызывался вообще и меню
+ *   показывало «Жанры недоступны»)
+ * - В пустом меню жанров теперь видна причина: «не загрузились — повторить»
+ *   при ошибке сети/API вместо одинакового «Жанры недоступны»
+ *
+ * Изменения 3.2.1:
+ * - Восстановлена отсутствовавшая filterGenres() (фильтрация 18+ жанров)
+ * - «Мой список» реально фильтруется: в GraphQL передаётся mylist + токен
+ * - Настройка «Скрывать 18+» работает: в запрос уходит censored: true
+ * - В запрос добавлены malId/airedOn: год и подбор карточки TMDB стали точными
+ * - Экранирование GraphQL через gqlString() (кавычки и слэши в названиях)
+ * - Убран flex-gap: QR-модалка больше не разваливается на Tizen 4.0 (Chromium 56)
+ * - Исправлено отображение нулевой оценки и приоритет ID TMDB в ответе ARM
  *
  * @author kartmansms
  * @license MIT
@@ -31,18 +65,39 @@
 
     var ARM_HOST = 'https://arm.haglund.dev';
     var TMDB_API_KEY = '4ef0d7355d9ffb5151e987764708ce96';
-    var PAGE_LIMIT = 48;
+    /**
+     * Сколько карточек грузить за страницу. Было 48 — на Tizen 4.0 это 7 рядов
+     * и заметный фриз при отрисовке. 28 даёт 4 полных ряда при 7 колонках.
+     * Тот же лимит используется для определения последней страницы.
+     */
+    var PAGE_LIMIT = 28;
+
+    /** Максимум записей в кеше разрешённых постеров (квота localStorage на ТВ). */
+    var POSTER_CACHE_LIMIT = 600;
 
     var adultGenres = { hentai: true, erotica: true, yaoi: true, yuri: true };
     var posterRequests = {};
+    var posterCacheMemory = null;
+    var posterCacheTimer = null;
+    var posterObserver = null;
+    var refreshQueue = null;
     var fullResolveCache = {};
-    var fullPollId = null;
 
     // ─── GraphQL Helper ──────────────────────────────────────────────
 
     function gqlQuery(query, callback, error) {
         var url = getShikiHost() + '/api/graphql';
         var body = JSON.stringify({ query: query });
+        var auth = readAuth();
+        var headers = {};
+
+        /**
+         * Токен нужен для персональных полей: аргумент `mylist`
+         * и поле `userRate`. Без авторизации запрос остаётся анонимным.
+         */
+        if (auth.access_token && auth.expires_at > Date.now() + 60000) {
+            headers.Authorization = 'Bearer ' + auth.access_token;
+        }
 
         $.ajax({
             url: url,
@@ -50,7 +105,7 @@
             contentType: 'application/json',
             dataType: 'json',
             timeout: 12000,
-            headers: { 'User-Agent': 'LampaShikimoriPlugin' },
+            headers: headers,
             data: body,
             success: function (res) {
                 if (res && res.errors && res.errors.length) {
@@ -260,7 +315,7 @@
     function esc(value) {
         value = value === undefined || value === null ? '' : String(value);
 
-        return value.replace(/[&<>"']/g, function (symbol) {
+        return value.replace(/[&<>"'\\]/g, function (symbol) {
             return {
                 '&': '&amp;',
                 '<': '&lt;',
@@ -270,6 +325,24 @@
                 '\\': '&#92;'
             }[symbol];
         });
+    }
+
+    /**
+     * Экранировать значение для подстановки в GraphQL-запрос.
+     *
+     * Использует JSON-экранирование: набор спецсимволов (", \, \n, \t, \r)
+     * совпадает с тем, что ожидает GraphQL в строковом литерале, поэтому
+     * кавычки и обратные слэши в названиях не ломают запрос.
+     *
+     * @param {*} value - Любое значение (приводится к строке)
+     * @returns {string} Строковый литерал GraphQL в кавычках
+     *
+     * @example
+     * gqlString('Fate/Zero');   // '"Fate/Zero"'
+     * gqlString('a"b\\c');      // '"a\"b\\\\c"'
+     */
+    function gqlString(value) {
+        return JSON.stringify(String(value === undefined || value === null ? '' : value));
     }
 
     /** Преобразование кода сезона Shikimori (напр. "winter_2024") в отображаемое название. */
@@ -706,11 +779,70 @@
         next();
     }
 
-    /** Кешировать разрешённый URL постера для ID аниме. */
+    /**
+     * Кеш разрешённых постеров в памяти.
+     *
+     * Запись идёт через один объект и отложенный flush: при странице из 28 карточек
+     * без постеров плагин раньше делал 28 синхронных JSON.stringify + запись
+     * в localStorage подряд — на Tizen это заметные фризы.
+     *
+     * @returns {Object} Кеш { [animeId]: posterUrl }
+     */
+    function posterCacheRead() {
+        if (!posterCacheMemory) {
+            posterCacheMemory = storageGet(POSTER_CACHE_KEY, {}) || {};
+        }
+
+        return posterCacheMemory;
+    }
+
+    /** Записать кеш постеров в хранилище (одним заходом, после паузы). */
+    function flushPosterCache() {
+        if (posterCacheTimer) {
+            clearTimeout(posterCacheTimer);
+            posterCacheTimer = null;
+        }
+
+        if (posterCacheMemory) {
+            storageSet(POSTER_CACHE_KEY, posterCacheMemory);
+        }
+    }
+
+    /** Полностью очистить кеш разрешённых постеров (кнопка в настройках). */
+    function clearPosterCache() {
+        posterCacheMemory = {};
+
+        flushPosterCache();
+    }
+
+    /**
+     * Кешировать разрешённый URL постера для ID аниме.
+     *
+     * Пустой результат не кешируется: иначе один сбой сети навсегда оставляет
+     * аниме без постера до ручной очистки кеша.
+     */
     function saveResolvedPoster(animeId, posterUrl) {
-        var cache = storageGet(POSTER_CACHE_KEY, {});
-        cache[animeId] = posterUrl || '';
-        storageSet(POSTER_CACHE_KEY, cache);
+        if (!posterUrl) return;
+
+        var cache = posterCacheRead();
+        var keys = [];
+        var key;
+
+        cache[animeId] = posterUrl;
+
+        for (key in cache) {
+            if (cache.hasOwnProperty(key)) keys.push(key);
+        }
+
+        // Ключи перебираются в порядке вставки — удаляем самые старые записи,
+        // чтобы не упереться в квоту localStorage на телевизоре.
+        while (keys.length > POSTER_CACHE_LIMIT) {
+            delete cache[keys.shift()];
+        }
+
+        if (posterCacheTimer) clearTimeout(posterCacheTimer);
+
+        posterCacheTimer = setTimeout(flushPosterCache, 800);
     }
 
     /** Завершить ожидающий запрос постера: сохранить в кеш и вызвать все ожидающие колбэки. */
@@ -817,7 +949,7 @@
             return;
         }
 
-        var posterCache = storageGet(POSTER_CACHE_KEY, {});
+        var posterCache = posterCacheRead();
 
         if (posterCache.hasOwnProperty(data.id)) {
             callback(posterCache[data.id] || '');
@@ -962,9 +1094,38 @@
     // ─── Genres & API ──────────────────────────────────────────────────
 
     /**
+     * Убрать 18+ жанры из списка, если включена настройка «Скрывать 18+».
+     *
+     * Сравнение идёт по английскому имени жанра (`name`), которое отдаёт
+     * GraphQL: hentai, erotica, yaoi, yuri. Русские названия не используются,
+     * потому что они меняются на стороне Shikimori.
+     *
+     * @param {Array} list - Список жанров из API (или из кеша)
+     * @returns {Array} Отфильтрованный список
+     */
+    function filterGenres(list) {
+        list = list || [];
+
+        if (!readSettings().hide_adult) return list;
+
+        var filtered = [];
+
+        for (var i = 0; i < list.length; i++) {
+            var name = String((list[i] && list[i].name) || '').toLowerCase();
+
+            if (!adultGenres[name]) filtered.push(list[i]);
+        }
+
+        return filtered;
+    }
+
+    /**
      * Загрузить жанры из Shikimori GraphQL API (с локальным кешем на 24ч).
      *
-     * @param {Function} callback - Вызывается с отфильтрованным списком жанров
+     * @param {Function} callback - Вызывается с отфильтрованным списком жанров.
+     *   Второй аргумент — причина пустого результата: 'error' (сеть/API)
+     *   или 'empty' (API ответил пустым списком). На ТВ это единственный способ
+     *   объяснить пользователю, почему меню жанров пустое.
      */
     function loadGenres(callback) {
         var cache = storageGet(GENRES_CACHE_KEY, null);
@@ -977,14 +1138,14 @@
 
         gqlQuery('{ genres(entryType: Anime) { id name russian } }', function (data) {
             if (!data || !data.genres || !data.genres.length) {
-                callback([]);
+                callback([], 'empty');
                 return;
             }
 
             storageSet(GENRES_CACHE_KEY, { genres: data.genres, ts: Date.now() });
             callback(filterGenres(data.genres));
         }, function () {
-            callback([]);
+            callback([], 'error');
         });
     }
 
@@ -1008,15 +1169,29 @@
         var orderMap = { popularity: 'popularity', ranked: 'ranked', aired_on: 'aired_on', name: 'name' };
         if (orderMap[sort]) args.push('order: ' + orderMap[sort]);
 
-        if (params.search) args.push('search: "' + params.search.replace(/"/g, '\\"') + '"');
-        if (params.kind) args.push('kind: "' + params.kind + '"');
-        if (params.status) args.push('status: "' + params.status + '"');
-        if (params.season) args.push('season: "' + params.season + '"');
-        if (params.genre) args.push('genre: "' + params.genre + '"');
+        if (params.search) args.push('search: ' + gqlString(params.search));
+        if (params.kind) args.push('kind: ' + gqlString(params.kind));
+        if (params.status) args.push('status: ' + gqlString(params.status));
+        if (params.season) args.push('season: ' + gqlString(params.season));
+        if (params.genre) args.push('genre: ' + gqlString(params.genre));
+
+        /**
+         * Фильтр по списку пользователя. Требует Authorization —
+         * заголовок добавляет gqlQuery(), когда токен действителен.
+         */
+        if (params.mylist) args.push('mylist: ' + gqlString(params.mylist));
+
+        /**
+         * 18+ отсекается на стороне Shikimori: censored: true — строгий фильтр
+         * (исключает hentai, yaoi, yuri, erotica). Клиентская фильтрация
+         * не подходит: она уменьшает выдачу и ломает определение последней страницы.
+         */
+        if (readSettings().hide_adult) args.push('censored: true');
 
         var query = '{ animes(' + args.join(', ') + ') { ' +
-            'id name russian english kind status score ' +
-            'episodes episodesAired season ' +
+            'id malId name russian english kind status score ' +
+            'episodes episodesAired season isCensored rating ' +
+            'airedOn { year date } ' +
             'poster { mainUrl main2xUrl previewUrl miniUrl originalUrl } ' +
             'genres { id name russian } ' +
             '} }';
@@ -1184,12 +1359,24 @@
         var shikiPoster = posterOf(shiki);
 
         var movie = {
-            id: item.id || item.tmdb_id || item.themoviedb,
+            /**
+             * В ответе ARM поле `themoviedb` — это ID TMDB, а `id`
+             * может быть внутренним идентификатором источника.
+             * Поэтому сначала TMDB-поля, и только потом общий `id`.
+             */
+            id: item.themoviedb || item.tmdb_id || item.id,
             title: mainTitle,
             original_title: secTitle,
             name: mainTitle,
             original_name: secTitle,
-            poster_path: shikiPoster || item.poster_path || '',
+            /**
+             * poster_path — поле TMDB и должно оставаться относительным путём:
+             * Lampa сама склеивает его с image.tmdb.org (Api.img). Полный URL
+             * Shikimori здесь давал бы битую ссылку, поэтому постер Shikimori
+             * живёт отдельно — в img/shikimori, а на полной странице подставляется
+             * через applyPosterFallback().
+             */
+            poster_path: item.poster_path || '',
             img: shikiPoster || '',
             backdrop_path: item.backdrop_path || '',
             vote_average: item.vote_average || 0,
@@ -1315,17 +1502,37 @@
      * При успехе — сохраняет новые токены через saveTokenAnswer().
      * При ошибке — показывает уведомление и вызывает callback(null).
      *
-     * @param {Function} callback - Вызывается со status обновления:
-     *   - undefined при успехе (токен сохранён)
-     *   - null при ошибке (нет данных для обновления или запрос не удался)
+     * Параллельные вызовы объединяются в одну очередь: Shikimori ротирует
+     * refresh_token, поэтому второй одновременный запрос с тем же токеном
+     * гарантированно получает 401 и пользователь «вылетает» из профиля.
+     *
+     * @param {Function} callback - Вызывается после завершения обновления
      *
      * @see {@link requestTokenByCode} для первичного получения токена
      */
     function refreshToken(callback) {
+        if (refreshQueue) {
+            if (callback) refreshQueue.push(callback);
+            return;
+        }
+
+        refreshQueue = callback ? [callback] : [];
+
+        function finish() {
+            var list = refreshQueue || [];
+
+            refreshQueue = null;
+
+            for (var i = 0; i < list.length; i++) {
+                if (list[i]) list[i](isAuthorized() ? undefined : null);
+            }
+        }
+
         var auth = readAuth();
 
         if (!auth.client_id || !auth.client_secret || !auth.refresh_token) {
             notify('Shikimori: нет данных для обновления токена');
+            finish();
             return;
         }
 
@@ -1343,21 +1550,28 @@
             }),
             success: function (answer) {
                 saveTokenAnswer(answer);
-                if (callback) callback();
+                finish();
             },
             error: function () {
                 notify('Shikimori: не удалось обновить токен');
-                if (callback) callback(null);
+                finish();
             }
         });
     }
 
-    /** Разобрать ответ токена и сохранить состояние авторизации. */
+    /**
+     * Разобрать ответ токена и сохранить состояние авторизации.
+     *
+     * Ответ без access_token (например, `{error: 'invalid_grant'}` со статусом 200)
+     * игнорируется: иначе saveTokenAnswer затирал бы рабочий токен пустым значением.
+     */
     function saveTokenAnswer(answer) {
+        if (!answer || !answer.access_token) return;
+
         var auth = readAuth();
         var expires = (answer && answer.expires_in) ? parseInt(answer.expires_in, 10) || 86400 : 86400;
 
-        auth.access_token = answer && answer.access_token ? answer.access_token : '';
+        auth.access_token = answer.access_token;
         auth.refresh_token = answer && answer.refresh_token ? answer.refresh_token : auth.refresh_token;
         auth.expires_at = Date.now() + expires * 1000;
 
@@ -1508,8 +1722,9 @@
         }
 
         if (auth.refresh_token) {
-            refreshToken(function () {
-                callback(readAuth().access_token);
+            refreshToken(function (status) {
+                // status === null — обновить не удалось, не притворяемся авторизованными
+                callback(status === null ? null : readAuth().access_token);
             });
             return;
         }
@@ -1889,6 +2104,43 @@
     // ─── Card & Catalog ────────────────────────────────────────────────
 
     /**
+     * Ленивая загрузка постеров в каталоге.
+     *
+     * Атрибута `loading="lazy"` в Chromium 56 (Tizen 4.0) нет, а страница из 28
+     * карточек стартует столько же загрузок картинок сразу — на слабом ТВ это
+     * заметный фриз при входе в каталог. Поэтому `src` подставляется из `data-src`
+     * только когда карточка подходит к экрану (IntersectionObserver есть с Chromium 51).
+     *
+     * @param {jQuery} container - Контейнер с карточками
+     */
+    function lazyImages(container) {
+        if (!window.IntersectionObserver) return;
+
+        if (!posterObserver) {
+            posterObserver = new window.IntersectionObserver(function (entries) {
+                for (var i = 0; i < entries.length; i++) {
+                    var entry = entries[i];
+
+                    if (!entry.isIntersecting) continue;
+
+                    var img = entry.target;
+                    var src = img.getAttribute('data-src');
+
+                    if (src) img.setAttribute('src', src);
+
+                    img.removeAttribute('data-src');
+
+                    posterObserver.unobserve(img);
+                }
+            }, { rootMargin: '300px 0px' });
+        }
+
+        container.find('img[data-src]').each(function () {
+            posterObserver.observe(this);
+        });
+    }
+
+    /**
      * Конструктор карточки для одного аниме в каталоге.
      * Обрабатывает отображение постера, бейдж оценки, название и метаданные.
      * @param {Object} data - Маппинг данных аниме
@@ -1898,7 +2150,7 @@
         var year = data && data.airedOn ? data.airedOn.year : '';
         var season = seasonName(data.season);
         var compact = settings.card_size === 'compact' ? ' Shikimori--compact' : '';
-        var score = data.score && data.score !== '0.0' ? data.score : '—';
+        var score = data.score ? data.score : '—';
         var meta = [];
 
         var loadingSVG = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(
@@ -1926,10 +2178,18 @@
         this.data = data;
 
         this.render = function () {
+            /**
+             * С ленивой загрузкой в src стоит заглушка, а настоящий URL — в data-src
+             * (его подставит lazyImages). Без IntersectionObserver грузим сразу.
+             */
+            var imageAttrs = posterList.length && window.IntersectionObserver
+                ? ' src="' + loadingSVG + '" data-src="' + esc(posterList[0]) + '"'
+                : ' src="' + imgSrc + '"';
+
             var element = $(
                 '<div class="card Shikimori selector' + compact + '" data-id="' + esc(data.id) + '">' +
                     '<div class="card__view">' +
-                        '<img class="card__img" src="' + imgSrc + '" />' +
+                        '<img class="card__img"' + imageAttrs + ' />' +
                         '<div class="Shikimori-card__rating">★ ' + esc(score) + '</div>' +
                         '<div class="Shikimori-card__badge">' + esc(kindName(data.kind)) + '</div>' +
                         '<div class="Shikimori-card__user-rate" style="display:none"></div>' +
@@ -2062,7 +2322,13 @@
         this.pause = function () {};
 
         this.destroy = function () {
-            if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
+            if (posterObserver) {
+                posterObserver.disconnect();
+                posterObserver = null;
+            }
+
+            flushPosterCache();
+
             html.off();
             scroll.render().off();
             scroll.destroy();
@@ -2374,8 +2640,16 @@
             }
         }
 
-        function openFilters(genres) {
-            var show = function (list) {
+        /**
+         * Меню фильтров.
+         *
+         * Вызывается из bindPress, который передаёт в обработчик САМ ЭЛЕМЕНТ кнопки,
+         * поэтому аргумент здесь не принимается: раньше элемент попадал в параметр
+         * `genres`, из-за чего список жанров не загружался и меню показывало
+         * «Жанры недоступны».
+         */
+        function openFilters() {
+            var show = function (list, reason) {
                 var items = [
                     {
                         title: 'Сортировка: ' + sortName(params.sort || readSettings().default_sort),
@@ -2409,7 +2683,7 @@
                         if (item.value === 'sort') openFilterSortMenu(list);
                         else if (item.value === 'kind') openFilterKindMenu(list);
                         else if (item.value === 'status') openFilterStatusMenu(list);
-                        else if (item.value === 'genre') openFilterGenreMenu(list);
+                        else if (item.value === 'genre') openFilterGenreMenu(list, reason);
                         else if (item.value === 'reset') {
                             openWith({
                                 sort: readSettings().default_sort,
@@ -2427,8 +2701,7 @@
                 });
             };
 
-            if (genres) show(genres);
-            else loadGenres(show);
+            loadGenres(show);
         }
 
         function hasFilterSelection() {
@@ -2452,7 +2725,7 @@
                     openWith({ sort: item.value, page: 1 });
                 },
                 onBack: function () {
-                    openFilters(genres);
+                    openFilters();
                 }
             });
         }
@@ -2475,7 +2748,7 @@
                     openWith({ kind: item.value, page: 1 });
                 },
                 onBack: function () {
-                    openFilters(genres);
+                    openFilters();
                 }
             });
         }
@@ -2496,12 +2769,12 @@
                     openWith({ status: item.value, page: 1 });
                 },
                 onBack: function () {
-                    openFilters(genres);
+                    openFilters();
                 }
             });
         }
 
-        function openFilterGenreMenu(genres) {
+        function openFilterGenreMenu(genres, reason) {
             var items = [
                 { title: selectedTitle(!params.genre, 'Любой'), value: '' }
             ];
@@ -2519,7 +2792,14 @@
             }
 
             if (items.length === 1) {
-                items.push({ title: 'Жанры недоступны', value: 'noop' });
+                /**
+                 * Пустой список жанров раньше выглядел одинаково при любой причине.
+                 * На ТВ консоли нет, поэтому причину показываем прямо в меню:
+                 * сеть/API — с пунктом повтора, пустой ответ — просто сообщение.
+                 */
+                items.push(reason === 'error'
+                    ? { title: 'Жанры не загрузились — повторить', value: 'reload' }
+                    : { title: 'Жанры недоступны', value: 'noop' });
             }
 
             Lampa.Select.show({
@@ -2528,6 +2808,12 @@
                 onSelect: function (item) {
                     if (item.value === 'noop') return;
 
+                    if (item.value === 'reload') {
+                        storageSet(GENRES_CACHE_KEY, null);
+                        openFilters();
+                        return;
+                    }
+
                     openWith({
                         genre: item.value,
                         genre_title: item.genre_title || '',
@@ -2535,7 +2821,7 @@
                     });
                 },
                 onBack: function () {
-                    openFilters(genres);
+                    openFilters();
                 }
             });
         }
@@ -2666,7 +2952,7 @@
                         return;
                     } else if (item.value === 'clear_tmdb_cache') {
                         storageSet(TMDB_CACHE_KEY, {});
-                        storageSet(POSTER_CACHE_KEY, {});
+                        clearPosterCache();
                         notify('Кэш поиска очищен');
                         Lampa.Controller.toggle('content');
                         return;
@@ -2886,6 +3172,9 @@
 
             loading = true;
 
+            var nextPage = append ? (parseInt(params.page, 10) || 1) + 1 : (parseInt(params.page, 10) || 1);
+            var payload = $.extend({}, params, { page: nextPage });
+
             body.find('.Shikimori-more').remove();
 
             if (!append) {
@@ -2895,8 +3184,15 @@
 
             body.append('<div class="Shikimori-loader' + (append ? ' Shikimori-loader--more' : '') + '">Загрузка...</div>');
 
-            requestAnime(params, function (data) {
+            requestAnime(payload, function (data) {
                 loading = false;
+
+                /**
+                 * Номер страницы фиксируем только после успешного ответа.
+                 * Раньше он увеличивался до запроса, и любой обрыв сети
+                 * «съедал» страницу — часть каталога пропадала навсегда.
+                 */
+                params.page = nextPage;
 
                 body.find('.Shikimori-loader').remove();
 
@@ -2915,9 +3211,16 @@
                 if (data.length < PAGE_LIMIT) ended = true;
 
                 function renderCards() {
-                    for (var i = 0; i < data.length; i++) appendCard(data[i]);
+                    /** Карточки собираются во фрагменте: одна вставка в DOM вместо 28. */
+                    var fragment = document.createDocumentFragment();
 
-                    if (!ended) addMoreButton();
+                    for (var i = 0; i < data.length; i++) appendCard(data[i], fragment);
+
+                    if (!ended) addMoreButton(fragment);
+
+                    body[0].appendChild(fragment);
+
+                    lazyImages(body);
 
                     if (window.Lampa && Lampa.Controller) {
                         Lampa.Controller.collectionSet(html);
@@ -2937,11 +3240,34 @@
                 body.find('.Shikimori-loader').remove();
 
                 if (append) addMoreButton();
-                else body.append('<div class="Shikimori-empty">Ошибка загрузки</div>');
+                else showLoadError();
             });
         }
 
-        function appendCard(item) {
+        /**
+         * Ошибка загрузки первой страницы с кнопкой повтора.
+         * Раньше был только текст «Ошибка загрузки» — на ТВ выйти из тупика
+         * можно было лишь полным перезаходом в раздел.
+         */
+        function showLoadError() {
+            body.empty();
+            body.append('<div class="Shikimori-empty">Ошибка загрузки</div>');
+
+            var retry = $('<div class="simple-button selector Shikimori-more">Повторить</div>');
+
+            bindPress(retry, function () {
+                load(false);
+            });
+
+            body.append(retry);
+
+            if (window.Lampa && Lampa.Controller) {
+                Lampa.Controller.collectionSet(html);
+                Lampa.Controller.collectionFocus(retry[0], html);
+            }
+        }
+
+        function appendCard(item, container) {
             var card = new Card(item);
             var render = card.render();
 
@@ -2957,10 +3283,11 @@
                 openAnime(item);
             });
 
-            body.append(render);
+            if (container) container.appendChild(render[0]);
+            else body.append(render);
         }
 
-        function addMoreButton() {
+        function addMoreButton(container) {
             var more = $('<div class="simple-button selector Shikimori-more">Еще</div>');
 
             more.on('hover:focus nav_focus', function () {
@@ -2972,14 +3299,14 @@
                 loadNextPage(false);
             });
 
-            body.append(more);
+            if (container) container.appendChild(more[0]);
+            else body.append(more);
         }
 
         function loadNextPage(auto) {
             if (loading || ended || autoLoading) return;
 
             autoLoading = !!auto;
-            params.page = (parseInt(params.page, 10) || 1) + 1;
 
             load(true);
         }
@@ -3080,9 +3407,11 @@
             english: item.english || '',
             japanese: item.japanese || '',
             kind: item.kind,
-            score: item.score,
+            score: parseFloat(item.score) || 0,
             status: item.status,
             season: item.season || '',
+            episodes: item.episodes || 0,
+            episodesAired: item.episodesAired || 0,
             genres: item.genres || [],
             airedOn: {
                 year: item.airedOn && item.airedOn.year ? String(item.airedOn.year) :
@@ -3108,9 +3437,10 @@
             return;
         }
 
-        var query = '{ animes(ids: "' + String(id) + '") { ' +
-            'id name russian english kind status score ' +
-            'episodes episodesAired season ' +
+        var query = '{ animes(ids: ' + gqlString(id) + ') { ' +
+            'id malId name russian english kind status score ' +
+            'episodes episodesAired season isCensored rating ' +
+            'airedOn { year date } ' +
             'poster { mainUrl main2xUrl previewUrl miniUrl originalUrl } ' +
             'genres { id name russian } ' +
             '} }';
@@ -3241,58 +3571,40 @@
     }
 
     /**
-     * Запланировать добавление на полную страницу с задержками для повторных попыток.
-     * Пробует на 300ms и 1500ms после загрузки страницы.
-     * @param {Object} activity - Активность Lampa
-     */
-    function scheduleAppendFull(activity) {
-        var delays = [300, 1500];
-        var apiCalled = false;
-
-        delays.forEach(function (delay) {
-            setTimeout(function () {
-                var page = fullPage();
-                if (!page.length) return;
-                if (page.find('.shikimori-full-list-button').length) return;
-
-                if (!apiCalled) {
-                    apiCalled = true;
-                    resolveShikiAnimeForFull(activity || getActiveActivity(), function (anime) {
-                        if (anime && anime.id) {
-                            appendFull(getActiveActivity(), anime);
-                        }
-                    });
-                }
-            }, delay);
-        });
-    }
-
-    /**
-     * Подписка на жизненный цикл Lampa для внедрения контента Shikimori на полных страницах.
-     * Слушает события 'full' и 'activity'. Опрашивает каждые 1.8с для поздно загружающихся страниц.
+     * Подписка на жизненный цикл Lampa для внедрения контента Shikimori
+     * на полных страницах.
+     *
+     * Lampa присылает событие 'full' несколько раз за страницу:
+     * 'start', 'complite' и 'build' — последний приходит на КАЖДУЮ строку
+     * карточки (описание, эпизоды, актёры…). Раньше плагин реагировал на все
+     * подряд: сбрасывал кеш и запускал опрос каждые 1.8 с, который не
+     * останавливался, если аниме не находилось. Теперь работаем по 'complite' —
+     * в этот момент e.body содержит готовую страницу, а e.data.movie — данные TMDB.
      */
     function extendFull() {
         if (!window.Lampa || !Lampa.Listener || !Lampa.Listener.follow) return;
 
         Lampa.Listener.follow('full', function (event) {
-            fullResolveCache = {};
+            var type = event && event.type;
 
-            if (fullPollId) { clearInterval(fullPollId); fullPollId = null; }
+            if (type === 'start') {
+                fullResolveCache = {};
+                return;
+            }
 
-            var activity = event && event.object && event.object.activity ? event.object.activity : getActiveActivity();
-            scheduleAppendFull(activity);
+            // 'complite' — именно так, с опечаткой, событие отправляется в Lampa;
+            // 'complete' — на случай, если опечатку когда-нибудь исправят
+            if (type !== 'complite' && type !== 'complete') return;
 
-            fullPollId = setInterval(function () {
-                var page = fullPage();
-                if (!page.length) { clearInterval(fullPollId); fullPollId = null; return; }
-                if (page.find('.shikimori-full-list-button').length) return;
+            var page = event.body && event.body.find && event.body.length ? event.body : fullPage();
+            var activity = event.object || getActiveActivity();
 
-                scheduleAppendFull(getActiveActivity());
-            }, 1800);
-        });
+            if (!page || !page.length) return;
+            if (page.find('.shikimori-full-list-button').length) return;
 
-        Lampa.Listener.follow('activity', function () {
-            scheduleAppendFull(getActiveActivity());
+            resolveShikiAnimeForFull(activity, function (anime) {
+                if (anime && anime.id) appendFull(page, activity, anime);
+            });
         });
     }
 
@@ -3337,16 +3649,76 @@
     }
 
     /**
+     * Подставить постер Shikimori, если постер TMDB не загрузился.
+     *
+     * Lampa рисует обложку полной страницы как `<img class="full--poster">`
+     * (см. components/full/start/poster.js) и при ошибке загрузки подменяет
+     * источник на `./img/img_broken.svg` — серый прямоугольник. На устройствах
+     * без доступа к image.tmdb.org (типичная ситуация без TMDB-прокси) карточка
+     * остаётся без обложки, хотя постер Shikimori доступен и грузится.
+     *
+     * Работает в двух режимах:
+     * - картинка уже сломана — подменяем сразу;
+     * - картинка ещё грузится — ждём ошибку и подменяем по ней.
+     *
+     * @param {jQuery} page - Контейнер полной страницы
+     * @param {Object} anime - Маппинг данных аниме Shikimori
+     */
+    function applyPosterFallback(page, anime) {
+        var poster = page.find('.full--poster').first();
+        var url = (anime.poster && anime.poster.originalUrl) || posterOf(anime);
+
+        if (!poster.length || !url) return;
+
+        var element = poster[0];
+        var replaced = false;
+
+        /** appendFull может вызываться несколько раз — не плодим обработчики. */
+        if (element.getAttribute && element.getAttribute('data-shikimori-poster')) return;
+
+        if (element.setAttribute) element.setAttribute('data-shikimori-poster', '1');
+
+        function isBroken() {
+            var src = element.src || '';
+
+            if (!src) return true;
+            if (src.indexOf('img_broken') !== -1) return true;
+
+            return element.complete && element.naturalWidth === 0;
+        }
+
+        function replace() {
+            if (replaced) return;
+
+            replaced = true;
+            element.src = url;
+        }
+
+        if (isBroken()) {
+            replace();
+            return;
+        }
+
+        element.addEventListener('error', function onError() {
+            element.removeEventListener('error', onError);
+            replace();
+        });
+    }
+
+    /**
      * Внедрить оценку Shikimori и кнопку списка на полную страницу.
+     * @param {jQuery} page - Страница из события 'full' (e.body) или найденная в DOM
      * @param {Object} activity - Активность Lampa
      * @param {Object} anime - Маппинг данных аниме Shikimori
      */
-    function appendFull(activity, anime) {
-        var page = fullPage();
+    function appendFull(page, activity, anime) {
+        page = page && page.length ? page : fullPage();
 
         if (!anime || !anime.id || !page.length) return;
 
-        var score = anime.score && anime.score !== '0.0' ? anime.score : '—';
+        var score = anime.score ? anime.score : '—';
+
+        applyPosterFallback(page, anime);
 
         if (!page.find('.rate--shikimori').length) {
             page.find('.full-start__rate-line, .full-start-new__rate-line').first().append(
@@ -3439,8 +3811,8 @@
                 '.Shikimori-module{padding:1.2em 1.5em 2.5em;color:#fff;height:100%;display:flex;flex-direction:column;box-sizing:border-box}' +
                 '.Shikimori-module>.scroll{flex:1;overflow:hidden;position:relative;width:100%}' +
                 '.Shikimori-module .scroll__body{width:100%}' +
-                '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.3em;}' +
-                '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;gap:0.25em;}' +
+                '.Shikimori-head{display:flex;flex-wrap:wrap;margin-bottom:0.8em;}' +
+                '.Shikimori-quick{display:flex;flex-wrap:wrap;margin-bottom:0.8em;}' +
                 '.Shikimori-head__button,.Shikimori-chip,.Shikimori-more{' +
                     'display:inline-flex!important;align-items:center!important;justify-content:center!important;' +
                     'padding:0.65em 1.2em!important;height:auto!important;line-height:1!important;' +
@@ -3479,14 +3851,17 @@
                 '.shikimori-list-active{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.18);color:#fff}' +
 
                 '.shikimori-qr-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center}' +
-                '.shikimori-qr-modal{background:#1b1d24;border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center;color:#fff;display:flex;flex-direction:column;align-items:center;gap:0.8em}' +
+                '.shikimori-qr-modal{background:#1b1d24;border-radius:1em;padding:2em 2.5em;max-width:26em;width:90%;text-align:center;color:#fff;display:flex;flex-direction:column;align-items:center}' +
+                /* flex-gap не поддерживается в Chromium 56 (Tizen 4.0) — отступы через margin */
+                '.shikimori-qr-modal>*+*{margin-top:0.8em}' +
                 '.shikimori-qr-title{font-size:1.4em;font-weight:700;color:#e95a68}' +
                 '.shikimori-qr-hint{font-size:1em;color:rgba(255,255,255,.7);line-height:1.35}' +
                 '.shikimori-qr-hint--small{font-size:.88em;color:rgba(255,255,255,.5);margin-top:0.3em}' +
-                '.shikimori-qr-img-wrap{background:#fff;border-radius:.6em;padding:.6em;margin:.3em 0}' +
+                '.shikimori-qr-img-wrap{background:#fff;border-radius:.6em;padding:.6em}' +
                 '.shikimori-qr-img{display:block;width:250px;height:250px}' +
-                '.shikimori-qr-buttons{display:flex;gap:.6em;margin-top:.4em;width:100%}' +
+                '.shikimori-qr-buttons{display:flex;width:100%}' +
                 '.shikimori-qr-btn{flex:1;padding:.65em .5em!important;font-size:.95em;text-align:center}' +
+                '.shikimori-qr-btn+.shikimori-qr-btn{margin-left:.6em}' +
                 '.shikimori-qr-btn--submit{background:#c83a4b!important;color:#fff!important}' +
                 '.shikimori-qr-btn--copy{background:rgba(255,255,255,.1)!important;color:rgba(255,255,255,.8)!important}' +
                 '.shikimori-qr-btn--close{background:rgba(255,255,255,.06)!important;color:rgba(255,255,255,.5)!important}' +
