@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.5
+ * Shikimori Plugin for Lampa v3.2.7
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -13,6 +13,22 @@
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
  *
+ * Изменения 3.2.7:
+ * - Кнопки быстрых фильтров («Популярное», «Онгоинги», «Анонсы»…) получили
+ *   форму кнопок шапки («Главная», «Поиск»): прямоугольные, без «таблетки»
+ *   и полупрозрачности. Размеры оставлены прежними
+ * - QR-модалка авторизации получила свой контроллер: «Назад» на пульте
+ *   закрывает её, а не экран под ней; оверлей больше не остаётся поверх
+ *   интерфейса и не требует перезапуска Lampa
+ * - Повторное открытие модалки убирает прошлый оверлей, а смена активности
+ *   закрывает её автоматически
+ *
+ * Изменения 3.2.6:
+ * - Каталог помнит загруженные страницы: возврат из карточки больше не
+ *   откатывает список на страницу 2 (первые 28 карточек снова доступны)
+ *   и не перезагружает постеры — они берутся из кеша браузера без заглушек
+ * - Настройки только в меню плагина: интеграция с Lampa.SettingsApi убрана
+ *
  * Изменения 3.2.5 (этап 3 — данные и удобство):
  * - Оценка и статус (userRate) приходят прямо в ответе каталога и полной страницы:
  *   больше не нужно тянуть «все оценки пользователя» (до сотен КБ) на ТВ.
@@ -23,7 +39,6 @@
  * - Подбор карточки TMDB: не больше трёх поисковых запросов вместо 6–10
  * - Зеркала shikimori.one / shikimori.me в выборе домена
  * - QR-модалка показывает ссылку и переживает недоступность сервиса QR-кодов
- * - Настройки продублированы в системное меню Lampa (Lampa.SettingsApi)
  *
  * Изменения 3.2.4 (этап 2 — стабильность и слабые ТВ):
  * - Полная страница: работа по событию 'complite' вместо опроса каждые 1.8 с;
@@ -93,6 +108,7 @@
     var posterCacheTimer = null;
     var posterObserver = null;
     var refreshQueue = null;
+    var qrModalClose = null;
     var fullResolveCache = {};
 
     // ─── GraphQL Helper ──────────────────────────────────────────────
@@ -239,140 +255,6 @@
 
     function saveSettings(settings) {
         storageSet(SETTINGS_KEY, settings || defaults());
-        syncSettingsParams(settings || defaults());
-    }
-
-    // ─── Настройки в системном меню Lampa ──────────────────────────────
-
-    /**
-     * Параметры, которые дублируются в штатное меню настроек Lampa.
-     *
-     * Плагин продолжает читать свой объект настроек (SETTINGS_KEY):
-     * параметры Lampa только пишут в него и показывают текущее значение.
-     * Так настройки видны в общем списке Lampa, но ничего не ломается
-     * на сборках, где SettingsApi отсутствует.
-     */
-    function settingsParamList() {
-        return [
-            {
-                key: 'title_language',
-                name: 'Язык названий',
-                type: 'select',
-                values: { original: 'Оригинал', en: 'Английский', ru: 'Русский' },
-                default: 'original'
-            },
-            {
-                key: 'hide_adult',
-                name: 'Скрывать 18+',
-                type: 'select',
-                values: { true: 'Да', false: 'Нет' },
-                default: 'true'
-            },
-            {
-                key: 'default_sort',
-                name: 'Сортировка по умолчанию',
-                type: 'select',
-                values: { popularity: 'Популярность', ranked: 'Рейтинг', ranked_shiki: 'Рейтинг Shikimori', aired_on: 'Дата выхода' },
-                default: 'popularity'
-            },
-            {
-                key: 'card_size',
-                name: 'Размер карточек',
-                type: 'select',
-                values: { normal: 'Обычный', compact: 'Компактный' },
-                default: 'normal'
-            },
-            {
-                key: 'shiki_host',
-                name: 'Домен Shikimori',
-                type: 'input',
-                values: '',
-                default: 'https://shikimori.io'
-            }
-        ];
-    }
-
-    /** Привести значение настройки к строке для хранилища Lampa. */
-    function settingString(key, value) {
-        if (key === 'hide_adult') return String(!!value);
-
-        return String(value === undefined || value === null ? '' : value);
-    }
-
-    /** Обновить значения параметров Lampa после правки в меню плагина. */
-    function syncSettingsParams(settings) {
-        if (!window.Lampa || !Lampa.Storage || !window.plugin_shikimori_settings_registered) return;
-
-        var list = settingsParamList();
-
-        for (var i = 0; i < list.length; i++) {
-            try {
-                Lampa.Storage.set('shikimori_' + list[i].key, settingString(list[i].key, settings[list[i].key]));
-            } catch (e) {}
-        }
-    }
-
-    /**
-     * Зарегистрировать раздел «Shikimori» в системных настройках Lampa.
-     * Если API в сборке нет — молча остаёмся со своим меню.
-     */
-    function registerSettings() {
-        if (!window.Lampa || !Lampa.SettingsApi || !Lampa.SettingsApi.addComponent) return;
-        if (window.plugin_shikimori_settings_registered) return;
-
-        try {
-            Lampa.SettingsApi.addComponent({
-                component: 'shikimori',
-                name: 'Shikimori',
-                icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Zm0 2.3 6.6 3.3L12 10.9 5.4 7.6 12 4.3Z"/></svg>'
-            });
-        } catch (e) {
-            return;
-        }
-
-        var settings = readSettings();
-
-        settingsParamList().forEach(function (item) {
-            var paramName = 'shikimori_' + item.key;
-
-            try {
-                // стартовое значение, чтобы в меню Lampa показывалась текущая настройка
-                if (Lampa.Storage.get(paramName, null) === null) {
-                    Lampa.Storage.set(paramName, settingString(item.key, settings[item.key]) || item.default);
-                }
-            } catch (e) {}
-
-            try {
-                Lampa.SettingsApi.addParam({
-                    component: 'shikimori',
-                    param: {
-                        name: paramName,
-                        type: item.type,
-                        values: item.values,
-                        default: item.default
-                    },
-                    field: {
-                        name: item.name,
-                        description: 'Shikimori'
-                    },
-                    onChange: function (value) {
-                        var next = readSettings();
-
-                        if (item.key === 'hide_adult') {
-                            next.hide_adult = value === 'true' || value === true;
-                        } else if (item.key === 'shiki_host') {
-                            next.shiki_host = String(value || '').replace(/\/$/, '') || defaults().shiki_host;
-                        } else {
-                            next[item.key] = String(value || item.default);
-                        }
-
-                        saveSettings(next);
-                    }
-                });
-            } catch (e) {}
-        });
-
-        window.plugin_shikimori_settings_registered = true;
     }
 
     /**
@@ -1820,6 +1702,9 @@
             '</div>'
         );
 
+        /** На случай повторного открытия — старый оверлей убираем. */
+        $('.shikimori-qr-overlay').remove();
+
         $('body').append(overlay);
 
         var enterBtn = overlay.find('.shikimori-qr-btn--enter');
@@ -1827,6 +1712,9 @@
         var closeBtn = overlay.find('.shikimori-qr-btn--close');
         var qrImg = overlay.find('.shikimori-qr-img');
         var qrError = overlay.find('.shikimori-qr-error');
+
+        var closed = false;
+        var focusTimer = null;
 
         /**
          * QR рисует сторонний сервис — он бывает недоступен. Тогда показываем
@@ -1838,23 +1726,44 @@
         });
 
         function restoreFocus() {
-            if (btnElement) {
-                try {
-                    Lampa.Controller.collectionSet($('.Shikimori-module'));
-                    Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
-                } catch (e) {}
-            }
+            if (!btnElement) return;
+
+            try {
+                Lampa.Controller.collectionSet($('.Shikimori-module'));
+                Lampa.Controller.collectionFocus(btnElement, $('.Shikimori-module'));
+            } catch (e) {}
         }
 
+        /**
+         * Закрыть модалку и вернуть управление каталогу.
+         *
+         * Идемпотентна: вызывается и кнопкой, и «Назад» на пульте,
+         * и страховкой при смене активности.
+         */
         function closeModal() {
+            if (closed) return;
+
+            closed = true;
+            qrModalClose = null;
+
+            if (focusTimer) {
+                clearTimeout(focusTimer);
+                focusTimer = null;
+            }
+
             overlay.remove();
+
+            try {
+                if (window.Lampa && Lampa.Controller && Lampa.Controller.toggle) {
+                    Lampa.Controller.toggle('content');
+                }
+            } catch (e) {}
+
             restoreFocus();
         }
 
-        closeBtn.on('hover:enter click tap', closeModal);
-
-        enterBtn.on('hover:enter click tap', function () {
-            overlay.remove();
+        function openCodeInput() {
+            closeModal();
 
             if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
                 Lampa.Input.edit({
@@ -1883,9 +1792,9 @@
                 }
                 restoreFocus();
             }
-        });
+        }
 
-        copyBtn.on('hover:enter click tap', function () {
+        function copyLink() {
             if (window.Lampa && Lampa.Utils && Lampa.Utils.copyTextToClipboard) {
                 Lampa.Utils.copyTextToClipboard(url, function () {
                     notify('Ссылка скопирована');
@@ -1893,16 +1802,71 @@
             } else {
                 notify(url);
             }
-        });
+        }
+
+        enterBtn.data('action', openCodeInput);
+        copyBtn.data('action', copyLink);
+        closeBtn.data('action', closeModal);
+
+        /** Мышь и тач: Controller.enter() эмитит действие сам, клики — здесь. */
+        var qrButtons = [enterBtn, copyBtn, closeBtn];
+
+        for (var b = 0; b < qrButtons.length; b++) {
+            qrButtons[b].on('click.shikimori-qr tap.shikimori-qr', function () {
+                var action = $(this).data('action');
+
+                if (action) action();
+            });
+        }
 
         overlay.on('click', function (e) {
             if (e.target === overlay[0]) closeModal();
         });
 
-        setTimeout(function () {
-            Lampa.Controller.collectionSet(overlay);
-            Lampa.Controller.collectionFocus(enterBtn, overlay);
-        }, 100);
+        /**
+         * Модалка — отдельный контроллер. Без него «Назад» на пульте закрывал
+         * экран под оверлеем, а сам QR оставался поверх интерфейса: выйти можно
+         * было только перезапуском Lampa.
+         */
+        qrModalClose = closeModal;
+
+        try {
+            Lampa.Controller.add('shikimori_qr', {
+                toggle: function () {
+                    Lampa.Controller.collectionSet(overlay);
+                    Lampa.Controller.collectionFocus(enterBtn[0] || overlay.find('.selector').first()[0], overlay);
+                },
+                left: function () { Navigator.move('left'); },
+                right: function () { Navigator.move('right'); },
+                up: function () { Navigator.move('up'); },
+                down: function () { Navigator.move('down'); },
+                enter: function () {
+                    var focused = overlay.find('.selector.focus');
+
+                    if (focused.length) {
+                        var action = focused.data('action');
+
+                        if (action) action();
+                    }
+                },
+                back: closeModal
+            });
+
+            focusTimer = setTimeout(function () {
+                if (closed) return;
+
+                Lampa.Controller.toggle('shikimori_qr');
+            }, 100);
+        } catch (e) {
+            focusTimer = setTimeout(function () {
+                if (closed) return;
+
+                try {
+                    Lampa.Controller.collectionSet(overlay);
+                    Lampa.Controller.collectionFocus(enterBtn[0], overlay);
+                } catch (err) {}
+            }, 100);
+        }
     }
 
     /**
@@ -2325,12 +2289,49 @@
         });
     }
 
+    // ─── Catalog Cache ─────────────────────────────────────────────────
+
+    /** Загруженные страницы каталога по ключу фильтров (не больше трёх наборов). */
+    var catalogCache = {};
+
+    /** Ключ кеша: всё, что влияет на содержимое списка. */
+    function catalogKey(params) {
+        return [
+            params.sort || '',
+            params.search || '',
+            params.kind || '',
+            params.status || '',
+            params.season || '',
+            params.genre || '',
+            params.mylist || ''
+        ].join('|');
+    }
+
+    /** Оставить в кеше три самых свежих набора, чтобы не копить память. */
+    function trimCatalogCache() {
+        var keys = [];
+        var key;
+
+        for (key in catalogCache) {
+            if (catalogCache.hasOwnProperty(key)) keys.push(key);
+        }
+
+        if (keys.length <= 3) return;
+
+        keys.sort(function (a, b) {
+            return (catalogCache[a].ts || 0) - (catalogCache[b].ts || 0);
+        });
+
+        while (keys.length > 3) delete catalogCache[keys.shift()];
+    }
+
     /**
      * Конструктор карточки для одного аниме в каталоге.
      * Обрабатывает отображение постера, бейдж оценки, название и метаданные.
      * @param {Object} data - Маппинг данных аниме
+     * @param {boolean} [lazy] - false = ставить src сразу (восстановление из кеша)
      */
-    function Card(data) {
+    function Card(data, lazy) {
         var settings = readSettings();
         var year = data && data.airedOn ? data.airedOn.year : '';
         var season = seasonName(data.season);
@@ -2367,9 +2368,11 @@
         this.render = function () {
             /**
              * С ленивой загрузкой в src стоит заглушка, а настоящий URL — в data-src
-             * (его подставит lazyImages). Без IntersectionObserver грузим сразу.
+             * (его подставит lazyImages). Без IntersectionObserver или при
+             * восстановлении из кеша грузим сразу — картинки уже в кеше браузера.
              */
-            var imageAttrs = posterList.length && window.IntersectionObserver
+            var useLazy = lazy !== false && posterList.length && window.IntersectionObserver;
+            var imageAttrs = useLazy
                 ? ' src="' + loadingSVG + '" data-src="' + esc(posterList[0]) + '"'
                 : ' src="' + imgSrc + '"';
 
@@ -2422,7 +2425,21 @@
         var ended = false;
         var autoLoading = false;
 
-        params.page = parseInt(params.page, 10) || 1;
+        /**
+         * Состояние списка этого каталога.
+         *
+         * Раньше номер страницы хранился в объекте активности (params.page),
+         * и при повторном создании компонента (возврат из карточки) каталог
+         * грузил только последнюю страницу — первые карточки «пропадали».
+         * Теперь страница живёт локально, а загруженные элементы кешируются
+         * по ключу фильтров, поэтому возврат восстанавливает список без сети.
+         */
+        var page = 1;
+        var items = [];
+        var cacheKey = catalogKey(params);
+        var restored = catalogCache[cacheKey] || null;
+
+        params.page = 1;
 
         if (!params.sort) params.sort = readSettings().default_sort;
 
@@ -2448,7 +2465,12 @@
                 };
 
                 buildHeader();
-                load(false);
+
+                if (restored && restored.items && restored.items.length) {
+                    restore();
+                } else {
+                    load(false);
+                }
             }
 
             return html;
@@ -2511,6 +2533,7 @@
                 posterObserver = null;
             }
 
+            saveCatalogCache();
             flushPosterCache();
 
             html.off();
@@ -3377,13 +3400,14 @@
 
             loading = true;
 
-            var nextPage = append ? (parseInt(params.page, 10) || 1) + 1 : (parseInt(params.page, 10) || 1);
+            var nextPage = append ? page + 1 : page;
             var payload = $.extend({}, params, { page: nextPage });
 
             body.find('.Shikimori-more').remove();
 
             if (!append) {
                 body.empty();
+                items = [];
                 last = null;
             }
 
@@ -3396,8 +3420,10 @@
                  * Номер страницы фиксируем только после успешного ответа.
                  * Раньше он увеличивался до запроса, и любой обрыв сети
                  * «съедал» страницу — часть каталога пропадала навсегда.
+                 * Хранится он теперь локально, а не в params: иначе при
+                 * возврате из карточки каталог начинался бы с последней страницы.
                  */
-                params.page = nextPage;
+                page = nextPage;
 
                 body.find('.Shikimori-loader').remove();
 
@@ -3405,6 +3431,7 @@
 
                 if (!data.length) {
                     ended = true;
+                    saveCatalogCache();
 
                     if (!append) body.append('<div class="Shikimori-empty">Ничего не найдено</div>');
 
@@ -3415,25 +3442,10 @@
 
                 if (data.length < PAGE_LIMIT) ended = true;
 
-                function renderCards() {
-                    /** Карточки собираются во фрагменте: одна вставка в DOM вместо 28. */
-                    var fragment = document.createDocumentFragment();
+                items = append ? items.concat(data) : data;
 
-                    for (var i = 0; i < data.length; i++) appendCard(data[i], fragment);
-
-                    if (!ended) addMoreButton(fragment);
-
-                    body[0].appendChild(fragment);
-
-                    lazyImages(body);
-
-                    if (window.Lampa && Lampa.Controller) {
-                        Lampa.Controller.collectionSet(html);
-                        Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
-                    }
-                }
-
-                renderCards();
+                renderCards(data, true, true);
+                saveCatalogCache();
             }, function () {
                 autoLoading = false;
                 loading = false;
@@ -3443,6 +3455,55 @@
                 if (append) addMoreButton();
                 else showLoadError();
             });
+        }
+
+        /** Восстановить список из кеша — без сети и без заглушек «Загрузка...». */
+        function restore() {
+            items = restored.items.slice();
+            page = restored.page || 1;
+            ended = !!restored.ended;
+            lastCardId = restored.focusId || null;
+
+            renderCards(items, false, false);
+        }
+
+        /** Сохранить загруженные страницы, чтобы вернуться к ним без запросов. */
+        function saveCatalogCache() {
+            if (!items.length) return;
+
+            catalogCache[cacheKey] = {
+                items: items,
+                page: page,
+                ended: ended,
+                focusId: lastCardId,
+                ts: Date.now()
+            };
+
+            trimCatalogCache();
+        }
+
+        /**
+         * Нарисовать карточки.
+         * @param {Array} list - Элементы для отрисовки
+         * @param {boolean} lazy - Откладывать загрузку постеров до прокрутки
+         * @param {boolean} focus - Переставлять фокус после вставки
+         */
+        function renderCards(list, lazy, focus) {
+            /** Карточки собираются во фрагменте: одна вставка в DOM вместо 28. */
+            var fragment = document.createDocumentFragment();
+
+            for (var i = 0; i < list.length; i++) appendCard(list[i], fragment, lazy);
+
+            if (!ended) addMoreButton(fragment);
+
+            body[0].appendChild(fragment);
+
+            if (lazy) lazyImages(body);
+
+            if (focus && window.Lampa && Lampa.Controller) {
+                Lampa.Controller.collectionSet(html);
+                Lampa.Controller.collectionFocus(last || body.find('.selector').first(), html);
+            }
         }
 
         /**
@@ -3468,8 +3529,8 @@
             }
         }
 
-        function appendCard(item, container) {
-            var card = new Card(item);
+        function appendCard(item, container, lazy) {
+            var card = new Card(item, lazy);
             var render = card.render();
 
             render.data('card', card);
@@ -3481,6 +3542,10 @@
 
             bindPress(render, function () {
                 lastCardId = item.id;
+
+                /* запоминаем позицию до перехода — по ней вернёмся из карточки */
+                saveCatalogCache();
+
                 openAnime(item);
             });
 
@@ -4023,7 +4088,8 @@
                     'color:rgba(255,255,255,0.85);font-size:0.95em;font-weight:500;margin:0 0.3em 0.3em 0!important;' +
                     'transition:all 0.2s ease-in-out;border-radius:0.5em!important;outline:none!important;box-shadow:none!important;' +
                 '}' +
-                '.Shikimori-chip{border-radius:1.5em!important;padding:0.5em 1.2em!important;font-size:0.88em;opacity:0.85;}' +
+                /* форма как у кнопок шапки (радиус из общего правила), размер — свой */
+                '.Shikimori-chip{padding:0.5em 1.2em!important;font-size:0.88em;opacity:1;}' +
                 '.Shikimori-head__button svg{width:1.15em;height:1.15em;margin-right:0.45em;opacity:0.85;flex-shrink:0;transition:transform 0.2s;}' +
                 '.Shikimori-head__button.focus,.Shikimori-chip.focus,.Shikimori-more.focus{' +
                     'background:#c83a4b!important;color:#fff!important;' +
@@ -4097,7 +4163,16 @@
         Lampa.Component.add('shikimori', Catalog);
 
         extendFull();
-        registerSettings();
+
+        /**
+         * Страховка от «зависшего» QR-оверлея: если открыта модалка авторизации,
+         * а активность сменилась (пользователь ушёл с экрана), закрываем её.
+         */
+        if (Lampa.Listener && Lampa.Listener.follow) {
+            Lampa.Listener.follow('activity', function () {
+                if (qrModalClose) qrModalClose();
+            });
+        }
 
         if (window.appready) {
             addMenu();
