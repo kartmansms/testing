@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.7
+ * Shikimori Plugin for Lampa v3.2.8
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -12,6 +12,15 @@
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
+ *
+ * Изменения 3.2.8 (вход с ТВ):
+ * - Код авторизации можно вставлять как ссылку: `...?code=XXXX`, с пробелами
+ *   и кавычками — плагин сам вытащит код (extractAuthCode)
+ * - Если платформа отдаёт буфер обмена, поле ввода уже заполнено кодом —
+ *   остаётся только подтвердить (readClipboard)
+ * - Неполный код больше не отправляется: сразу понятное сообщение
+ * - При неверном/истёкшем коде Shikimori показывается «Код неверный или истёк»
+ *   вместо общего «не удалось получить токен»
  *
  * Изменения 3.2.7:
  * - Кнопки быстрых фильтров («Популярное», «Онгоинги», «Анонсы»…) получили
@@ -1539,6 +1548,13 @@
      * @see {@link saveTokenAnswer} для сохранения ответа
      */
     function requestTokenByCode(code, callback) {
+        code = extractAuthCode(code);
+
+        if (!code) {
+            notify('Код не введён');
+            return;
+        }
+
         var auth = readAuth();
 
         if (!auth.client_id || !auth.client_secret || !auth.redirect_uri) {
@@ -1563,8 +1579,16 @@
                 saveTokenAnswer(answer);
                 if (callback) callback();
             },
-            error: function () {
-                notify('Shikimori: не удалось получить токен');
+            error: function (xhr) {
+                var reason = '';
+
+                try {
+                    if (xhr && xhr.responseJSON && xhr.responseJSON.error === 'invalid_grant') {
+                        reason = 'Код неверный или истёк — получите новый в приложении Shikimori';
+                    }
+                } catch (e) {}
+
+                notify(reason || 'Shikimori: не удалось получить токен');
             }
         });
     }
@@ -1662,6 +1686,110 @@
     }
 
     /**
+     * Достать код авторизации из того, что ввёл пользователь.
+     *
+     * Принимает и сам код, и ссылку вида `...?code=XXXX`, и текст с пробелами —
+     * на ТВ это важно: с телефона часто копируют ссылку целиком, а не код.
+     *
+     * @param {string} value - Ввод пользователя
+     * @returns {string} Код без лишних символов (или пустая строка)
+     */
+    function extractAuthCode(value) {
+        value = String(value === undefined || value === null ? '' : value).trim();
+
+        var match = value.match(/[?&]code=([^&\s#]+)/);
+
+        if (match) {
+            try {
+                value = decodeURIComponent(match[1]);
+            } catch (e) {
+                value = match[1];
+            }
+        }
+
+        return value.replace(/[\s"'<>]/g, '');
+    }
+
+    /**
+     * Похоже ли значение на код или ссылку с кодом.
+     * Нужно, чтобы не подставлять в поле случайное содержимое буфера.
+     */
+    function looksLikeAuthCode(value) {
+        var text = String(value === undefined || value === null ? '' : value);
+
+        if (/[?&]code=/.test(text)) return true;
+
+        return /^[\w\-~.]{16,}$/.test(text.trim());
+    }
+
+    /** Прочитать буфер обмена, если платформа это умеет (иначе — пусто). */
+    function readClipboard(done) {
+        try {
+            if (window.navigator && navigator.clipboard && navigator.clipboard.readText) {
+                navigator.clipboard.readText().then(function (text) {
+                    done(String(text || ''));
+                }, function () {
+                    done('');
+                });
+                return;
+            }
+        } catch (e) {}
+
+        done('');
+    }
+
+    /** Отправить введённый код на обмен токена (с проверкой и нормализацией). */
+    function sendAuthCode(value, callback) {
+        var code = extractAuthCode(value);
+
+        if (!code) {
+            notify('Код не введён');
+            return;
+        }
+
+        if (code.length < 16) {
+            notify('Код неполный — скопируйте его целиком');
+            return;
+        }
+
+        notify('Отправка кода...');
+
+        requestTokenByCode(code, callback);
+    }
+
+    /**
+     * Запросить код авторизации.
+     *
+     * Сначала пробуем буфер обмена: если код скопирован на телефоне, а платформа
+     * умеет отдавать буфер, ввод не нужен вовсе. Иначе открываем штатный ввод
+     * Lampa — с уже подставленным значением, чтобы оставалось только подтвердить.
+     *
+     * @param {Function} callback - Вызывается после успешного сохранения токена
+     */
+    function askAuthCode(callback) {
+        readClipboard(function (clipboard) {
+            var prefill = looksLikeAuthCode(clipboard) ? extractAuthCode(clipboard) : '';
+
+            if (!window.Lampa || !Lampa.Input || !Lampa.Input.edit) {
+                var typed = window.prompt('Код авторизации Shikimori', prefill);
+
+                if (typed === null) return;
+
+                sendAuthCode(typed, callback);
+                return;
+            }
+
+            Lampa.Input.edit({
+                title: 'Код авторизации Shikimori',
+                value: prefill,
+                free: true
+            }, function (value) {
+                sendAuthCode(value, callback);
+            });
+        });
+    }
+
+    /**
      * Показать модальное окно с QR-кодом авторизации и полем ввода кода.
      * Пользователь сканирует QR-код телефоном, подтверждает доступ,
      * видит код на экране телефона и вводит его в Lampa.
@@ -1685,14 +1813,15 @@
             '<div class="shikimori-qr-overlay">' +
                 '<div class="shikimori-qr-modal">' +
                     '<div class="shikimori-qr-title">Авторизация Shikimori</div>' +
-                    '<div class="shikimori-qr-hint">Отсканируйте QR-код телефоном</div>' +
+                    '<div class="shikimori-qr-hint">Отсканируйте QR-код телефоном и разрешите доступ</div>' +
                     '<div class="shikimori-qr-img-wrap">' +
                         '<img class="shikimori-qr-img" src="' + esc(qrSrc) + '" />' +
                         '<div class="shikimori-qr-error" style="display:none">QR-код недоступен.<br/>' +
                             'Скопируйте ссылку кнопкой ниже и откройте её на телефоне.</div>' +
                     '</div>' +
                     '<div class="shikimori-qr-link">' + esc(url) + '</div>' +
-                    '<div class="shikimori-qr-hint shikimori-qr-hint--small">После подтверждения нажмите «Ввести код»</div>' +
+                    '<div class="shikimori-qr-hint shikimori-qr-hint--small">Затем нажмите «Ввести код»: ' +
+                        'если код скопирован — он подставится сам, и останется только подтвердить</div>' +
                     '<div class="shikimori-qr-buttons">' +
                         '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--enter">Ввести код</div>' +
                         '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--copy">Копировать ссылку</div>' +
@@ -1765,33 +1894,10 @@
         function openCodeInput() {
             closeModal();
 
-            if (window.Lampa && Lampa.Input && Lampa.Input.edit) {
-                Lampa.Input.edit({
-                    title: 'Код авторизации Shikimori',
-                    value: '',
-                    free: true
-                }, function (code) {
-                    code = String(code || '').trim();
-                    if (!code) {
-                        notify('Код не введён');
-                        restoreFocus();
-                        return;
-                    }
-                    notify('Отправка кода...');
-                    requestTokenByCode(code, function () {
-                        loadWhoami();
-                        restoreFocus();
-                    });
-                });
-            } else {
-                var code = window.prompt('Код авторизации Shikimori', '');
-                if (code !== null && String(code).trim()) {
-                    requestTokenByCode(String(code).trim(), function () {
-                        loadWhoami();
-                    });
-                }
+            askAuthCode(function () {
+                loadWhoami();
                 restoreFocus();
-            }
+            });
         }
 
         function copyLink() {
@@ -3328,9 +3434,10 @@
                             notify(url);
                         }
                     } else if (item.value === 'code') {
-                        askText('Код авторизации', '', function (value) {
-                            if (value) requestTokenByCode(value, loadWhoami);
-                        }, btnElement, function () { openAuthSettings(btnElement, 6); });
+                        askAuthCode(function () {
+                            loadWhoami();
+                            openAuthSettings(btnElement);
+                        });
                     } else if (item.value === 'refresh') {
                         refreshToken(function () {
                             loadWhoami();
