@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.4
+ * Shikimori Plugin for Lampa v3.2.5
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -13,6 +13,18 @@
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
  *
+ * Изменения 3.2.5 (этап 3 — данные и удобство):
+ * - Оценка и статус (userRate) приходят прямо в ответе каталога и полной страницы:
+ *   больше не нужно тянуть «все оценки пользователя» (до сотен КБ) на ТВ.
+ *   При превышении лимита сложности запроса плагин повторяет его без userRate
+ * - «Просмотрено все N эп.» в меню списка — прогресс эпизодов одним действием
+ * - Сортировки «Рейтинг Shikimori» и «Случайно», быстрый фильтр «Случайное»
+ * - Компактный режим каталога грузит лёгкие превью, а не крупные постеры
+ * - Подбор карточки TMDB: не больше трёх поисковых запросов вместо 6–10
+ * - Зеркала shikimori.one / shikimori.me в выборе домена
+ * - QR-модалка показывает ссылку и переживает недоступность сервиса QR-кодов
+ * - Настройки продублированы в системное меню Lampa (Lampa.SettingsApi)
+ *
  * Изменения 3.2.4 (этап 2 — стабильность и слабые ТВ):
  * - Полная страница: работа по событию 'complite' вместо опроса каждые 1.8 с;
  *   'build' (приходит на каждую строку карточки) и 'start' больше не запускают запросы
@@ -22,7 +34,7 @@
  *   страницы больше не теряются
  * - Кнопка «Повторить» на экране ошибки загрузки
  * - Пустой результат поиска постера больше не кешируется
- * - Кеш постеров ограничен 600 записями и пишется одним заходом (было 28 записей подряд)
+ * - Кеш постеров ограничен 600 записями и пишется одним заходом
  * - Каталог: 28 карточек на страницу, сборка через DocumentFragment,
  *   ленивая загрузка постеров через IntersectionObserver
  *
@@ -227,6 +239,140 @@
 
     function saveSettings(settings) {
         storageSet(SETTINGS_KEY, settings || defaults());
+        syncSettingsParams(settings || defaults());
+    }
+
+    // ─── Настройки в системном меню Lampa ──────────────────────────────
+
+    /**
+     * Параметры, которые дублируются в штатное меню настроек Lampa.
+     *
+     * Плагин продолжает читать свой объект настроек (SETTINGS_KEY):
+     * параметры Lampa только пишут в него и показывают текущее значение.
+     * Так настройки видны в общем списке Lampa, но ничего не ломается
+     * на сборках, где SettingsApi отсутствует.
+     */
+    function settingsParamList() {
+        return [
+            {
+                key: 'title_language',
+                name: 'Язык названий',
+                type: 'select',
+                values: { original: 'Оригинал', en: 'Английский', ru: 'Русский' },
+                default: 'original'
+            },
+            {
+                key: 'hide_adult',
+                name: 'Скрывать 18+',
+                type: 'select',
+                values: { true: 'Да', false: 'Нет' },
+                default: 'true'
+            },
+            {
+                key: 'default_sort',
+                name: 'Сортировка по умолчанию',
+                type: 'select',
+                values: { popularity: 'Популярность', ranked: 'Рейтинг', ranked_shiki: 'Рейтинг Shikimori', aired_on: 'Дата выхода' },
+                default: 'popularity'
+            },
+            {
+                key: 'card_size',
+                name: 'Размер карточек',
+                type: 'select',
+                values: { normal: 'Обычный', compact: 'Компактный' },
+                default: 'normal'
+            },
+            {
+                key: 'shiki_host',
+                name: 'Домен Shikimori',
+                type: 'input',
+                values: '',
+                default: 'https://shikimori.io'
+            }
+        ];
+    }
+
+    /** Привести значение настройки к строке для хранилища Lampa. */
+    function settingString(key, value) {
+        if (key === 'hide_adult') return String(!!value);
+
+        return String(value === undefined || value === null ? '' : value);
+    }
+
+    /** Обновить значения параметров Lampa после правки в меню плагина. */
+    function syncSettingsParams(settings) {
+        if (!window.Lampa || !Lampa.Storage || !window.plugin_shikimori_settings_registered) return;
+
+        var list = settingsParamList();
+
+        for (var i = 0; i < list.length; i++) {
+            try {
+                Lampa.Storage.set('shikimori_' + list[i].key, settingString(list[i].key, settings[list[i].key]));
+            } catch (e) {}
+        }
+    }
+
+    /**
+     * Зарегистрировать раздел «Shikimori» в системных настройках Lampa.
+     * Если API в сборке нет — молча остаёмся со своим меню.
+     */
+    function registerSettings() {
+        if (!window.Lampa || !Lampa.SettingsApi || !Lampa.SettingsApi.addComponent) return;
+        if (window.plugin_shikimori_settings_registered) return;
+
+        try {
+            Lampa.SettingsApi.addComponent({
+                component: 'shikimori',
+                name: 'Shikimori',
+                icon: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Zm0 2.3 6.6 3.3L12 10.9 5.4 7.6 12 4.3Z"/></svg>'
+            });
+        } catch (e) {
+            return;
+        }
+
+        var settings = readSettings();
+
+        settingsParamList().forEach(function (item) {
+            var paramName = 'shikimori_' + item.key;
+
+            try {
+                // стартовое значение, чтобы в меню Lampa показывалась текущая настройка
+                if (Lampa.Storage.get(paramName, null) === null) {
+                    Lampa.Storage.set(paramName, settingString(item.key, settings[item.key]) || item.default);
+                }
+            } catch (e) {}
+
+            try {
+                Lampa.SettingsApi.addParam({
+                    component: 'shikimori',
+                    param: {
+                        name: paramName,
+                        type: item.type,
+                        values: item.values,
+                        default: item.default
+                    },
+                    field: {
+                        name: item.name,
+                        description: 'Shikimori'
+                    },
+                    onChange: function (value) {
+                        var next = readSettings();
+
+                        if (item.key === 'hide_adult') {
+                            next.hide_adult = value === 'true' || value === true;
+                        } else if (item.key === 'shiki_host') {
+                            next.shiki_host = String(value || '').replace(/\/$/, '') || defaults().shiki_host;
+                        } else {
+                            next[item.key] = String(value || item.default);
+                        }
+
+                        saveSettings(next);
+                    }
+                });
+            } catch (e) {}
+        });
+
+        window.plugin_shikimori_settings_registered = true;
     }
 
     /**
@@ -399,8 +545,10 @@
         var map = {
             popularity: 'популярность',
             ranked: 'рейтинг',
+            ranked_shiki: 'рейтинг Shikimori',
             name: 'название',
-            aired_on: 'дата выхода'
+            aired_on: 'дата выхода',
+            random: 'случайно'
         };
 
         return map[sort] || sort || '';
@@ -506,19 +654,29 @@
      * Фильтрует заглушки (missing_original, missing_preview, и т.д.).
      *
      * @param {Object} data - Маппинг данных аниме с полями poster и image
+     * @param {boolean} [preferSmall] - Сначала лёгкие превью (компактный режим каталога)
      * @returns {string[]} Массив валидных URL постеров (без дубликатов)
      *
      * @see {@link normalizePosterUrl} для нормализации URL
      * @see {@link isBadPosterUrl} для фильтрации заглушек
      */
-    function posterUrls(data) {
+    function posterUrls(data, preferSmall) {
         var list = [];
         var poster = data && data.poster ? data.poster : {};
         var image = data && data.image ? data.image : {};
 
-        pushPosterUrl(list, poster.mainUrl || poster.main_url);
-        pushPosterUrl(list, poster.previewUrl || poster.preview_url);
-        pushPosterUrl(list, image.preview);
+        if (preferSmall) {
+            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
+            pushPosterUrl(list, image.preview);
+            pushPosterUrl(list, poster.miniUrl || poster.mini_url);
+            pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
+            pushPosterUrl(list, poster.mainUrl || poster.main_url);
+        } else {
+            pushPosterUrl(list, poster.mainUrl || poster.main_url);
+            pushPosterUrl(list, poster.previewUrl || poster.preview_url);
+            pushPosterUrl(list, image.preview);
+        }
+
         pushPosterUrl(list, poster.originalUrl || poster.original_url);
         pushPosterUrl(list, image.original);
         pushPosterUrl(list, poster.x96Url || poster.x96_url || image.x96);
@@ -748,6 +906,13 @@
         var bestMatch = null;
         var anyMatch = null;
 
+        /**
+         * Не больше трёх запросов подряд: каждый — до 8 секунд, а
+         * buildSmartQueries легко выдаёт 6–10 вариантов названия.
+         * Без ограничения открытие карточки могло «висеть» минуту.
+         */
+        var maxQueries = Math.min(queries.length, 3);
+
         function finish() {
             if (bestMatch) { onMatch(bestMatch); return; }
             if (anyMatch) { onMatch(anyMatch); return; }
@@ -755,7 +920,7 @@
         }
 
         function next() {
-            if (index >= queries.length) { finish(); return; }
+            if (index >= maxQueries) { finish(); return; }
             var query = queries[index++];
             var url = tmdbApiUrl('search/multi?api_key=' + TMDB_API_KEY +
                 '&language=' + encodeURIComponent(tmdbLanguage()) +
@@ -1150,6 +1315,16 @@
     }
 
     /**
+     * Поле userRate для GraphQL — только для авторизованных.
+     *
+     * Даёт оценку и статус прямо в ответе каталога, без отдельного запроса
+     * «все оценки пользователя» (он мог весить сотни килобайт на ТВ).
+     */
+    function userRateField() {
+        return isAuthorized() ? 'userRate { id score status episodes } ' : '';
+    }
+
+    /**
      * Запрос списка аниме из Shikimori GraphQL API.
      *
      * Использует GraphQL вместо REST для получения полных URL постеров.
@@ -1157,16 +1332,25 @@
      * @param {Object} params - Параметры запроса
      * @param {Function} oncomplete - Вызывается с массивом маппинга аниме
      * @param {Function} [onerror] - Колбэк ошибки (опционально)
+     * @param {boolean} [withRates] - false = не запрашивать userRate (фолбэк при ошибке сложности)
      */
-    function requestAnime(params, oncomplete, onerror) {
+    function requestAnime(params, oncomplete, onerror, withRates) {
         var page = parseInt(params.page, 10) || 1;
         var sort = params.sort || readSettings().default_sort;
+        var wantRates = withRates !== false && isAuthorized();
 
         var args = [];
         args.push('limit: ' + PAGE_LIMIT);
         args.push('page: ' + page);
 
-        var orderMap = { popularity: 'popularity', ranked: 'ranked', aired_on: 'aired_on', name: 'name' };
+        var orderMap = {
+            popularity: 'popularity',
+            ranked: 'ranked',
+            ranked_shiki: 'ranked_shiki',
+            aired_on: 'aired_on',
+            name: 'name',
+            random: 'random'
+        };
         if (orderMap[sort]) args.push('order: ' + orderMap[sort]);
 
         if (params.search) args.push('search: ' + gqlString(params.search));
@@ -1194,6 +1378,7 @@
             'airedOn { year date } ' +
             'poster { mainUrl main2xUrl previewUrl miniUrl originalUrl } ' +
             'genres { id name russian } ' +
+            (wantRates ? 'userRate { id score status episodes } ' : '') +
             '} }';
 
         gqlQuery(query, function (data) {
@@ -1210,7 +1395,17 @@
             }
 
             oncomplete(mapped);
-        }, function () {
+        }, function (message) {
+            /**
+             * У Shikimori ограничение сложности запроса (max_complexity 190).
+             * Если поле userRate её превысило — повторяем запрос без него,
+             * чтобы каталог продолжал работать у авторизованных пользователей.
+             */
+            if (wantRates && String(message || '').toLowerCase().indexOf('complexity') !== -1) {
+                requestAnime(params, oncomplete, onerror, false);
+                return;
+            }
+
             notify('Shikimori: не удалось загрузить каталог');
             if (onerror) onerror();
         });
@@ -1611,7 +1806,10 @@
                     '<div class="shikimori-qr-hint">Отсканируйте QR-код телефоном</div>' +
                     '<div class="shikimori-qr-img-wrap">' +
                         '<img class="shikimori-qr-img" src="' + esc(qrSrc) + '" />' +
+                        '<div class="shikimori-qr-error" style="display:none">QR-код недоступен.<br/>' +
+                            'Скопируйте ссылку кнопкой ниже и откройте её на телефоне.</div>' +
                     '</div>' +
+                    '<div class="shikimori-qr-link">' + esc(url) + '</div>' +
                     '<div class="shikimori-qr-hint shikimori-qr-hint--small">После подтверждения нажмите «Ввести код»</div>' +
                     '<div class="shikimori-qr-buttons">' +
                         '<div class="simple-button selector shikimori-qr-btn shikimori-qr-btn--enter">Ввести код</div>' +
@@ -1627,6 +1825,17 @@
         var enterBtn = overlay.find('.shikimori-qr-btn--enter');
         var copyBtn = overlay.find('.shikimori-qr-btn--copy');
         var closeBtn = overlay.find('.shikimori-qr-btn--close');
+        var qrImg = overlay.find('.shikimori-qr-img');
+        var qrError = overlay.find('.shikimori-qr-error');
+
+        /**
+         * QR рисует сторонний сервис — он бывает недоступен. Тогда показываем
+         * ту же ссылку текстом: её видно на экране ТВ и можно скопировать.
+         */
+        qrImg.on('error', function () {
+            qrImg.hide();
+            qrError.show();
+        });
 
         function restoreFocus() {
             if (btnElement) {
@@ -1753,61 +1962,12 @@
 
     // ─── User Rates (Lists) ────────────────────────────────────────────
 
-    /** Кеш оценок пользователя { animeId: rate }. */
-    var userRatesCache = null;
-
-    /** Очистить кеш оценок (вызывать после сохранения/удаления). */
-    function clearUserRatesCache() {
-        userRatesCache = null;
-    }
-
     /**
-     * Загрузить ВСЕ оценки пользователя за один запрос и сохранить в кеш.
+     * Получить запись оценки пользователя для конкретного аниме.
      *
-     * API: GET {shiki_host}/api/v2/user_rates?user_id={id}&target_type=Anime
-     * Headers: Authorization: Bearer {token}
-     *
-     * Ответ: Array<{id, target_id, target_type, score, status, episodes, ...}>
-     * Кешируется в userRatesCache как { [target_id]: rate }
-     *
-     * @param {Function} callback - Вызывается с объектом { [animeId]: rate }
-     *
-     * @see {@link getUserRateFromCache} для чтения из кеша
-     * @see {@link clearUserRatesCache} для очистки кеша
+     * Нужен только для полной страницы, когда карточка пришла не из каталога
+     * (в каталоге userRate приходит прямо в GraphQL-ответе).
      */
-    function fetchAllUserRates(callback) {
-        var auth = readAuth();
-
-        if (!auth.id) {
-            callback({});
-            return;
-        }
-
-        withAccessToken(function (token) {
-            var url = getShikiHost() + '/api/v2/user_rates?user_id=' + auth.id + '&target_type=Anime';
-
-            apiRequestAuth('GET', url, null, token, function (res) {
-                var map = {};
-                if (Array.isArray(res)) {
-                    for (var i = 0; i < res.length; i++) {
-                        if (res[i] && res[i].target_id) map[res[i].target_id] = res[i];
-                    }
-                }
-                userRatesCache = map;
-                callback(map);
-            }, function () {
-                callback({});
-            });
-        });
-    }
-
-    /** Получить оценку для аниме из кеша (без запроса к API). */
-    function getUserRateFromCache(animeId) {
-        if (!userRatesCache) return null;
-        return userRatesCache[animeId] || null;
-    }
-
-    /** Получить запись оценки пользователя для конкретного аниме. */
     function fetchUserRate(animeId, callback) {
         var auth = readAuth();
 
@@ -1932,12 +2092,21 @@
             var auth = readAuth();
 
             if (auth.id) {
-                setButtonState('Загрузка списка...', false, true);
-
-                fetchUserRate(anime.id, function (rate) {
-                    currentRate = rate;
+                /**
+                 * Каталог и fetchShikiAnimeById уже отдают userRate в ответе —
+                 * отдельный запрос нужен только если данных нет.
+                 */
+                if (anime.userRate) {
+                    currentRate = anime.userRate;
                     updateBtnLabel();
-                });
+                } else {
+                    setButtonState('Загрузка списка...', false, true);
+
+                    fetchUserRate(anime.id, function (rate) {
+                        currentRate = rate;
+                        updateBtnLabel();
+                    });
+                }
             } else {
                 updateBtnLabel();
             }
@@ -2005,6 +2174,19 @@
                 action: 'rate'
             });
 
+            /**
+             * Прогресс эпизодов. Для сериала — сразу «просмотрено» с числом серий:
+             * на ТВ это быстрее, чем отмечать каждую серию вручную.
+             */
+            if (anime.episodes) {
+                var watched = currentRate && currentRate.episodes ? currentRate.episodes : 0;
+
+                items.push({
+                    title: (watched >= anime.episodes ? '✓ ' : '') + 'Просмотрено все ' + anime.episodes + ' эп.',
+                    action: 'complete'
+                });
+            }
+
             if (currentRate && currentRate.id) {
                 items.push({
                     title: 'Удалить из списка',
@@ -2022,6 +2204,11 @@
                         });
                     } else if (item.action === 'rate') {
                         showRateMenu();
+                    } else if (item.action === 'complete') {
+                        setRateData({
+                            status: 'completed',
+                            episodes: anime.episodes
+                        });
                     } else if (item.action === 'delete') {
                         removeRate();
                     }
@@ -2072,7 +2259,6 @@
             saveUserRate(anime.id, currentRate ? currentRate.id : null, data, function (newRate) {
                 listLoading = false;
                 currentRate = newRate;
-                clearUserRatesCache();
 
                 updateBtnLabel();
 
@@ -2091,7 +2277,6 @@
             deleteUserRate(currentRate.id, function () {
                 listLoading = false;
                 currentRate = null;
-                clearUserRatesCache();
 
                 updateBtnLabel();
 
@@ -2167,7 +2352,9 @@
             '</svg>'
         );
 
-        var posterList = posterUrls(data);
+        var posterList = posterUrls(data, compact);
+
+        /** В компактном режиме (мелкие карточки) тяжёлый mainUrl не нужен. */
         var imgSrc = posterList.length ? esc(posterList[0]) : noPosterSVG;
 
         if (season) meta.push(season);
@@ -2201,11 +2388,8 @@
 
             installPosterFallback(element.find('.card__img'), posterList, noPosterSVG, data);
 
-            if (isAuthorized()) {
-                var rate = getUserRateFromCache(data.id);
-                if (rate && rate.score) {
-                    element.find('.Shikimori-card__user-rate').text('♥ ' + rate.score).show();
-                }
+            if (isAuthorized() && data.userRate && data.userRate.score) {
+                element.find('.Shikimori-card__user-rate').text('♥ ' + data.userRate.score).show();
             }
 
             return element;
@@ -2397,6 +2581,17 @@
             addQuick('Фильмы', {
                 kind: 'movie',
                 sort: 'popularity',
+                status: '',
+                season: '',
+                genre: '',
+                genre_title: '',
+                search: '',
+                mylist: ''
+            });
+
+            addQuick('Случайное', {
+                sort: 'random',
+                kind: '',
                 status: '',
                 season: '',
                 genre: '',
@@ -2715,7 +2910,9 @@
                 { title: selectedTitle(!params.sort || params.sort === readSettings().default_sort, 'По умолчанию'), value: '' },
                 { title: selectedTitle(current === 'popularity', 'Популярность'), value: 'popularity' },
                 { title: selectedTitle(current === 'ranked', 'Рейтинг'), value: 'ranked' },
-                { title: selectedTitle(current === 'aired_on', 'Дата выхода'), value: 'aired_on' }
+                { title: selectedTitle(current === 'ranked_shiki', 'Рейтинг Shikimori'), value: 'ranked_shiki' },
+                { title: selectedTitle(current === 'aired_on', 'Дата выхода'), value: 'aired_on' },
+                { title: selectedTitle(current === 'random', 'Случайно'), value: 'random' }
             ];
 
             Lampa.Select.show({
@@ -3018,8 +3215,14 @@
             var settings = readSettings();
             var items = [
                 { title: 'shikimori.io', value: 'https://shikimori.io' },
+                { title: 'shikimori.one', value: 'https://shikimori.one' },
+                { title: 'shikimori.me', value: 'https://shikimori.me' },
                 { title: 'Ввести вручную', value: 'custom' }
             ];
+
+            if (settings.shiki_host && settings.shiki_host !== 'https://shikimori.io') {
+                items.push({ title: 'Текущий: ' + settings.shiki_host, value: 'keep' });
+            }
 
             Lampa.Select.show({
                 title: 'Домен Shikimori',
@@ -3033,6 +3236,8 @@
                                 notify('Домен Shikimori изменён');
                             }
                         }, btnElement);
+                    } else if (item.value === 'keep') {
+                        openSettings(btnElement);
                     } else {
                         settings.shiki_host = item.value;
                         saveSettings(settings);
@@ -3228,11 +3433,7 @@
                     }
                 }
 
-                if (!append && isAuthorized() && !userRatesCache) {
-                    fetchAllUserRates(function () { renderCards(); });
-                } else {
-                    renderCards();
-                }
+                renderCards();
             }, function () {
                 autoLoading = false;
                 loading = false;
@@ -3413,6 +3614,7 @@
             episodes: item.episodes || 0,
             episodesAired: item.episodesAired || 0,
             genres: item.genres || [],
+            userRate: item.userRate || item.user_rate || null,
             airedOn: {
                 year: item.airedOn && item.airedOn.year ? String(item.airedOn.year) :
                        item.aired_on ? String(item.aired_on).substring(0, 4) : ''
@@ -3443,6 +3645,7 @@
             'airedOn { year date } ' +
             'poster { mainUrl main2xUrl previewUrl miniUrl originalUrl } ' +
             'genres { id name russian } ' +
+            userRateField() +
             '} }';
 
         gqlQuery(query, function (data) {
@@ -3859,6 +4062,8 @@
                 '.shikimori-qr-hint--small{font-size:.88em;color:rgba(255,255,255,.5);margin-top:0.3em}' +
                 '.shikimori-qr-img-wrap{background:#fff;border-radius:.6em;padding:.6em}' +
                 '.shikimori-qr-img{display:block;width:250px;height:250px}' +
+                '.shikimori-qr-error{font-size:.9em;color:#e95a68;line-height:1.35;padding:.6em}' +
+                '.shikimori-qr-link{font-size:.68em;color:rgba(255,255,255,.45);word-break:break-all;line-height:1.3;max-height:2.6em;overflow:hidden;width:100%}' +
                 '.shikimori-qr-buttons{display:flex;width:100%}' +
                 '.shikimori-qr-btn{flex:1;padding:.65em .5em!important;font-size:.95em;text-align:center}' +
                 '.shikimori-qr-btn+.shikimori-qr-btn{margin-left:.6em}' +
@@ -3892,6 +4097,7 @@
         Lampa.Component.add('shikimori', Catalog);
 
         extendFull();
+        registerSettings();
 
         if (window.appready) {
             addMenu();
