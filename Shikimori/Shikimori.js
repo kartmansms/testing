@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.9
+ * Shikimori Plugin for Lampa v3.2.10
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -12,6 +12,10 @@
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
+ *
+ * Изменения 3.2.10:
+ * - Удалена сортировка «Случайно» и кнопка «Случайное»: убраны чип в шапке,
+ *   пункт в меню сортировки, маппинг sortName и значение в orderMap
  *
  * Изменения 3.2.9 (фокус на ТВ):
  * - Возврат фокуса после закрытия ввода по «Назад»: restoreCatalogFocus()
@@ -53,7 +57,7 @@
  *   больше не нужно тянуть «все оценки пользователя» (до сотен КБ) на ТВ.
  *   При превышении лимита сложности запроса плагин повторяет его без userRate
  * - «Просмотрено все N эп.» в меню списка — прогресс эпизодов одним действием
- * - Сортировки «Рейтинг Shikimori» и «Случайно», быстрый фильтр «Случайное»
+ * - Сортировка «Рейтинг Shikimori»
  * - Компактный режим каталога грузит лёгкие превью, а не крупные постеры
  * - Подбор карточки TMDB: не больше трёх поисковых запросов вместо 6–10
  * - Зеркала shikimori.one / shikimori.me в выборе домена
@@ -513,8 +517,7 @@
             ranked: 'рейтинг',
             ranked_shiki: 'рейтинг Shikimori',
             name: 'название',
-            aired_on: 'дата выхода',
-            random: 'случайно'
+            aired_on: 'дата выхода'
         };
 
         return map[sort] || sort || '';
@@ -1314,8 +1317,7 @@
             ranked: 'ranked',
             ranked_shiki: 'ranked_shiki',
             aired_on: 'aired_on',
-            name: 'name',
-            random: 'random'
+            name: 'name'
         };
         if (orderMap[sort]) args.push('order: ' + orderMap[sort]);
 
@@ -2783,17 +2785,6 @@
                 mylist: ''
             });
 
-            addQuick('Случайное', {
-                sort: 'random',
-                kind: '',
-                status: '',
-                season: '',
-                genre: '',
-                genre_title: '',
-                search: '',
-                mylist: ''
-            });
-
             if (
                 params.search ||
                 params.kind ||
@@ -3100,8 +3091,7 @@
                 { title: selectedTitle(current === 'popularity', 'Популярность'), value: 'popularity' },
                 { title: selectedTitle(current === 'ranked', 'Рейтинг'), value: 'ranked' },
                 { title: selectedTitle(current === 'ranked_shiki', 'Рейтинг Shikimori'), value: 'ranked_shiki' },
-                { title: selectedTitle(current === 'aired_on', 'Дата выхода'), value: 'aired_on' },
-                { title: selectedTitle(current === 'random', 'Случайно'), value: 'random' }
+                { title: selectedTitle(current === 'aired_on', 'Дата выхода'), value: 'aired_on' }
             ];
 
             Lampa.Select.show({
