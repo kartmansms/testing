@@ -1,5 +1,5 @@
 /**
- * Shikimori Plugin for Lampa v3.2.10
+ * Shikimori Plugin for Lampa v3.2.11
  *
  * Интеграция базы данных аниме Shikimori для медиа-центра Lampa.
  * Каталог, поиск, фильтры, сезоны, списки пользователя, карточки полной страницы.
@@ -12,6 +12,14 @@
  * - Внедрение оценки Shikimori и кнопки списка на полную страницу
  * - Навигация ТВ-пулем с восстановлением фокуса
  * - Настройки: язык, размер карточек, домен Shikimori
+ *
+ * Изменения 3.2.11:
+ * - Резервный поиск аниме на полной странице переведён с REST /api/animes?search=
+ *   на GraphQL nimes(search:). REST-поле image отдаёт легаси-пути
+ *   /system/animes/..., и у многих тайтлов (например, Death Note) там заглушка
+ *   missing_original.jpg, хотя постер есть в /uploads/poster/... — карточка
+ *   оставалась без обложки. GraphQL poster {} отдаёт актуальные URL
+ * - Обращений к старому REST-поиску в плагине больше нет
  *
  * Изменения 3.2.10:
  * - Удалена сортировка «Случайно» и кнопка «Случайное»: убраны чип в шапке,
@@ -3876,7 +3884,16 @@
         });
     }
 
-    /** Поиск Shikimori по названию с матчем по годам. Используется для разрешения полной страницы. */
+    /**
+     * Поиск Shikimori по названию с матчем по годам.
+     *
+     * Используется как резервный путь полной страницы. Ищем через GraphQL,
+     * а не через REST `/api/animes?search=`: REST-поле `image` до сих пор
+     * отражает легаси-раскладку `/system/animes/...`, и у многих тайтлов
+     * (например, Death Note) там заглушка `missing_original.jpg`, хотя постер
+     * есть в новой раскладке `/uploads/poster/...`. GraphQL `poster {}` отдаёт
+     * актуальные URL, поэтому карточка остаётся с обложкой.
+     */
     function searchShikiAnimeByTitle(activity, callback) {
         var card = getFullCard(activity);
         var year = getCardYear(card);
@@ -3902,27 +3919,28 @@
             }
 
             var query = queries[index++];
-            var url = getShikiHost() + '/api/animes?limit=10&search=' + encodeURIComponent(query);
+            var gql = '{ animes(limit: 10, search: ' + gqlString(query) + ') { ' +
+                'id malId name russian english kind status score ' +
+                'episodes episodesAired season isCensored rating ' +
+                'airedOn { year date } ' +
+                'poster { mainUrl main2xUrl previewUrl miniUrl originalUrl } ' +
+                'genres { id name russian } ' +
+                '} }';
 
-            apiGetJson(url, function (list) {
+            gqlQuery(gql, function (data) {
+                var list = data && data.animes ? data.animes : [];
                 var best = null;
 
-                if (Array.isArray(list) && list.length) {
-                    for (var i = 0; i < list.length; i++) {
-                        var item = list[i];
+                for (var i = 0; i < list.length; i++) {
+                    var item = list[i];
 
-                        if (!best) best = item;
+                    if (!best) best = item;
 
-                        if (year && item.aired_on) {
-                            var itemYear = parseInt(String(item.aired_on).substring(0, 4), 10);
+                    if (year && item.airedOn && item.airedOn.year) {
+                        var itemYear = parseInt(item.airedOn.year, 10);
 
-                            var isValidYear = Math.abs(itemYear - year) <= 1;
-
-                            if (isValidYear) {
-                                best = item;
-                                break;
-                            }
-                        } else if (!year) {
+                        if (!isNaN(itemYear) && Math.abs(itemYear - year) <= 1) {
+                            best = item;
                             break;
                         }
                     }
